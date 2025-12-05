@@ -1,5 +1,6 @@
 import sys
 import time
+import argparse
 from functools import wraps
 from typing import Optional, Dict
 
@@ -283,14 +284,74 @@ def display_results(company_data: Dict, dcf_results: Dict):
     print(f"\n{'=' * 50}")
 
 
+def parse_arguments():
+    """
+    Parse command-line arguments.
+
+    Returns:
+        Namespace object with parsed arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="DCF Valuation Tool - Analyze stocks using Discounted Cash Flow methodology",
+        epilog="Examples:\n"
+               "  python app.py MSFT                              Interactive mode\n"
+               "  python app.py MSFT --growth 8 --wacc 10         Non-interactive with custom params\n"
+               "  python app.py AAPL MSFT GOOGL --compare         Multi-stock comparison (coming soon)\n"
+               "  python app.py MSFT --scenarios                  Scenario analysis (coming soon)\n",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parser.add_argument(
+        "ticker",
+        nargs="?",
+        default=None,
+        help="Stock ticker symbol (e.g., AAPL, MSFT, GOOGL). Leave empty for interactive mode.",
+    )
+
+    parser.add_argument(
+        "--growth",
+        type=float,
+        default=None,
+        help="Explicit forecast growth rate (percentage). Default: 5.0 or analyst estimate if available",
+    )
+
+    parser.add_argument(
+        "--terminal-growth",
+        type=float,
+        default=None,
+        help="Terminal growth rate (percentage). Default: 2.5",
+    )
+
+    parser.add_argument(
+        "--wacc",
+        type=float,
+        default=None,
+        help="Discount rate / WACC (percentage). Default: auto-calculated from beta",
+    )
+
+    parser.add_argument(
+        "--years",
+        type=int,
+        default=None,
+        help="Forecast horizon in years. Default: 5",
+    )
+
+    return parser.parse_args()
+
+
 def main():
     """Main entry point for DCF analysis tool."""
+    args = parse_arguments()
+
     print("\n{'=' * 50}")
     print("DCF Analysis Tool - Real-World Financial Data")
     print(f"{'=' * 50}\n")
 
-    # Get ticker input
-    ticker = input("Enter stock ticker (e.g., AAPL): ").upper().strip()
+    # Get ticker
+    if args.ticker:
+        ticker = args.ticker.upper().strip()
+    else:
+        ticker = input("Enter stock ticker (e.g., AAPL): ").upper().strip()
 
     if not ticker:
         print("Error: Invalid ticker. Exiting.")
@@ -304,9 +365,33 @@ def main():
         print("Please verify the ticker symbol and try again.")
         sys.exit(1)
 
-    # Get user inputs
+    # Get user inputs (interactive or from CLI args)
     try:
-        inputs = get_user_inputs_with_defaults(company_data)
+        if args.growth is not None or args.wacc is not None or args.years is not None:
+            # Non-interactive mode: use CLI args with defaults
+            growth = (args.growth / 100) if args.growth is not None else (company_data.get("analyst_growth") or 0.05)
+            term_growth = (args.terminal_growth / 100) if args.terminal_growth is not None else 0.025
+            
+            # Auto-calculate WACC if not provided
+            if args.wacc is not None:
+                wacc = args.wacc / 100
+            else:
+                risk_free_rate = 4.5 / 100
+                market_risk_premium = 7.0 / 100
+                beta = company_data["beta"]
+                wacc = risk_free_rate + (beta * market_risk_premium)
+            
+            years = args.years if args.years is not None else 5
+            
+            inputs = {
+                "growth": growth,
+                "term_growth": term_growth,
+                "wacc": wacc,
+                "years": years,
+            }
+        else:
+            # Interactive mode: prompt user for inputs
+            inputs = get_user_inputs_with_defaults(company_data)
     except ValueError as e:
         print(f"Error: {e}")
         sys.exit(1)
