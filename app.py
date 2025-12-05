@@ -1,6 +1,7 @@
 import sys
 import time
 import argparse
+import csv
 from functools import wraps
 from typing import Optional, Dict
 
@@ -59,16 +60,16 @@ def fetch_company_data(ticker: str) -> Optional[Dict]:
 
         # Validate ticker exists
         if not info or info.get("regularMarketPrice") is None:
-            print(f"  ❌ Invalid ticker or no data available: {ticker}")
+            print(f"  Invalid ticker or no data available: {ticker}")
             return None
 
         if cash_flow is None or cash_flow.empty:
-            print(f"  ⚠️  No cash flow data available for {ticker}")
+            print(f"  No cash flow data available for {ticker}")
             return None
 
         # Extract Free Cash Flow (most recent quarter annualized)
         if "Free Cash Flow" not in cash_flow.index:
-            print(f"  ⚠️  Free Cash Flow not in financial statements for {ticker}")
+            print(f"  Free Cash Flow not in financial statements for {ticker}")
             return None
 
         fcf_quarterly = cash_flow.loc["Free Cash Flow"].iloc[0]
@@ -90,7 +91,7 @@ def fetch_company_data(ticker: str) -> Optional[Dict]:
             analyst_growth = info["revenueGrowth"]
 
         if shares == 0:
-            print(f"  ⚠️  Shares outstanding not available for {ticker}")
+            print(f"  Shares outstanding not available for {ticker}")
             return None
 
         return {
@@ -105,7 +106,7 @@ def fetch_company_data(ticker: str) -> Optional[Dict]:
         }
 
     except Exception as e:
-        print(f"  ❌ Error fetching data for {ticker}: {str(e)}")
+        print(f"  Error fetching data for {ticker}: {str(e)}")
         return None
 
 
@@ -354,6 +355,78 @@ def display_scenario_results(company_data: Dict, scenario_results: Dict):
     print(f"Average Fair Value: ${sum(values) / len(values):.2f}\n")
 
 
+def run_multi_stock_comparison(tickers: list, base_inputs: Dict) -> Optional[Dict]:
+    """Run DCF for multiple stocks and compile comparison data."""
+    results = {}
+    for ticker in tickers:
+        print(f"  Analyzing {ticker}...")
+        company_data = fetch_company_data(ticker)
+        if not company_data:
+            continue
+        try:
+            growth = base_inputs["growth"] if base_inputs["growth"] else (company_data.get("analyst_growth") or 0.05)
+            wacc = base_inputs["wacc"]
+            term_growth = base_inputs["term_growth"]
+            years = base_inputs["years"]
+            dcf_result = calculate_dcf(fcf0=company_data["fcf"], growth=growth, term_growth=term_growth, wacc=wacc, years=years)
+            shares = company_data["shares"]
+            value_per_share = dcf_result["enterprise_value"] / shares if shares > 0 else 0
+            current_price = company_data["current_price"]
+            upside_downside = ((value_per_share - current_price) / current_price * 100) if current_price > 0 else 0
+            results[ticker] = {
+                "current_price": current_price,
+                "value_per_share": value_per_share,
+                "upside_downside": upside_downside,
+                "market_cap": company_data.get("market_cap", 0),
+                "beta": company_data.get("beta", 1.0),
+                "enterprise_value": dcf_result["enterprise_value"],
+            }
+        except ValueError:
+            continue
+    return results if results else None
+
+
+def display_multi_stock_comparison(comparison_results: Dict, input_params: Dict):
+    """Display multi-stock comparison in a ranked table."""
+    if not comparison_results:
+        return
+    print(f"\n{'=' * 120}")
+    print(f"MULTI-STOCK COMPARISON ANALYSIS")
+    print(f"{'=' * 120}\n")
+    print(f"Analysis Parameters:")
+    print(f"  Growth Rate: {input_params['growth'] * 100:.1f}%")
+    print(f"  WACC: {input_params['wacc'] * 100:.1f}%")
+    print(f"  Terminal Growth: {input_params['term_growth'] * 100:.1f}%")
+    print(f"  Forecast Period: {input_params['years']} years\n")
+    sorted_stocks = sorted(comparison_results.items(), key=lambda x: x[1]["upside_downside"], reverse=True)
+    print(f"{'Rank':<5} {'Ticker':<8} {'Current':<12} {'Fair Value':<12} {'Upside/Down':<15} {'Market Cap':<15} {'Beta':<8} {'Assessment':<15}")
+    print("-" * 120)
+    for rank, (ticker, data) in enumerate(sorted_stocks, 1):
+        current_price = data["current_price"]
+        value_per_share = data["value_per_share"]
+        upside_downside = data["upside_downside"]
+        market_cap = data["market_cap"]
+        beta = data["beta"]
+        if upside_downside > 20:
+            sentiment = "🟢 Undervalued"
+        elif upside_downside < -20:
+            sentiment = "🔴 Overvalued"
+        else:
+            sentiment = "🟡 Fair Value"
+        if market_cap >= 1e12:
+            market_cap_str = f"${market_cap / 1e12:.1f}T"
+        elif market_cap >= 1e9:
+            market_cap_str = f"${market_cap / 1e9:.1f}B"
+        else:
+            market_cap_str = f"${market_cap / 1e6:.1f}M"
+        print(f"{rank:<5} {ticker:<8} ${current_price:<11.2f} ${value_per_share:<11.2f} {upside_downside:>13.1f}% {market_cap_str:<15} {beta:<8.2f} {sentiment:<15}")
+    print(f"\n{'=' * 120}\n")
+    upside_values = [data["upside_downside"] for data in comparison_results.values()]
+    print(f"Best: {sorted_stocks[0][0]} ({sorted_stocks[0][1]['upside_downside']:+.1f}%)")
+    print(f"Worst: {sorted_stocks[-1][0]} ({sorted_stocks[-1][1]['upside_downside']:+.1f}%)")
+    print(f"Average: {sum(upside_values) / len(upside_values):+.1f}%\n")
+
+
 def display_results(company_data: Dict, dcf_results: Dict):
     """
     Display DCF analysis results with formatting.
@@ -414,6 +487,40 @@ def display_results(company_data: Dict, dcf_results: Dict):
     print(f"\n{'=' * 50}")
 
 
+def export_to_csv(comparison_results: Dict, filename: str):
+    """Export comparison results to CSV file."""
+    if not comparison_results:
+        print("No data to export.")
+        return
+    try:
+        with open(filename, 'w', newline='') as csvfile:
+            fieldnames = ['Rank', 'Ticker', 'Current Price', 'Fair Value', 'Upside/Downside %', 'Market Cap', 'Beta', 'Assessment']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            sorted_stocks = sorted(comparison_results.items(), key=lambda x: x[1]["upside_downside"], reverse=True)
+            for rank, (ticker, data) in enumerate(sorted_stocks, 1):
+                upside_downside = data["upside_downside"]
+                if upside_downside > 20:
+                    sentiment = "Undervalued"
+                elif upside_downside < -20:
+                    sentiment = "Overvalued"
+                else:
+                    sentiment = "Fair Value"
+                writer.writerow({
+                    'Rank': rank,
+                    'Ticker': ticker,
+                    'Current Price': f"${data['current_price']:.2f}",
+                    'Fair Value': f"${data['value_per_share']:.2f}",
+                    'Upside/Downside %': f"{upside_downside:.1f}%",
+                    'Market Cap': f"${data['market_cap'] / 1e9:.1f}B",
+                    'Beta': f"{data['beta']:.2f}",
+                    'Assessment': sentiment,
+                })
+        print(f"Results exported to {filename}")
+    except IOError as e:
+        print(f"Error exporting to CSV: {e}")
+
+
 def parse_arguments():
     """
     Parse command-line arguments.
@@ -426,16 +533,16 @@ def parse_arguments():
         epilog="Examples:\n"
                "  python app.py MSFT                              Interactive mode\n"
                "  python app.py MSFT --growth 8 --wacc 10         Non-interactive with custom params\n"
-               "  python app.py AAPL MSFT GOOGL --compare         Multi-stock comparison (coming soon)\n"
-               "  python app.py MSFT --scenarios                  Scenario analysis (coming soon)\n",
+               "  python app.py AAPL MSFT GOOGL --compare         Multi-stock comparison\n"
+               "  python app.py MSFT --scenarios                  Scenario analysis\n",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument(
         "ticker",
-        nargs="?",
-        default=None,
-        help="Stock ticker symbol (e.g., AAPL, MSFT, GOOGL). Leave empty for interactive mode.",
+        nargs="*",
+        default=[],
+        help="Stock ticker symbol(s). Leave empty for interactive mode.",
     )
 
     parser.add_argument(
@@ -472,6 +579,19 @@ def parse_arguments():
         help="Run scenario analysis (Bull/Base/Bear cases)",
     )
 
+    parser.add_argument(
+        "--compare",
+        action="store_true",
+        help="Run multi-stock comparison analysis",
+    )
+
+    parser.add_argument(
+        "--export",
+        type=str,
+        default=None,
+        help="Export comparison results to CSV file",
+    )
+
     return parser.parse_args()
 
 
@@ -479,13 +599,59 @@ def main():
     """Main entry point for DCF analysis tool."""
     args = parse_arguments()
 
-    print("\n{'=' * 50}")
+    print(f"\n{'=' * 50}")
     print("DCF Analysis Tool - Real-World Financial Data")
     print(f"{'=' * 50}\n")
 
-    # Get ticker
-    if args.ticker:
-        ticker = args.ticker.upper().strip()
+    # Handle multiple tickers for comparison
+    if args.compare and args.ticker and len(args.ticker) > 1:
+        print("Multi-Stock Comparison Mode\n")
+        tickers = [t.upper().strip() for t in args.ticker]
+        
+        try:
+            if args.growth is not None or args.wacc is not None or args.years is not None:
+                growth = (args.growth / 100) if args.growth is not None else None
+                term_growth = (args.terminal_growth / 100) if args.terminal_growth is not None else 0.025
+                
+                if args.wacc is not None:
+                    wacc = args.wacc / 100
+                else:
+                    risk_free_rate = 4.5 / 100
+                    market_risk_premium = 7.0 / 100
+                    wacc = risk_free_rate + (1.0 * market_risk_premium)
+                
+                years = args.years if args.years is not None else 5
+            else:
+                growth = None
+                term_growth = 0.025
+                wacc = 0.115
+                years = 5
+            
+            inputs = {
+                "growth": growth,
+                "term_growth": term_growth,
+                "wacc": wacc,
+                "years": years,
+            }
+            
+            print(f"Analyzing {len(tickers)} stocks...\n")
+            comparison_results = run_multi_stock_comparison(tickers, inputs)
+            
+            if comparison_results:
+                display_multi_stock_comparison(comparison_results, inputs)
+                if args.export:
+                    export_to_csv(comparison_results, args.export)
+            else:
+                print("Could not analyze stocks.")
+                sys.exit(1)
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+        return
+
+    # Single stock analysis
+    if args.ticker and len(args.ticker) > 0:
+        ticker = args.ticker[0].upper().strip()
     else:
         ticker = input("Enter stock ticker (e.g., AAPL): ").upper().strip()
 
