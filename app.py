@@ -321,7 +321,7 @@ def display_scenario_results(company_data: Dict, scenario_results: Dict):
     print(f"Current Market Price: ${current_price:.2f}\n")
 
     # Header
-    print(f"{'Scenario':<12} {'Growth':<10} {'WACC':<10} {'Fair Value':<15} {'Upside/Down':<15} {'Assessment':<15}")
+    print(f"{'Scenario':<12} {'Growth':<10} {'WACC':<10} {'Fair Value':>12} {'Upside/Down':>14} {'Assessment':<15}")
     print("-" * 80)
 
     # Results for each scenario
@@ -343,7 +343,7 @@ def display_scenario_results(company_data: Dict, scenario_results: Dict):
             sentiment = "🟡 Fair Value"
 
         print(
-            f"{scenario_name:<12} {growth_pct:>8.1f}% {wacc_pct:>8.1f}% ${value_per_share:>13.2f} {upside_downside:>13.1f}% {sentiment:<15}"
+            f"{scenario_name:<12} {growth_pct:>8.1f}% {wacc_pct:>8.1f}%    ${value_per_share:>10.2f}  {upside_downside:>10.1f}% {sentiment:<15}"
         )
 
     print(f"\n{'=' * 80}\n")
@@ -434,9 +434,9 @@ def display_sensitivity_analysis(company_data: Dict, sensitivity_results: Dict, 
     
     # Growth sensitivity table
     print("1. FAIR VALUE SENSITIVITY TO GROWTH RATE (WACC constant at {:.1f}%):".format(base_wacc))
-    print("-" * 70)
-    print(f"{'Growth':<12} {'Fair Value':<20} {'vs Current':<20} {'Assessment':<15}")
-    print("-" * 70)
+    print("-" * 80)
+    print(f"{'Growth':<10} {'Fair Value':>14} {'vs Current':>14} {'Assessment':<15}")
+    print("-" * 80)
     
     for growth_pct in sorted(sensitivity_results["growth_sensitivity"].keys()):
         value = sensitivity_results["growth_sensitivity"][growth_pct]
@@ -450,15 +450,15 @@ def display_sensitivity_analysis(company_data: Dict, sensitivity_results: Dict, 
         else:
             assessment = "🟡 Fair"
         
-        print(f"{growth_pct:>6.1f}%{marker:<5} ${value:>17.2f} {vs_current:>18.1f}% {assessment:<15}")
+        print(f"{growth_pct:>6.1f}%{marker:<3} ${value:>12.2f}  {vs_current:>12.1f}%  {assessment:<15}")
     
     print()
     
     # WACC sensitivity table
     print("2. FAIR VALUE SENSITIVITY TO WACC (Growth constant at {:.1f}%):".format(base_growth))
-    print("-" * 70)
-    print(f"{'WACC':<12} {'Fair Value':<20} {'vs Current':<20} {'Assessment':<15}")
-    print("-" * 70)
+    print("-" * 80)
+    print(f"{'WACC':<10} {'Fair Value':>14} {'vs Current':>14} {'Assessment':<15}")
+    print("-" * 80)
     
     for wacc_pct in sorted(sensitivity_results["wacc_sensitivity"].keys()):
         value = sensitivity_results["wacc_sensitivity"][wacc_pct]
@@ -468,19 +468,19 @@ def display_sensitivity_analysis(company_data: Dict, sensitivity_results: Dict, 
         if vs_current > 20:
             assessment = "🟢 Undervalued"
         elif vs_current < -20:
-            assessment = "�� Overvalued"
+            assessment = "🔴 Overvalued"
         else:
             assessment = "🟡 Fair"
         
-        print(f"{wacc_pct:>6.1f}%{marker:<5} ${value:>17.2f} {vs_current:>18.1f}% {assessment:<15}")
+        print(f"{wacc_pct:>6.1f}%{marker:<3} ${value:>12.2f}  {vs_current:>12.1f}%  {assessment:<15}")
     
     print()
     
     # Terminal growth sensitivity table
     print("3. FAIR VALUE SENSITIVITY TO TERMINAL GROWTH:")
-    print("-" * 70)
-    print(f"{'Term Growth':<12} {'Fair Value':<20} {'vs Current':<20} {'Assessment':<15}")
-    print("-" * 70)
+    print("-" * 80)
+    print(f"{'Term Growth':<10} {'Fair Value':>14} {'vs Current':>14} {'Assessment':<15}")
+    print("-" * 80)
     
     for term_pct in sorted(sensitivity_results["term_growth_sensitivity"].keys()):
         value = sensitivity_results["term_growth_sensitivity"][term_pct]
@@ -494,34 +494,34 @@ def display_sensitivity_analysis(company_data: Dict, sensitivity_results: Dict, 
         else:
             assessment = "🟡 Fair"
         
-        print(f"{term_pct:>6.1f}%{marker:<5} ${value:>17.2f} {vs_current:>18.1f}% {assessment:<15}")
+        print(f"{term_pct:>6.1f}%{marker:<3} ${value:>12.2f}  {vs_current:>12.1f}%  {assessment:<15}")
     
     print()
     
     # 2D matrix: Growth vs WACC
     print("4. 2D SENSITIVITY MATRIX - Fair Value (Growth vs WACC):")
-    print("-" * 100)
+    print("-" * 110)
     
     matrix = sensitivity_results["matrix_growth_wacc"]
     growth_vals = sorted(matrix.keys())
     wacc_vals = sorted(matrix[growth_vals[0]].keys()) if growth_vals else []
     
     # Header
-    print(f"{'Growth / WACC':<15}", end="")
+    print(f"{'Growth/WACC':<12}", end="")
     for w in wacc_vals:
         print(f"{w:>10.1f}%", end="")
     print()
-    print("-" * (15 + len(wacc_vals) * 11))
+    print("-" * (12 + len(wacc_vals) * 11))
     
     # Rows
     for g in growth_vals:
-        print(f"{g:>6.1f}%{' '*8}", end="")
+        print(f"{g:>6.1f}%{' '*5}", end="")
         for w in wacc_vals:
             val = matrix[g][w]
             if val is not None:
-                print(f"${val:>9.0f}", end="")
+                print(f"  ${val:>9.0f}", end="")
             else:
-                print(f"{'N/A':>10}", end="")
+                print(f"    {'N/A':>6}", end="")
         print()
     
     print(f"\n{'=' * 100}\n")
@@ -574,7 +574,7 @@ def display_multi_stock_comparison(comparison_results: Dict, input_params: Dict)
     print(f"  Terminal Growth: {input_params['term_growth'] * 100:.1f}%")
     print(f"  Forecast Period: {input_params['years']} years\n")
     sorted_stocks = sorted(comparison_results.items(), key=lambda x: x[1]["upside_downside"], reverse=True)
-    print(f"{'Rank':<5} {'Ticker':<8} {'Current':<12} {'Fair Value':<12} {'Upside/Down':<15} {'Market Cap':<15} {'Beta':<8} {'Assessment':<15}")
+    print(f"{'Rank':<5} {'Ticker':<8} {'Current':>11} {'Fair Value':>11} {'Upside/Down':>13} {'Market Cap':>13} {'Beta':>7} {'Assessment':<15}")
     print("-" * 120)
     for rank, (ticker, data) in enumerate(sorted_stocks, 1):
         current_price = data["current_price"]
@@ -594,7 +594,7 @@ def display_multi_stock_comparison(comparison_results: Dict, input_params: Dict)
             market_cap_str = f"${market_cap / 1e9:.1f}B"
         else:
             market_cap_str = f"${market_cap / 1e6:.1f}M"
-        print(f"{rank:<5} {ticker:<8} ${current_price:<11.2f} ${value_per_share:<11.2f} {upside_downside:>13.1f}% {market_cap_str:<15} {beta:<8.2f} {sentiment:<15}")
+        print(f"{rank:<5} {ticker:<8}    ${current_price:>9.2f}  ${value_per_share:>9.2f}  {upside_downside:>10.1f}%  {market_cap_str:>11}  {beta:>6.2f}  {sentiment:<15}")
     print(f"\n{'=' * 120}\n")
     upside_values = [data["upside_downside"] for data in comparison_results.values()]
     print(f"Best: {sorted_stocks[0][0]} ({sorted_stocks[0][1]['upside_downside']:+.1f}%)")
@@ -631,15 +631,15 @@ def display_results(company_data: Dict, dcf_results: Dict):
     # Year-by-year projections
     print("Year-by-Year Cash Flow Projections:")
     print("-" * 50)
-    print(f"{'Year':<6} {'FCF ($M)':<15} {'PV ($M)':<15}")
+    print(f"{'Year':<8} {'FCF ($M)':>14} {'PV ($M)':>14}")
     print("-" * 50)
 
     for cf in dcf_results["cash_flows"]:
-        print(f"{cf['year']:<6} {cf['fcf']:>14,.0f} {cf['pv']:>14,.0f}")
+        print(f"{cf['year']:<8} {cf['fcf']:>14,.0f} {cf['pv']:>14,.0f}")
 
     print("-" * 50)
-    print(f"{'Sum PV (Explicit):':<30} ${dcf_results['pv_explicit']:>15,.0f}M")
-    print(f"{'Terminal PV:':<30} ${dcf_results['term_pv']:>15,.0f}M")
+    print(f"{'Sum PV (Explicit):':<24} ${dcf_results['pv_explicit']:>15,.0f}M")
+    print(f"{'Terminal PV:':<24} ${dcf_results['term_pv']:>15,.0f}M")
     print("-" * 50)
 
     # Valuation summary
