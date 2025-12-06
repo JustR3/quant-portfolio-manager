@@ -8,3 +8,13 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Ignore specific files
+portfolio_analysis.csv
+portfolio_final.csv
+results.csv
+yfinance_info.ipynb
+
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
