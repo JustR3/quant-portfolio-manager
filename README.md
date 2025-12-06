@@ -54,6 +54,9 @@ python app.py MSFT --growth 8 --terminal-growth 2.5 --wacc 10 --years 5
 # With scenario analysis (Bull/Base/Bear)
 python app.py MSFT --scenarios
 
+# With sensitivity analysis (shows impact of assumption changes)
+python app.py MSFT --sensitivity --growth 8 --wacc 10
+
 # Multi-stock comparison (ranked by upside/downside)
 python app.py AAPL MSFT GOOGL NVDA --compare
 
@@ -190,6 +193,75 @@ python app.py AAPL MSFT GOOGL --compare --export results.csv
 
 CSV format includes: Rank, Ticker, Current Price, Fair Value, Upside/Downside %, Market Cap, Beta, Assessment
 
+## Sensitivity Analysis Feature
+
+Understand how valuation changes when key assumptions vary:
+
+```bash
+python app.py AAPL --sensitivity --growth 8 --wacc 10 --terminal-growth 2.5
+```
+
+### Four Analysis Dimensions
+
+1. **Growth Rate Sensitivity** - Fair value across 2-15% growth range
+   - Holding: WACC constant at user input (e.g., 10%)
+   - Shows impact of revenue/FCF growth assumptions
+
+2. **WACC Sensitivity** - Fair value across 8-16% discount rate range
+   - Holding: Growth constant at user input (e.g., 8%)
+   - Shows impact of risk/discount rate changes
+
+3. **Terminal Growth Sensitivity** - Fair value across 0.5-3.5% range
+   - Holding: Growth and WACC constant
+   - Shows long-term value driver impact
+
+4. **2D Matrix (Growth vs WACC)** - 5×10 grid showing combinations
+   - Rows: Growth rates (4%, 6%, 8%, 10%, 12%)
+   - Columns: WACC values (9%, 9.5%, ..., 13.5%)
+   - Identifies which assumptions most drive valuation
+
+### Example Output
+
+```
+====================================================================================================
+SENSITIVITY ANALYSIS - AAPL
+====================================================================================================
+
+1. FAIR VALUE SENSITIVITY TO GROWTH RATE (WACC constant at 10.0%):
+----------------------------------------------------------------------
+Growth       Fair Value           vs Current           Assessment     
+----------------------------------------------------------------------
+   2.0%      $            95.92              -65.6% 🔴 Overvalued   
+   4.0%      $           104.42              -62.5% 🔴 Overvalued   
+   8.0% *    $           123.34              -55.8% 🔴 Overvalued   
+  12.0%      $           145.08              -48.0% 🔴 Overvalued   
+  15.0%      $           163.42              -41.4% 🔴 Overvalued   
+
+2. FAIR VALUE SENSITIVITY TO WACC (Growth constant at 8.0%):
+----------------------------------------------------------------------
+   8.0%      $           169.47              -39.2% Overvalued
+   10.0% *   $           123.34              -55.8% Overvalued
+   12.0%      $            96.68              -65.3% Overvalued
+
+3. 2D SENSITIVITY MATRIX - Fair Value (Growth vs WACC):
+----------------------------------------------------------------------
+Growth / WACC     9.0%       10.0%      11.0%      12.0%      13.0%
+   4.0%        $   121    $   104    $    92    $    82    $    74
+   8.0%        $   143    $   123    $   108    $    97    $    87
+  12.0%        $   168    $   145    $   127    $   113    $   102
+
+Note: Current Market Price = $278.78
+Base Case (marked with *): Growth 8.0%, WACC 10.0%, Terminal Growth 2.5%
+====================================================================================================
+```
+
+### Use Cases
+
+- **Risk Analysis** - See valuation range if assumptions prove wrong
+- **Investment Thesis** - Understand which inputs drive buy/sell decision
+- **Scenario Planning** - Compare outcomes across market conditions
+- **Model Validation** - Verify calculations are reasonable
+
 ## How It Works
 
 ### DCF Formula
@@ -268,12 +340,15 @@ The tool implements automatic rate limiting to respect Yahoo Finance API limits:
 - Batch processing with aggregation
 - Status: **Live**
 
-### v1.2.0 (Planned)
-
-#### 📈 Sensitivity Analysis
+#### ✅ COMPLETED: Sensitivity Analysis
 - Show how valuation changes with input variations
-- Sensitivity tables for key assumptions
+- Four sensitivity tables: Growth, WACC, Terminal Growth, Growth vs WACC matrix
 - Identify most impactful variables
+- Growth range: 2-15% | WACC range: 8-16% | Terminal Growth range: 0.5-3.5%
+- Base case parameters marked with asterisk
+- Status: **Live**
+
+### v1.2.0 (Planned)
 
 #### 🛠️ Advanced Features
 - **Unit Tests** - Full test coverage for calculations
