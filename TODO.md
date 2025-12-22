@@ -79,33 +79,67 @@ Combined Method:
 
 ---
 
-### Step 2: The Optimization Engine (Math Heavy) ⏳
-**Status**: Not Started
+### Step 2: The Optimization Engine (Math Heavy) ✅
+**Status**: Complete
 
 #### Major Tasks
-- [ ] Add PyPortfolioOpt dependency to `pyproject.toml`
-- [ ] Create `modules/portfolio/optimizer.py`
-- [ ] Implement `PortfolioEngine` class
-  - [ ] Multi-stock data fetching
-  - [ ] Calculate Expected Returns (CAPM)
-  - [ ] Calculate Covariance Matrix (Ledoit-Wolf shrinkage)
-  - [ ] Implement `optimize_max_sharpe()` method
-  - [ ] Implement `optimize_min_volatility()` method
-  - [ ] Implement `optimize_efficient_risk()` method
-  - [ ] Return optimal weights dictionary
+- [x] Add PyPortfolioOpt dependency to `pyproject.toml`
+- [x] Create `modules/portfolio/optimizer.py`
+- [x] Implement `PortfolioEngine` class
+  - [x] Multi-stock data fetching
+  - [x] Calculate Expected Returns (CAPM, EMA, mean historical)
+  - [x] Calculate Covariance Matrix (Ledoit-Wolf shrinkage, sample, exp, semicov)
+  - [x] Implement `optimize()` method with multiple strategies
+  - [x] MAX_SHARPE optimization
+  - [x] MIN_VOLATILITY optimization
+  - [x] EFFICIENT_RISK optimization
+  - [x] EQUAL_WEIGHT baseline
+  - [x] Return optimal weights dictionary
+  - [x] Discrete allocation for integer shares
+
+#### Completed Features ✅
+- **PortfolioEngine class**: Full mean-variance optimization pipeline
+- **OptimizationMethod enum**: MAX_SHARPE, MIN_VOLATILITY, EFFICIENT_RISK, EQUAL_WEIGHT
+- **PortfolioMetrics dataclass**: Expected return, volatility, Sharpe ratio, weights
+- **DiscretePortfolio dataclass**: Integer share allocation with leftover cash
+- **Multiple return models**: CAPM (default), EMA historical, mean historical
+- **Multiple risk models**: Ledoit-Wolf shrinkage (default), sample cov, exp cov, semicov
+- **Convenience functions**: `optimize_portfolio()`, `get_efficient_frontier_points()`
+- **Rate limiting**: 1-second interval between API calls
+- **Data validation**: Handles missing data, validates ticker availability
+- **Portfolio constraints**: No short selling (configurable weight bounds)
+- **Performance metrics**: Annualized return, volatility, Sharpe ratio
+
+#### Test Results ✅
+```
+Portfolio: AAPL, MSFT, GOOGL, NVDA (2-year historical data, 501 days)
+
+Maximum Sharpe Ratio Portfolio:
+- Expected Return: 48.05%
+- Volatility: 26.77%
+- Sharpe Ratio: 1.65
+- Weights: NVDA 31.4%, GOOGL 26.2%, AAPL 24.8%, MSFT 17.6%
+
+Minimum Volatility Portfolio:
+- Expected Return: 32.94%
+- Volatility: 20.71%
+- Sharpe Ratio: 1.40
+- Weights: MSFT 57.5%, AAPL 25.4%, GOOGL 17.1%, NVDA 0%
+
+Discrete Allocation ($50,000 portfolio):
+- MSFT: 59 shares
+- AAPL: 46 shares
+- GOOGL: 28 shares
+- Total Invested: $49,747.73
+- Leftover Cash: $252.27
+```
 
 #### Technical Details
-- **Dependencies**: pypfopt, scipy, cvxpy
-- **Risk Model**: Ledoit-Wolf covariance shrinkage
-- **Return Model**: CAPM-based expected returns
-- **Optimization**: Efficient Frontier methods
-
-#### Subtasks
-- [ ] Data validation and preprocessing
-- [ ] Handle missing data and edge cases
-- [ ] Portfolio constraints (weights sum to 1, no short selling)
-- [ ] Performance metrics (Sharpe ratio, volatility, expected return)
-- [ ] Backtesting framework (optional)
+- **Dependencies**: pyportfolioopt, scipy, cvxpy, scikit-learn
+- **Risk Model**: Ledoit-Wolf covariance shrinkage (robust against noise)
+- **Return Model**: CAPM-based expected returns (market-adjusted)
+- **Optimization**: Efficient Frontier via convex optimization
+- **Solver**: CVXPY with OSQP/ECOS/SCS backends
 
 ---
 
