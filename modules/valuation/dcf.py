@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Optional
 
@@ -21,12 +22,15 @@ class CompanyData:
     market_cap: float  # Billions
     beta: float
     analyst_growth: Optional[float] = None
+    revenue: Optional[float] = None  # Total Revenue (millions, TTM)
+    sector: Optional[str] = None  # Company sector
 
     def to_dict(self) -> dict:
         return {
             "ticker": self.ticker, "fcf": self.fcf, "shares": self.shares,
             "current_price": self.current_price, "market_cap": self.market_cap,
             "beta": self.beta, "analyst_growth": self.analyst_growth,
+            "revenue": self.revenue, "sector": self.sector,
         }
 
 
@@ -84,6 +88,10 @@ class DCFEngine:
             if analyst_growth and abs(analyst_growth) > 0.50:
                 analyst_growth = 0.50 if analyst_growth > 0 else -0.50
 
+            # Get revenue and sector for EV/Sales valuation
+            revenue = info.get("totalRevenue", 0) / 1e6 if info.get("totalRevenue") else None
+            sector = info.get("sector")
+            
             self._company_data = CompanyData(
                 ticker=self.ticker,
                 fcf=fcf_annual,
@@ -92,6 +100,8 @@ class DCFEngine:
                 market_cap=info.get("marketCap", 0) / 1e9,
                 beta=info.get("beta", 1.0) or 1.0,
                 analyst_growth=analyst_growth,
+                revenue=revenue,
+                sector=sector,
             )
             self._last_error = None
             return True
@@ -129,6 +139,130 @@ class DCFEngine:
         if beta is None:
             beta = self._company_data.beta if self._company_data else 1.0
         return self.RISK_FREE_RATE + (beta * self.MARKET_RISK_PREMIUM)
+    
+    def get_sector_average_ev_sales(self, sector: str, max_peers: int = 10) -> Optional[float]:
+        """Get average EV/Sales multiple from sector peers."""
+        try:
+            # Get target stock info to find industry
+            stock = yf.Ticker(self.ticker)
+            info = stock.info
+            industry = info.get('industry', '')
+            
+            # Define industry/sector peers (expandable)
+            peer_map = {
+                # Auto/EV Manufacturers
+                'Auto Manufacturers': ['TSLA', 'F', 'GM', 'TM', 'HMC'],
+                
+                # Technology
+                'Software - Application': ['MSFT', 'ORCL', 'CRM', 'ADBE', 'NOW'],
+                'Semiconductors': ['NVDA', 'INTC', 'AMD', 'TSM', 'QCOM'],
+                'Consumer Electronics': ['AAPL', 'SONY', 'DELL'],
+                
+                # Internet/Social Media
+                'Internet Content & Information': ['GOOGL', 'META', 'NFLX', 'DIS'],
+                
+                # Sector-level fallbacks
+                'Consumer Cyclical': ['AMZN', 'HD', 'NKE', 'MCD', 'SBUX', 'TSLA', 'F', 'GM'],
+                'Technology': ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA'],
+                'Healthcare': ['UNH', 'JNJ', 'PFE', 'ABBV', 'LLY'],
+                'Financial Services': ['JPM', 'BAC', 'WFC', 'C', 'GS'],
+                'Communication Services': ['GOOGL', 'META', 'DIS', 'NFLX', 'T'],
+            }
+            
+            # Try industry first, then sector
+            peer_tickers = peer_map.get(industry) or peer_map.get(sector, [])
+            
+            # Remove self from peers
+            peer_tickers = [p for p in peer_tickers if p != self.ticker]
+            
+            if not peer_tickers:
+                return self._get_hardcoded_benchmark(sector)
+            
+            # Fetch EV/Sales for peers
+            ev_sales_ratios = []
+            for peer in peer_tickers[:max_peers]:
+                try:
+                    time.sleep(1)  # Rate limiting
+                    peer_stock = yf.Ticker(peer)
+                    peer_info = peer_stock.info
+                    
+                    ev_sales = peer_info.get('enterpriseToRevenue')
+                    if ev_sales and 0 < ev_sales < 50:  # Sanity check
+                        ev_sales_ratios.append(ev_sales)
+                except:
+                    continue
+            
+            if ev_sales_ratios:
+                return sum(ev_sales_ratios) / len(ev_sales_ratios)
+            
+            return self._get_hardcoded_benchmark(sector)
+            
+        except Exception:
+            return self._get_hardcoded_benchmark(sector)
+    
+    def _get_hardcoded_benchmark(self, sector: str) -> Optional[float]:
+        """Fallback hardcoded sector EV/Sales benchmarks."""
+        benchmarks = {
+            "Technology": 5.2, "Healthcare": 3.8, "Financial Services": 2.1,
+            "Consumer Cyclical": 1.5, "Communication Services": 3.5,
+            "Industrials": 1.8, "Consumer Defensive": 1.2, "Energy": 1.0,
+            "Utilities": 2.0, "Real Estate": 5.0, "Basic Materials": 1.5,
+        }
+        return benchmarks.get(sector)
+    
+    def calculate_ev_sales_valuation(self) -> dict:
+        """Calculate valuation using EV/Sales multiple for negative FCF companies."""
+        if not self.is_ready:
+            raise RuntimeError(f"No data for {self.ticker}: {self._last_error}")
+        
+        data = self._company_data
+        
+        # Validate we have revenue
+        if not data.revenue or data.revenue <= 0:
+            raise ValueError(f"{self.ticker}: Cannot value company with no revenue data. "
+                           f"Revenue: ${data.revenue}M")
+        
+        # Get sector average EV/Sales multiple
+        if not data.sector:
+            raise ValueError(f"{self.ticker}: No sector information available for relative valuation.")
+        
+        avg_ev_sales = self.get_sector_average_ev_sales(data.sector)
+        
+        if not avg_ev_sales or avg_ev_sales <= 0:
+            raise ValueError(f"{self.ticker}: Could not determine sector average EV/Sales multiple. "
+                           f"Sector: {data.sector}")
+        
+        # Calculate implied enterprise value
+        implied_ev = data.revenue * avg_ev_sales
+        
+        # Calculate value per share
+        value_per_share = max(0.01, implied_ev / data.shares if data.shares > 0 else 0.01)
+        
+        upside = ((value_per_share - data.current_price) / data.current_price * 100
+                  if data.current_price > 0 else 0)
+        
+        if upside > 20:
+            assessment = "UNDERVALUED"
+        elif upside < -20:
+            assessment = "OVERVALUED"
+        else:
+            assessment = "FAIRLY VALUED"
+        
+        return {
+            "ticker": self.ticker,
+            "value_per_share": value_per_share,
+            "current_price": data.current_price,
+            "upside_downside": upside,
+            "enterprise_value": implied_ev,
+            "valuation_method": "EV/Sales",
+            "assessment": assessment,
+            "inputs": {
+                "revenue": data.revenue,
+                "sector": data.sector,
+                "avg_ev_sales_multiple": avg_ev_sales,
+            },
+            "company_data": data.to_dict(),
+        }
 
     def get_intrinsic_value(self, growth: Optional[float] = None, term_growth: float = 0.025,
                             wacc: Optional[float] = None, years: int = 5) -> dict:
@@ -138,11 +272,12 @@ class DCFEngine:
 
         data = self._company_data
         
-        # Check for negative FCF
+        # Route based on FCF: Positive → DCF, Negative → EV/Sales
         if data.fcf <= 0:
-            raise ValueError(f"{self.ticker}: Cannot value loss-making company with FCF=${data.fcf:.2f}M. "
-                           "DCF requires positive free cash flows. Consider alternative valuation methods.")
+            # Use EV/Sales relative valuation for loss-making companies
+            return self.calculate_ev_sales_valuation()
         
+        # Use DCF for profitable companies
         growth = growth if growth is not None else (data.analyst_growth or 0.05)
         wacc = wacc if wacc is not None else self.calculate_wacc(data.beta)
 
@@ -171,6 +306,7 @@ class DCFEngine:
             "pv_explicit": pv_explicit,
             "term_pv": term_pv,
             "cash_flows": cash_flows,
+            "valuation_method": "DCF",
             "assessment": assessment,
             "inputs": {"growth": growth, "term_growth": term_growth, "wacc": wacc, "years": years},
             "company_data": data.to_dict(),
@@ -263,30 +399,27 @@ class DCFEngine:
     @staticmethod
     def compare_stocks(tickers: list[str], growth: Optional[float] = None,
                        term_growth: float = 0.025, wacc: Optional[float] = None,
-                       years: int = 5, skip_negative_fcf: bool = True) -> dict:
-        """Compare multiple stocks using DCF analysis."""
+                       years: int = 5, skip_negative_fcf: bool = False) -> dict:
+        """Compare multiple stocks using DCF or EV/Sales analysis."""
         results, errors, skipped = {}, {}, {}
 
         for ticker in tickers:
             try:
                 engine = DCFEngine(ticker, auto_fetch=True)
                 if engine.is_ready:
-                    # Check if we should skip negative FCF stocks
+                    # Check if we should skip negative FCF stocks (legacy option, now defaults to False)
                     if skip_negative_fcf and engine.company_data.fcf <= 0:
                         skipped[ticker] = f"Negative FCF: ${engine.company_data.fcf:.2f}M (loss-making)"
                         continue
                     
+                    # get_intrinsic_value now handles both DCF and EV/Sales automatically
                     results[ticker] = engine.get_intrinsic_value(
                         growth=growth, term_growth=term_growth, wacc=wacc, years=years
                     )
                 else:
                     errors[ticker] = engine.last_error
             except ValueError as e:
-                # Negative FCF or other validation error
-                if skip_negative_fcf and "Cannot value loss-making" in str(e):
-                    skipped[ticker] = str(e)
-                else:
-                    errors[ticker] = str(e)
+                errors[ticker] = str(e)
             except Exception as e:
                 errors[ticker] = str(e)
 

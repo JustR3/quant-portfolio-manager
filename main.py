@@ -56,8 +56,10 @@ def print_msg(msg: str, style: str = "info"):
 
 def display_valuation(result: dict):
     """Display valuation result."""
+    method = result.get('valuation_method', 'DCF')
+    
     if HAS_RICH and console:
-        table = Table(title=f"DCF Valuation - {result['ticker']}", box=box.ROUNDED)
+        table = Table(title=f"{method} Valuation - {result['ticker']}", box=box.ROUNDED)
         table.add_column("Metric", style="dim")
         table.add_column("Value", justify="right")
         
@@ -72,31 +74,43 @@ def display_valuation(result: dict):
         assess = result['assessment']
         emoji = "🟢" if "UNDER" in assess else "🔴" if "OVER" in assess else "🟡"
         table.add_row("Assessment", f"{emoji} {assess}")
+        table.add_row("Method", f"[cyan]{method}[/cyan]")
         
         console.print(table)
         
-        # Cash flows
-        cf_table = Table(title="Cash Flow Projections", box=box.SIMPLE)
-        cf_table.add_column("Year", justify="center")
-        cf_table.add_column("FCF ($M)", justify="right")
-        cf_table.add_column("PV ($M)", justify="right")
-        for cf in result["cash_flows"]:
-            cf_table.add_row(str(cf["year"]), f"{cf['fcf']:,.0f}", f"{cf['pv']:,.0f}")
-        console.print(cf_table)
-        
-        inputs = result["inputs"]
-        console.print(Panel(
-            f"Growth: {inputs['growth']*100:.1f}% | WACC: {inputs['wacc']*100:.1f}% | "
-            f"Terminal: {inputs['term_growth']*100:.1f}% | Years: {inputs['years']}",
-            title="Assumptions", box=box.ROUNDED,
-        ))
+        # Show method-specific details
+        if method == "DCF" and "cash_flows" in result:
+            # Cash flows
+            cf_table = Table(title="Cash Flow Projections", box=box.SIMPLE)
+            cf_table.add_column("Year", justify="center")
+            cf_table.add_column("FCF ($M)", justify="right")
+            cf_table.add_column("PV ($M)", justify="right")
+            for cf in result["cash_flows"]:
+                cf_table.add_row(str(cf["year"]), f"{cf['fcf']:,.0f}", f"{cf['pv']:,.0f}")
+            console.print(cf_table)
+            
+            inputs = result["inputs"]
+            console.print(Panel(
+                f"Growth: {inputs['growth']*100:.1f}% | WACC: {inputs['wacc']*100:.1f}% | "
+                f"Terminal: {inputs['term_growth']*100:.1f}% | Years: {inputs['years']}",
+                title="Assumptions", box=box.ROUNDED,
+            ))
+        elif method == "EV/Sales":
+            # Show EV/Sales inputs
+            inputs = result["inputs"]
+            console.print(Panel(
+                f"Revenue: ${inputs['revenue']:,.0f}M | Sector: {inputs['sector']} | "
+                f"Avg EV/Sales: {inputs['avg_ev_sales_multiple']:.2f}x",
+                title="EV/Sales Inputs", box=box.ROUNDED,
+            ))
     else:
-        print(f"\n{'=' * 50}\nDCF VALUATION - {result['ticker']}\n{'=' * 50}")
+        print(f"\n{'=' * 50}\n{method} VALUATION - {result['ticker']}\n{'=' * 50}")
         print(f"Current: ${result['current_price']:.2f} | Fair Value: ${result['value_per_share']:.2f}")
         print(f"Upside: {result['upside_downside']:+.1f}% | {result['assessment']}")
-        print("\nCash Flows:")
-        for cf in result["cash_flows"]:
-            print(f"  Year {cf['year']}: FCF ${cf['fcf']:,.0f}M, PV ${cf['pv']:,.0f}M")
+        if "cash_flows" in result:
+            print("\nCash Flows:")
+            for cf in result["cash_flows"]:
+                print(f"  Year {cf['year']}: FCF ${cf['fcf']:,.0f}M, PV ${cf['pv']:,.0f}M")
 
 
 def display_scenarios(scenarios: dict, ticker: str):
@@ -131,24 +145,34 @@ def display_scenarios(scenarios: dict, ticker: str):
 def display_comparison(comparison: dict):
     """Display multi-stock comparison."""
     if HAS_RICH and console:
-        table = Table(title="Multi-Stock DCF Comparison", box=box.ROUNDED)
+        table = Table(title="Multi-Stock Valuation Comparison", box=box.ROUNDED)
         table.add_column("Rank", justify="center")
         table.add_column("Ticker", style="bold")
+        table.add_column("Method", justify="center")
         table.add_column("Current", justify="right")
         table.add_column("Fair Value", justify="right")
         table.add_column("Upside", justify="right")
         
         for rank, ticker in enumerate(comparison["ranking"], 1):
             d = comparison["results"][ticker]
+            method = d.get('valuation_method', 'DCF')
+            method_short = "DCF" if method == "DCF" else "EV/S"
             upside = d["upside_downside"]
             color = "green" if upside > 20 else "red" if upside < -20 else "yellow"
-            table.add_row(str(rank), ticker, f"${d['current_price']:.2f}",
+            table.add_row(str(rank), ticker, f"[cyan]{method_short}[/cyan]", 
+                          f"${d['current_price']:.2f}",
                           f"${d['value_per_share']:.2f}", f"[{color}]{upside:+.1f}%[/{color}]")
         console.print(table)
         
+        # Show method breakdown
+        dcf_count = sum(1 for r in comparison["results"].values() if r.get('valuation_method') == 'DCF')
+        evs_count = sum(1 for r in comparison["results"].values() if r.get('valuation_method') == 'EV/Sales')
+        if evs_count > 0:
+            console.print(f"\n[dim]Methods: {dcf_count} DCF (positive FCF), {evs_count} EV/Sales (negative FCF)[/dim]")
+        
         # Show skipped stocks if any
         if comparison.get("skipped"):
-            console.print(f"\n[yellow]⚠️  Skipped {len(comparison['skipped'])} stocks with negative FCF (loss-making):[/yellow]")
+            console.print(f"\n[yellow]⚠️  Skipped {len(comparison['skipped'])} stocks:[/yellow]")
             for ticker, reason in comparison["skipped"].items():
                 console.print(f"  • {ticker}: {reason}")
     else:
