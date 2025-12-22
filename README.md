@@ -13,11 +13,14 @@ A modular Python toolkit for quantitative finance analysis, featuring a professi
 - **Interactive CLI** with rich terminal UI
 - **Programmatic API** for integration
 
-### 🔜 Portfolio Optimization (Coming Soon)
-- Mean-Variance Optimization (Markowitz)
-- Risk Parity
-- Black-Litterman Model
-- Fundamental-weighted portfolios using DCF data
+### ✅ Portfolio Optimization Engine (Active)
+- **Black-Litterman Model** with DCF valuation integration
+- **Mean-Variance Optimization** (Markowitz)
+- **Market Regime Detection** (200-day SMA + VIX term structure)
+- **Multiple optimization methods** (Max Sharpe, Min Volatility, Efficient Risk)
+- **Discrete allocation** for integer share quantities
+- **Interactive CLI** for portfolio creation
+- **Programmatic API** for custom workflows
 
 ## 🚀 Quick Start
 
@@ -36,25 +39,28 @@ uv sync
 
 ```bash
 # Interactive mode (guided prompts)
-uv run main_cli.py
+uv run main.py
 
-# Quick analysis of a single stock
-uv run main_cli.py valuation AAPL
+# DCF Valuation
+uv run main.py valuation AAPL
 
-# Custom parameters
-uv run main_cli.py valuation AAPL --growth 8 --wacc 11 --years 5
+# Portfolio Optimization (interactive)
+uv run main.py portfolio
+
+# Custom DCF parameters
+uv run main.py valuation AAPL --growth 8 --wacc 11 --years 5
 
 # Scenario analysis (Bull/Base/Bear)
-uv run main_cli.py valuation MSFT --scenarios
+uv run main.py valuation MSFT --scenarios
 
 # Sensitivity analysis
-uv run main_cli.py valuation GOOGL --sensitivity
+uv run main.py valuation GOOGL --sensitivity
 
 # Compare multiple stocks
-uv run main_cli.py valuation AAPL MSFT GOOGL NVDA --compare
+uv run main.py valuation AAPL MSFT GOOGL NVDA --compare
 
 # Export comparison results to CSV
-uv run main_cli.py valuation AAPL MSFT GOOGL --compare --export results.csv
+uv run main.py valuation AAPL MSFT GOOGL --compare --export results.csv
 ```
 
 ## 📦 Project Structure
@@ -215,14 +221,102 @@ The codebase has undergone a significant refactoring to improve modularity and m
    - `yfinance`: Real-time financial data
    - `pandas`: Data manipulation
 
-## 📚 Portfolio Optimization Module *(Coming Soon)*
+## 📚 Portfolio Optimization Module
 
-Planned features:
-- **Mean-Variance Optimization** (Markowitz efficient frontier)
-- **Risk Parity** allocation
-- **Black-Litterman Model** for incorporating market views
-- **Fundamental-weighted portfolios** using DCF intrinsic values
-- Integration with DCF engine for valuation-driven allocation
+The portfolio module provides advanced portfolio optimization with DCF integration.
+
+### Features
+
+1. **Black-Litterman Model with DCF Integration**
+   - Combines market equilibrium with fundamental analysis
+   - DCF valuations become "views" on expected returns
+   - Confidence-weighted blending of market and analyst views
+
+2. **Mean-Variance Optimization**
+   - Maximum Sharpe Ratio portfolios
+   - Minimum Volatility portfolios
+   - Efficient Risk targeting
+
+3. **Market Regime Detection**
+   - 200-day SMA crossover on SPY
+   - VIX term structure analysis
+   - Combined regime assessment
+
+4. **Discrete Allocation**
+   - Integer share quantities
+   - Leftover cash tracking
+   - Ready for real-world implementation
+
+### CLI Usage
+
+```bash
+# Interactive portfolio optimization
+uv run main.py portfolio
+
+# The workflow:
+# 1. Enter stock tickers (e.g., AAPL,MSFT,GOOGL,NVDA)
+# 2. System runs DCF analysis on all stocks
+# 3. Market regime is detected
+# 4. Black-Litterman optimization combines DCF views with market data
+# 5. Results show optimal weights, metrics, and discrete allocation
+```
+
+### Python API Usage
+
+```python
+from modules.valuation import DCFEngine
+from modules.portfolio import optimize_portfolio_with_dcf
+
+# Step 1: Run DCF analysis on multiple stocks
+tickers = ['AAPL', 'MSFT', 'GOOGL', 'NVDA']
+dcf_results = {}
+
+for ticker in tickers:
+    engine = DCFEngine(ticker, auto_fetch=True)
+    if engine.is_ready:
+        result = engine.get_intrinsic_value()
+        dcf_results[ticker] = result
+
+# Step 2: Optimize portfolio using Black-Litterman with DCF views
+portfolio = optimize_portfolio_with_dcf(
+    dcf_results=dcf_results,
+    method=OptimizationMethod.MAX_SHARPE,
+    period="2y",
+    confidence=0.3,  # 30% confidence in DCF views
+)
+
+print(f"Expected Return: {portfolio.expected_annual_return:.2f}%")
+print(f"Volatility: {portfolio.annual_volatility:.2f}%")
+print(f"Sharpe Ratio: {portfolio.sharpe_ratio:.2f}")
+print(f"Weights: {portfolio.weights}")
+```
+
+### Advanced Usage
+
+```python
+from modules.portfolio import PortfolioEngine, RegimeDetector
+
+# Manual workflow with more control
+engine = PortfolioEngine(tickers=['AAPL', 'MSFT', 'GOOGL'])
+engine.fetch_data(period='2y')
+
+# Use DCF results as Black-Litterman views
+result = engine.optimize_with_views(
+    dcf_results=dcf_results,
+    confidence=0.4,  # Higher confidence = more weight to DCF
+    method=OptimizationMethod.MAX_SHARPE
+)
+
+# Get discrete allocation for $50,000 portfolio
+allocation = engine.get_discrete_allocation(total_portfolio_value=50000)
+print(f"Shares to buy: {allocation.allocation}")
+print(f"Leftover cash: ${allocation.leftover:.2f}")
+
+# Check market regime
+detector = RegimeDetector()
+regime = detector.get_current_regime()
+print(f"Market Regime: {regime}")  # RISK_ON or RISK_OFF
+```
 
 ## 📋 CLI Reference
 
@@ -233,7 +327,7 @@ Quant Portfolio Manager - DCF Valuation & Portfolio Optimization
 
 Commands:
   valuation (val, dcf)     DCF Valuation Engine
-  portfolio (port, opt)    Portfolio Optimization (Coming Soon)
+  portfolio (port, opt)    Portfolio Optimization Engine
 
 Valuation Options:
   tickers                  Stock ticker symbol(s)

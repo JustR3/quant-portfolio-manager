@@ -10,9 +10,9 @@ Modules:
     2. Portfolio Optimization (Coming Soon)
 
 Usage:
-    uv run main_cli.py                    # Interactive mode
-    uv run main_cli.py valuation AAPL     # Direct stock analysis
-    uv run main_cli.py valuation AAPL MSFT GOOGL --compare
+    uv run main.py                    # Interactive mode
+    uv run main.py valuation AAPL     # Direct stock analysis
+    uv run main.py valuation AAPL MSFT GOOGL --compare
 """
 
 from __future__ import annotations
@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
-from typing import Optional
 
 try:
     import questionary
@@ -40,6 +39,12 @@ except ImportError:
     HAS_RICH = False
 
 from modules.valuation import DCFEngine
+from modules.portfolio import (
+    PortfolioEngine,
+    OptimizationMethod,
+    optimize_portfolio_with_dcf,
+    RegimeDetector,
+)
 
 
 # =============================================================================
@@ -58,10 +63,9 @@ if HAS_QUESTIONARY:
 else:
     custom_style = None
 
+console: Console | None = None
 if HAS_RICH:
     console = Console()
-else:
-    console = None
 
 
 # =============================================================================
@@ -70,7 +74,7 @@ else:
 
 def print_header(title: str):
     """Print a styled header."""
-    if HAS_RICH:
+    if HAS_RICH and console:
         console.print()
         console.print(Panel(
             Text(title, justify="center", style="bold cyan"),
@@ -86,7 +90,7 @@ def print_header(title: str):
 
 def print_success(message: str):
     """Print a success message."""
-    if HAS_RICH:
+    if HAS_RICH and console:
         console.print(f"[green]✓[/green] {message}")
     else:
         print(f"✓ {message}")
@@ -94,7 +98,7 @@ def print_success(message: str):
 
 def print_error(message: str):
     """Print an error message."""
-    if HAS_RICH:
+    if HAS_RICH and console:
         console.print(f"[red]✗[/red] {message}")
     else:
         print(f"✗ {message}")
@@ -102,7 +106,7 @@ def print_error(message: str):
 
 def print_info(message: str):
     """Print an info message."""
-    if HAS_RICH:
+    if HAS_RICH and console:
         console.print(f"[blue]ℹ[/blue] {message}")
     else:
         print(f"ℹ {message}")
@@ -118,6 +122,10 @@ def display_valuation_result(result: dict):
 
 def _display_valuation_rich(result: dict):
     """Display valuation using Rich tables."""
+    if not console:
+        _display_valuation_plain(result)
+        return
+    
     ticker = result["ticker"]
     
     # Main valuation table
@@ -211,10 +219,10 @@ def _display_valuation_plain(result: dict):
     print(f"{'Terminal PV:':<24} ${result['term_pv']:>15,.0f}M")
     print("-" * 50)
     
-    print(f"\nVALUATION SUMMARY:")
+    print("\nVALUATION SUMMARY:")
     print(f"  Enterprise Value:  ${result['enterprise_value']:>15,.0f}M")
     print(f"  Value per Share:   ${result['value_per_share']:>15.2f}")
-    print(f"\nMARKET COMPARISON:")
+    print("\nMARKET COMPARISON:")
     print(f"  Current Price:     ${result['current_price']:>15.2f}")
     print(f"  Upside/Downside:   {result['upside_downside']:>15.1f}%")
     
@@ -240,6 +248,10 @@ def display_scenario_results(scenarios: dict, ticker: str):
 
 def _display_scenarios_rich(scenarios: dict, ticker: str):
     """Display scenarios using Rich tables."""
+    if not console:
+        _display_scenarios_plain(scenarios, ticker)
+        return
+    
     current_price = scenarios.get("summary", {}).get("current_price", 0)
     
     table = Table(
@@ -447,6 +459,10 @@ def display_sensitivity_results(sensitivity: dict, ticker: str):
 
 def _display_sensitivity_rich(sensitivity: dict, ticker: str):
     """Display sensitivity using Rich tables."""
+    if not console:
+        _display_sensitivity_plain(sensitivity, ticker)
+        return
+    
     current_price = sensitivity["current_price"]
     base = sensitivity["base_inputs"]
     
@@ -633,6 +649,206 @@ def _get_params_input(company_data: dict) -> dict:
     }
 
 
+def display_portfolio_result(result: dict, regime: str = "UNKNOWN"):
+    """Display portfolio optimization results."""
+    if HAS_RICH and console:
+        _display_portfolio_rich(result, regime)
+    else:
+        _display_portfolio_plain(result, regime)
+
+
+def _display_portfolio_rich(result: dict, regime: str):
+    """Display portfolio using Rich tables."""
+    if not console:
+        return
+    
+    table = Table(
+        title="Portfolio Optimization Results",
+        box=box.ROUNDED,
+        show_header=True,
+        header_style="bold cyan",
+    )
+    table.add_column("Ticker", style="bold")
+    table.add_column("Weight", justify="right")
+    table.add_column("DCF Value", justify="right")
+    table.add_column("Current Price", justify="right")
+    table.add_column("Upside", justify="right")
+    
+    weights = result.get("weights", {})
+    dcf_data = result.get("dcf_results", {})
+    
+    for ticker in sorted(weights.keys(), key=lambda t: weights[t], reverse=True):
+        weight = weights[ticker]
+        dcf = dcf_data.get(ticker, {})
+        
+        upside = dcf.get("upside_downside", 0)
+        upside_str = f"[green]{upside:+.1f}%[/green]" if upside > 0 else f"[red]{upside:+.1f}%[/red]"
+        
+        table.add_row(
+            ticker,
+            f"{weight*100:.1f}%",
+            f"${dcf.get('value_per_share', 0):.2f}",
+            f"${dcf.get('current_price', 0):.2f}",
+            upside_str,
+        )
+    
+    console.print()
+    console.print(table)
+    
+    # Portfolio metrics
+    console.print()
+    console.print(Panel(
+        f"Expected Return: {result['expected_annual_return']:.2f}%  |  "
+        f"Volatility: {result['annual_volatility']:.2f}%  |  "
+        f"Sharpe Ratio: {result['sharpe_ratio']:.2f}  |  "
+        f"Market Regime: {regime}",
+        title="Portfolio Metrics",
+        box=box.ROUNDED,
+    ))
+
+
+def _display_portfolio_plain(result: dict, regime: str):
+    """Display portfolio using plain text."""
+    print(f"\n{'=' * 80}")
+    print("PORTFOLIO OPTIMIZATION RESULTS")
+    print(f"{'=' * 80}\n")
+    
+    print(f"{'Ticker':<10} {'Weight':>10} {'DCF Value':>12} {'Price':>10} {'Upside':>10}")
+    print("-" * 80)
+    
+    weights = result.get("weights", {})
+    dcf_data = result.get("dcf_results", {})
+    
+    for ticker in sorted(weights.keys(), key=lambda t: weights[t], reverse=True):
+        weight = weights[ticker]
+        dcf = dcf_data.get(ticker, {})
+        
+        print(f"{ticker:<10} {weight*100:>9.1f}% "
+              f"${dcf.get('value_per_share', 0):>11.2f} "
+              f"${dcf.get('current_price', 0):>9.2f} "
+              f"{dcf.get('upside_downside', 0):>9.1f}%")
+    
+    print("-" * 80)
+    print(f"\nExpected Return: {result['expected_annual_return']:.2f}%")
+    print(f"Volatility: {result['annual_volatility']:.2f}%")
+    print(f"Sharpe Ratio: {result['sharpe_ratio']:.2f}")
+    print(f"Market Regime: {regime}")
+    print(f"\n{'=' * 80}")
+
+
+def run_portfolio_interactive():
+    """Interactive portfolio optimization."""
+    print_header("Portfolio Optimization")
+    
+    # Get tickers
+    if HAS_QUESTIONARY:
+        tickers_input = questionary.text(
+            "Enter stock tickers (comma-separated):",
+            default="AAPL,MSFT,GOOGL,NVDA",
+            style=custom_style,
+        ).ask()
+    else:
+        tickers_input = input("\nEnter stock tickers (comma-separated) [AAPL,MSFT,GOOGL,NVDA]: ").strip()
+    
+    if not tickers_input:
+        tickers_input = "AAPL,MSFT,GOOGL,NVDA"
+    
+    tickers = [t.strip().upper() for t in tickers_input.split(",")]
+    
+    print_info(f"Analyzing {len(tickers)} stocks: {', '.join(tickers)}")
+    
+    # Step 1: Run DCF analysis on all stocks
+    print_info("Step 1: Running DCF valuations...")
+    dcf_results = {}
+    
+    for ticker in tickers:
+        try:
+            engine = DCFEngine(ticker, auto_fetch=True)
+            if engine.is_ready:
+                result = engine.get_intrinsic_value()
+                dcf_results[ticker] = result
+                print_success(f"{ticker}: Fair Value ${result['value_per_share']:.2f} ({result['upside_downside']:+.1f}%)")
+            else:
+                print_error(f"{ticker}: Could not fetch data")
+        except Exception as e:
+            print_error(f"{ticker}: {str(e)}")
+    
+    if not dcf_results:
+        print_error("No valid DCF results. Cannot optimize portfolio.")
+        return
+    
+    # Step 2: Detect market regime
+    print_info("Step 2: Detecting market regime...")
+    detector = RegimeDetector()
+    regime = detector.get_current_regime()
+    print_success(f"Market Regime: {regime}")
+    
+    # Step 3: Optimize portfolio
+    print_info("Step 3: Optimizing portfolio with Black-Litterman model...")
+    
+    result = optimize_portfolio_with_dcf(
+        dcf_results=dcf_results,
+        method=OptimizationMethod.MAX_SHARPE,
+        period="2y",
+        confidence=0.3,
+    )
+    
+    if result is None:
+        print_error("Portfolio optimization failed")
+        return
+    
+    # Display results
+    result_dict = result.to_dict()
+    result_dict["dcf_results"] = dcf_results
+    display_portfolio_result(result_dict, str(regime))
+    
+    # Ask about discrete allocation
+    if HAS_QUESTIONARY:
+        allocate = questionary.confirm(
+            "Calculate discrete share allocation?",
+            default=True,
+            style=custom_style,
+        ).ask()
+    else:
+        allocate_input = input("\nCalculate discrete share allocation? (y/n) [y]: ").strip().lower()
+        allocate = allocate_input != 'n'
+    
+    if allocate:
+        if HAS_QUESTIONARY:
+            amount_input = questionary.text(
+                "Portfolio value ($):",
+                default="50000",
+                style=custom_style,
+            ).ask()
+        else:
+            amount_input = input("\nPortfolio value ($) [50000]: ").strip()
+        
+        amount = float(amount_input) if amount_input else 50000.0
+        
+        # Calculate discrete allocation
+        engine = PortfolioEngine(tickers=list(dcf_results.keys()))
+        engine.fetch_data(period="2y")
+        engine.optimize_with_views(dcf_results=dcf_results)
+        
+        allocation = engine.get_discrete_allocation(total_portfolio_value=amount)
+        
+        if allocation and console:
+            alloc_table = Table(title="Share Allocation", box=box.ROUNDED)
+            alloc_table.add_column("Ticker", style="bold")
+            alloc_table.add_column("Shares", justify="right")
+            alloc_table.add_column("Value", justify="right")
+            
+            for ticker, shares in allocation.allocation.items():
+                value = shares * dcf_results[ticker]['current_price']
+                alloc_table.add_row(ticker, str(shares), f"${value:,.0f}")
+            
+            console.print()
+            console.print(alloc_table)
+            console.print()
+            console.print(f"[green]Total Invested: ${allocation.total_value:,.2f}[/green]")
+            console.print(f"[yellow]Leftover Cash: ${allocation.leftover:,.2f}[/yellow]")
+
+
 def run_interactive_menu():
     """Run the main interactive menu."""
     print_header("Quant Portfolio Manager")
@@ -642,7 +858,7 @@ def run_interactive_menu():
             "What would you like to do?",
             choices=[
                 "1. Analyze a Stock (DCF Valuation)",
-                "2. Optimize a Portfolio (Coming Soon)",
+                "2. Optimize a Portfolio (Black-Litterman + DCF)",
                 "3. Exit",
             ],
             style=custom_style,
@@ -655,12 +871,11 @@ def run_interactive_menu():
         if "Analyze" in choice:
             run_valuation_interactive()
         elif "Optimize" in choice:
-            print_info("Portfolio optimization module coming soon!")
-            print_info("This will include Mean-Variance Optimization, Risk Parity, and more.")
+            run_portfolio_interactive()
     else:
         print("Select an option:")
         print("  1. Analyze a Stock (DCF Valuation)")
-        print("  2. Optimize a Portfolio (Coming Soon)")
+        print("  2. Optimize a Portfolio (Black-Litterman + DCF)")
         print("  3. Exit")
         
         choice = input("\nEnter choice (1-3): ").strip()
@@ -668,7 +883,7 @@ def run_interactive_menu():
         if choice == "1":
             run_valuation_interactive()
         elif choice == "2":
-            print_info("Portfolio optimization module coming soon!")
+            run_portfolio_interactive()
         else:
             print_info("Goodbye!")
 
@@ -717,6 +932,9 @@ def run_valuation_interactive():
         analysis_type = input("\nEnter choice (1-3): ").strip()
     
     # Get parameters
+    if engine.company_data is None:
+        print_error("No company data available")
+        return
     params = get_analysis_params_interactive(engine.company_data.to_dict())
     
     try:
@@ -857,11 +1075,11 @@ Examples:
         help="Export results to CSV file",
     )
     
-    # Portfolio subcommand (placeholder)
-    port_parser = subparsers.add_parser(
+    # Portfolio subcommand
+    subparsers.add_parser(
         "portfolio",
         aliases=["port", "opt"],
-        help="Portfolio Optimization Engine (Coming Soon)"
+        help="Portfolio Optimization Engine"
     )
     
     return parser.parse_args()
@@ -880,15 +1098,9 @@ def main():
         run_interactive_menu()
         return
     
-    # Portfolio module (placeholder)
+    # Portfolio module
     if args.module in ("portfolio", "port", "opt"):
-        print_header("Portfolio Optimization")
-        print_info("Portfolio optimization module coming soon!")
-        print_info("Planned features:")
-        print("  • Mean-Variance Optimization (Markowitz)")
-        print("  • Risk Parity")
-        print("  • Black-Litterman Model")
-        print("  • Fundamental-weighted portfolios using DCF data")
+        run_portfolio_interactive()
         return
     
     # Valuation module

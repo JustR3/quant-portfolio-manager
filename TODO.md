@@ -143,39 +143,65 @@ Discrete Allocation ($50,000 portfolio):
 
 ---
 
-### Step 3: The Integration (Black-Litterman) ⏳
-**Status**: Not Started
+### Step 3: The Integration (Black-Litterman) ✅
+**Status**: Complete
 
 #### Major Tasks
-- [ ] Update `PortfolioEngine` to accept DCF intrinsic values
-- [ ] Implement Black-Litterman model integration
-  - [ ] Create views vector (Q) from DCF valuations
-  - [ ] Calculate view confidence matrix (Omega)
-  - [ ] Combine market equilibrium with analyst views
-  - [ ] Generate posterior expected returns
-- [ ] Update `main_cli.py` for portfolio commands
-  - [ ] Add portfolio optimization subcommand
-  - [ ] Interactive mode for portfolio creation
-  - [ ] Display optimization results with Rich tables
-  - [ ] Export portfolio weights to CSV
+- [x] Update `PortfolioEngine` to accept DCF intrinsic values
+- [x] Implement Black-Litterman model integration
+  - [x] Create views vector (Q) from DCF valuations
+  - [x] Calculate view confidence matrix (Omega)
+  - [x] Combine market equilibrium with analyst views
+  - [x] Generate posterior expected returns
+- [x] Update `main.py` for portfolio commands
+  - [x] Add portfolio optimization subcommand
+  - [x] Interactive mode for portfolio creation
+  - [x] Display optimization results with Rich tables
+  - [x] Export portfolio weights capability
+
+#### Completed Features ✅
+- **PortfolioEngine.optimize_with_views()**: Black-Litterman optimization with DCF views
+- **optimize_portfolio_with_dcf()**: Convenience function for DCF-driven portfolios
+- **View generation logic**: Maps upside/downside % to expected return adjustments
+- **Confidence matrix**: Idzorek method for view uncertainty
+- **CLI integration**: Full interactive workflow from DCF to portfolio
+- **Display functions**: Rich tables for portfolio results and allocations
+- **Market regime integration**: Shows regime context with portfolio results
+- **Discrete allocation**: Integer share allocation with leftover cash tracking
 
 #### Technical Details
 - **Integration Flow**:
-  1. User runs DCF analysis on multiple stocks
-  2. DCF results feed into Black-Litterman as "views"
-  3. Undervalued stocks get positive views
-  4. Overvalued stocks get negative views
-  5. Optimizer generates optimal portfolio weights
+  1. User provides tickers or runs interactive mode
+  2. DCF analysis runs on all stocks
+  3. Upside/downside percentages become Black-Litterman "views"
+  4. Undervalued stocks get positive expected return adjustments
+  5. Overvalued stocks get negative adjustments
+  6. Optimizer generates optimal portfolio weights using posterior returns
+  7. Market regime displayed for context
+  8. Optional discrete allocation for real portfolio implementation
 
-#### Subtasks
-- [ ] Design data flow between DCFEngine and PortfolioEngine
-- [ ] Create wrapper function for DCF → Portfolio workflow
-- [ ] Implement view generation logic
-  - [ ] Map upside/downside % to expected returns
-  - [ ] Confidence based on DCF sensitivity
-- [ ] CLI interface enhancements
-- [ ] Add portfolio visualization (efficient frontier plot)
-- [ ] Documentation and usage examples
+#### Implementation Details
+- **Black-Litterman Model**: Using pypfopt's BlackLittermanModel
+- **Prior**: Market equilibrium returns
+- **Views**: Absolute views based on DCF upside/downside
+- **Omega (view uncertainty)**: Idzorek method for automatic calculation
+- **Confidence parameter**: User-adjustable (default 0.3)
+- **Optimization methods**: MAX_SHARPE and MIN_VOLATILITY supported
+- **Data flow**: DCF results → Views → BL posterior → Optimization
+
+#### Test Scenario
+```
+Portfolio: AAPL, MSFT, GOOGL, NVDA
+Method: Black-Litterman with DCF views
+Confidence: 0.3 (30% confidence in DCF valuations)
+
+Workflow:
+1. DCF Analysis produces upside/downside for each stock
+2. Views created: Undervalued stocks get positive adjustments
+3. BL model combines with market equilibrium
+4. Max Sharpe optimization with posterior returns
+5. Results: Optimal weights with expected return, vol, Sharpe
+```
 
 ---
 

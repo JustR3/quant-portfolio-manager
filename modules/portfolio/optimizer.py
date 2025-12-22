@@ -15,8 +15,8 @@ Features:
 Author: Quant Portfolio Manager
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional, Dict, List, Tuple
 from enum import Enum
 
@@ -25,7 +25,7 @@ import numpy as np
 import yfinance as yf
 import time
 
-from pypfopt import EfficientFrontier, risk_models, expected_returns
+from pypfopt import EfficientFrontier, risk_models, expected_returns, black_litterman
 from pypfopt.discrete_allocation import DiscreteAllocation, get_latest_prices
 
 
@@ -188,14 +188,19 @@ class PortfolioEngine:
                 )
             
             # Validate data
-            if data.empty:
+            if data is None or data.empty:
                 self._last_error = "No data returned from yfinance"
                 return False
             
             # Extract closing prices
             if isinstance(data.columns, pd.MultiIndex):
                 # Multiple tickers
-                self.prices = data['Close']
+                prices_df = data['Close']
+                if isinstance(prices_df, pd.DataFrame):
+                    self.prices = prices_df
+                else:
+                    # Single ticker case
+                    self.prices = pd.DataFrame({self.tickers[0]: prices_df})
             else:
                 # Single ticker
                 self.prices = data[['Close']].rename(columns={'Close': self.tickers[0]})
@@ -387,6 +392,128 @@ class PortfolioEngine:
             self._last_error = f"Error optimizing portfolio: {str(e)}"
             return None
     
+    def optimize_with_views(
+        self,
+        dcf_results: Dict[str, dict],
+        confidence: float = 0.3,
+        method: OptimizationMethod = OptimizationMethod.MAX_SHARPE,
+        weight_bounds: Tuple[float, float] = (0, 1),
+    ) -> Optional[PortfolioMetrics]:
+        """
+        Optimize portfolio using Black-Litterman model with DCF valuations as views.
+        
+        This method incorporates fundamental analysis (DCF valuations) into portfolio
+        optimization. Stocks with higher upside get positive expected return adjustments,
+        while overvalued stocks get negative adjustments.
+        
+        Args:
+            dcf_results: Dictionary mapping tickers to DCF results with keys:
+                        'value_per_share', 'current_price', 'upside_downside'
+            confidence: View confidence (0-1). Higher = more weight to DCF views
+            method: Optimization method to use
+            weight_bounds: Min and max weight for each asset
+            
+        Returns:
+            PortfolioMetrics object, or None on error
+            
+        Example:
+            >>> dcf_results = {
+            ...     'AAPL': {'value_per_share': 200, 'current_price': 180, 'upside_downside': 11.1},
+            ...     'MSFT': {'value_per_share': 400, 'current_price': 380, 'upside_downside': 5.3}
+            ... }
+            >>> result = engine.optimize_with_views(dcf_results)
+        """
+        try:
+            if self.prices is None:
+                self._last_error = "No price data. Call fetch_data() first."
+                return None
+            
+            if self.expected_returns is None or self.cov_matrix is None:
+                # Calculate if not done already
+                if not self.calculate_expected_returns():
+                    return None
+                if not self.calculate_covariance_matrix():
+                    return None
+            
+            # Create views from DCF results
+            viewdict = {}
+            for ticker in self.tickers:
+                if ticker in dcf_results:
+                    # Convert upside/downside % to expected return adjustment
+                    # Upside/downside is annual, so we use it directly
+                    upside_pct = dcf_results[ticker]['upside_downside']
+                    # View: If stock is X% undervalued, expect X% return over the year
+                    viewdict[ticker] = upside_pct / 100.0
+            
+            if not viewdict:
+                self._last_error = "No valid DCF results for portfolio tickers"
+                return None
+            
+            # Calculate market-implied returns (prior)
+            # Build market cap dictionary for all tickers
+            market_caps = pd.Series(index=self.tickers, dtype=float)
+            for ticker in self.tickers:
+                if ticker in dcf_results:
+                    # Use market cap from DCF results if available
+                    market_caps[ticker] = dcf_results[ticker].get('market_cap', 1.0)
+                else:
+                    # Default to equal weighting
+                    market_caps[ticker] = 1.0
+            
+            # Black-Litterman posterior expected returns
+            # Build confidence array - one value per view
+            num_views = len(viewdict)
+            confidences = np.full(num_views, confidence)
+            
+            bl = black_litterman.BlackLittermanModel(
+                self.cov_matrix,
+                pi="market",  # Use market equilibrium as prior
+                market_caps=market_caps,  # Pass market caps explicitly
+                absolute_views=viewdict,
+                omega="idzorek",  # Calculate view uncertainty
+                view_confidences=confidences,  # Array of confidences
+            )
+            
+            # Get posterior expected returns
+            bl_returns = bl.bl_returns()
+            
+            # Run optimization with BL returns
+            ef = EfficientFrontier(bl_returns, self.cov_matrix, weight_bounds=weight_bounds)
+            
+            if method == OptimizationMethod.MAX_SHARPE:
+                ef.max_sharpe(risk_free_rate=self.risk_free_rate)
+            elif method == OptimizationMethod.MIN_VOLATILITY:
+                ef.min_volatility()
+            elif method == OptimizationMethod.EFFICIENT_RISK:
+                ef.efficient_risk(target_volatility=0.15)
+            else:
+                self._last_error = f"Method {method} not supported for Black-Litterman"
+                return None
+            
+            # Get weights and performance
+            weights = ef.clean_weights()
+            perf = ef.portfolio_performance(verbose=False, risk_free_rate=self.risk_free_rate)
+            
+            # Clean weights (remove tiny allocations)
+            cleaned_weights = {k: v for k, v in weights.items() if v > 0.001}
+            
+            # Store results
+            self.optimized_weights = cleaned_weights
+            self.performance = PortfolioMetrics(
+                expected_annual_return=perf[0] * 100,
+                annual_volatility=perf[1] * 100,
+                sharpe_ratio=perf[2],
+                weights=cleaned_weights,
+                optimization_method=f"{method.value}_black_litterman",
+            )
+            
+            self._last_error = None
+            return self.performance
+            
+        except Exception as e:
+            self._last_error = f"Error in Black-Litterman optimization: {str(e)}"
+            return None
+    
     def get_discrete_allocation(
         self,
         total_portfolio_value: float,
@@ -490,6 +617,59 @@ def optimize_portfolio(
     return engine.optimize(method=method)
 
 
+def optimize_portfolio_with_dcf(
+    dcf_results: Dict[str, dict],
+    method: OptimizationMethod = OptimizationMethod.MAX_SHARPE,
+    period: str = "2y",
+    risk_free_rate: float = 0.04,
+    confidence: float = 0.3,
+) -> Optional[PortfolioMetrics]:
+    """
+    Optimize portfolio using DCF valuations via Black-Litterman model.
+    
+    This is a convenience function that combines DCF analysis with portfolio
+    optimization. The DCF results are used as "views" in the Black-Litterman
+    framework to generate posterior expected returns.
+    
+    Args:
+        dcf_results: Dictionary mapping tickers to DCF results with keys:
+                    'value_per_share', 'current_price', 'upside_downside'
+        method: Optimization method (MAX_SHARPE or MIN_VOLATILITY recommended)
+        period: Historical data period for calculating covariance
+        risk_free_rate: Risk-free rate for Sharpe ratio
+        confidence: View confidence (0-1). Higher = more weight to DCF views
+        
+    Returns:
+        PortfolioMetrics object, or None on error
+        
+    Example:
+        >>> from modules.valuation import DCFEngine
+        >>> # Get DCF results for multiple stocks
+        >>> dcf_results = {}
+        >>> for ticker in ['AAPL', 'MSFT', 'GOOGL']:
+        ...     engine = DCFEngine(ticker)
+        ...     result = engine.get_intrinsic_value()
+        ...     dcf_results[ticker] = result
+        >>> # Optimize portfolio
+        >>> portfolio = optimize_portfolio_with_dcf(dcf_results)
+    """
+    tickers = list(dcf_results.keys())
+    
+    if not tickers:
+        return None
+    
+    engine = PortfolioEngine(tickers=tickers, risk_free_rate=risk_free_rate)
+    
+    if not engine.fetch_data(period=period):
+        return None
+    
+    return engine.optimize_with_views(
+        dcf_results=dcf_results,
+        confidence=confidence,
+        method=method,
+    )
+
+
 def get_efficient_frontier_points(
     tickers: List[str],
     num_points: int = 100,
@@ -536,7 +716,7 @@ def get_efficient_frontier_points(
                 'volatility': perf[1],
                 'sharpe': perf[2],
             })
-        except:
+        except Exception:
             continue
     
     return pd.DataFrame(results) if results else None

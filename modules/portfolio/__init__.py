@@ -17,6 +17,7 @@ from .optimizer import (
     PortfolioMetrics,
     DiscretePortfolio,
     optimize_portfolio,
+    optimize_portfolio_with_dcf,
     get_efficient_frontier_points,
 )
 
@@ -32,5 +33,6 @@ __all__ = [
     "PortfolioMetrics",
     "DiscretePortfolio",
     "optimize_portfolio",
+    "optimize_portfolio_with_dcf",
     "get_efficient_frontier_points",
 ]

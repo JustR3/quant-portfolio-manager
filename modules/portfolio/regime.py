@@ -160,9 +160,10 @@ class RegimeResult:
         
         return " | ".join(parts)
     
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format."""
-        result = {
+
+        result: dict[str, Any] = {
             "regime": self.regime.value,
             "method": self.method,
             "last_updated": self.last_updated.isoformat(),
@@ -179,9 +180,10 @@ class RegimeResult:
         
         # Add VIX data if available
         if self.vix_structure is not None:
-            result["vix"] = self.vix_structure.to_dict()
+            vix_data = self.vix_structure.to_dict()
             if self.vix_regime is not None:
-                result["vix"]["regime"] = self.vix_regime.value
+                vix_data["regime"] = self.vix_regime.value
+            result["vix"] = vix_data
         
         return result
 
@@ -304,8 +306,12 @@ class RegimeDetector:
             tickers = ['^VIX9D', '^VIX', '^VIX3M']
             data = yf.download(tickers, period='5d', progress=False)
             
-            if data.empty or 'Close' not in data:
+            if data is None or data.empty:
                 self._last_error = "No VIX data returned"
+                return None
+            
+            if 'Close' not in data.columns:
+                self._last_error = "No Close data in VIX response"
                 return None
             
             # Get most recent values
@@ -636,7 +642,7 @@ class RegimeDetector:
         if result is None:
             return None
         
-        return result.signal_strength
+        return result.sma_signal_strength
 
     def to_dict(self, use_cache: bool = True, method: str = "combined") -> Optional[dict]:
         """
