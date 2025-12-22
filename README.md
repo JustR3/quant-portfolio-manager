@@ -8,9 +8,11 @@ Integrates fundamental analysis (DCF) with modern portfolio theory to generate d
 
 ### 📊 DCF Valuation
 - Automated intrinsic value calculation with WACC and terminal value
+- **Robust growth rate normalization** (handles yfinance data quirks)
 - Scenario analysis (Bull/Base/Bear cases)
 - Sensitivity analysis for key assumptions
 - Multi-stock comparison and ranking
+- Extreme value protection with configurable growth caps
 - CSV export capabilities
 
 ### 🎯 Portfolio Optimization
@@ -148,6 +150,11 @@ quant-portfolio-manager/
 - DCF: Explicit forecast + Gordon Growth terminal value
 - Black-Litterman: Bayesian posterior with analyst views
 - Regime Detection: 200-day SMA + VIX term structure
+
+**Data Quality & Robustness:**
+- Growth rate normalization: Automatically detects and converts percentage formats
+- Extreme value protection: Caps analyst growth rates at 50% maximum
+- Comprehensive test suite: Full pipeline validation from DCF to portfolio allocation
 
 ## 📄 License
 

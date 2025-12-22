@@ -262,6 +262,16 @@ class DCFEngine:
                 analyst_growth = info["earningsGrowth"]
             elif "revenueGrowth" in info and info["revenueGrowth"]:
                 analyst_growth = info["revenueGrowth"]
+            
+            # Normalize analyst growth if it's given as a whole number (>1)
+            # yfinance sometimes returns percentages as whole numbers (e.g., 15 instead of 0.15)
+            if analyst_growth is not None and abs(analyst_growth) > 1:
+                analyst_growth = analyst_growth / 100
+            
+            # Cap extreme growth rates at 50% for sanity
+            if analyst_growth is not None and abs(analyst_growth) > 0.50:
+                print(f"Warning: Capping extreme analyst growth rate {analyst_growth:.2%} to 50%")
+                analyst_growth = 0.50 if analyst_growth > 0 else -0.50
 
             if shares == 0:
                 self._last_error = f"Shares outstanding not available for {self.ticker}"

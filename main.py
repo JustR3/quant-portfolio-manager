@@ -767,7 +767,19 @@ def run_portfolio_interactive():
             if engine.is_ready:
                 result = engine.get_intrinsic_value()
                 dcf_results[ticker] = result
-                print_success(f"{ticker}: Fair Value ${result['value_per_share']:.2f} ({result['upside_downside']:+.1f}%)")
+                
+                # Display with proper assessment
+                upside = result['upside_downside']
+                assessment = result['assessment']
+                
+                if "UNDERVALUED" in assessment:
+                    status = "🟢 Undervalued"
+                elif "OVERVALUED" in assessment:
+                    status = "🔴 Overvalued"
+                else:
+                    status = "🟡 Fairly Valued"
+                
+                print_success(f"{ticker}: ${result['value_per_share']:.2f} ({upside:+.1f}%) - {status}")
             else:
                 print_error(f"{ticker}: Could not fetch data")
         except Exception as e:
