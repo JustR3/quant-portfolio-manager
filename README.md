@@ -28,7 +28,7 @@ A modular Python toolkit for quantitative finance analysis, featuring a professi
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/quant-portfolio-manager.git
+git clone https://github.com/justr3/quant-portfolio-manager.git
 cd quant-portfolio-manager
 
 # Install dependencies (requires uv)
@@ -67,7 +67,7 @@ uv run main.py valuation AAPL MSFT GOOGL --compare --export results.csv
 
 ```
 quant-portfolio-manager/
-├── main_cli.py              # CLI entry point
+├── main.py                  # CLI entry point
 ├── modules/
 │   ├── __init__.py
 │   ├── valuation/           # DCF Valuation Engine
@@ -91,19 +91,19 @@ The DCF module provides both a command-line interface and a Python API.
 
 ```bash
 # Basic valuation with automatic parameter detection
-uv run main_cli.py valuation AAPL
+uv run main.py valuation AAPL
 
 # Customize growth assumptions
-uv run main_cli.py valuation TSLA --growth 12 --wacc 10
+uv run main.py valuation TSLA --growth 12 --wacc 10
 
 # Scenario analysis for investment thesis validation
-uv run main_cli.py valuation MSFT --scenarios
+uv run main.py valuation MSFT --scenarios
 
 # Sensitivity analysis to test assumption robustness
-uv run main_cli.py valuation GOOGL --sensitivity
+uv run main.py valuation GOOGL --sensitivity
 
 # Compare multiple stocks to find best value
-uv run main_cli.py valuation AAPL MSFT GOOGL NVDA --compare --export comparison.csv
+uv run main.py valuation AAPL MSFT GOOGL NVDA --compare --export comparison.csv
 ```
 
 #### Python API
@@ -195,7 +195,7 @@ The codebase has undergone a significant refactoring to improve modularity and m
 - Tightly coupled data fetching and presentation
 
 #### After (Modular Structure)
-- **Separated concerns**: `DCFEngine` class for calculations, `main_cli.py` for interface
+- **Separated concerns**: `DCFEngine` class for calculations, `main.py` for interface
 - **Clean API**: Importable engine with structured return types
 - **Dataclasses**: Type-safe data containers (`CompanyData`, `DCFResult`, `ValuationResult`)
 - **Flexible display**: Support for Rich terminal UI or plain text fallback
@@ -209,7 +209,7 @@ The codebase has undergone a significant refactoring to improve modularity and m
    - Scenario and sensitivity analysis
    - Multi-stock comparison
 
-2. **`main_cli.py`**: User-facing CLI (979 lines)
+2. **`main.py`**: User-facing CLI (1198 lines)
    - Interactive menu system
    - Rich terminal formatting
    - Argument parsing for direct commands
@@ -343,19 +343,19 @@ Valuation Options:
 
 Examples:
   # Interactive mode with guided prompts
-  uv run main_cli.py
+  uv run main.py
   
   # Quick valuation
-  uv run main_cli.py valuation AAPL
+  uv run main.py valuation AAPL
   
   # Custom parameters
-  uv run main_cli.py valuation AAPL -g 8 -w 11 -y 5
+  uv run main.py valuation AAPL -g 8 -w 11 -y 5
   
   # Scenario analysis
-  uv run main_cli.py valuation MSFT --scenarios
+  uv run main.py valuation MSFT --scenarios
   
   # Multi-stock comparison with export
-  uv run main_cli.py valuation AAPL MSFT GOOGL -c -e results.csv
+  uv run main.py valuation AAPL MSFT GOOGL -c -e results.csv
 ```
 
 ## 🛠️ Requirements

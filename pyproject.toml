@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-qpm = "main_cli:main"
+qpm = "main:main"
 
 [dependency-groups]
 dev = [
