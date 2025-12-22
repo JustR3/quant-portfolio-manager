@@ -17,36 +17,57 @@
 ## Phase 2: Portfolio Optimization Engine 🚧 IN PROGRESS
 
 ### Step 1: The Skeleton & Data Layer (Architectural) ✅
-**Status**: Complete
+**Status**: Complete (Enhanced with VIX Term Structure)
 
 #### Major Tasks
 - [x] Create `modules/portfolio/regime.py`
 - [x] Implement `RegimeDetector` class
   - [x] Fetch historical SPY data via yfinance
   - [x] Calculate 200-day Simple Moving Average crossover
-  - [x] Return market regime enum (RISK_ON/RISK_OFF)
+  - [x] **NEW**: Fetch VIX term structure (^VIX9D, ^VIX, ^VIX3M)
+  - [x] **NEW**: Detect VIX backwardation/contango
+  - [x] **NEW**: Multi-method regime detection (SPY, VIX, Combined)
+  - [x] Return market regime enum (RISK_ON/RISK_OFF/CAUTION)
   - [x] Add rate limiting for API calls
   - [x] Error handling for data fetch failures
   - [x] Cache mechanism for recent regime data
 
 #### Completed Features ✅
-- **RegimeDetector class**: Fully functional with SPY data fetching
-- **MarketRegime enum**: RISK_ON, RISK_OFF, UNKNOWN states
-- **RegimeResult dataclass**: Comprehensive result container with metadata
+- **RegimeDetector class**: Fully functional with SPY and VIX analysis
+- **MarketRegime enum**: RISK_ON, RISK_OFF, CAUTION, UNKNOWN states
+- **VixTermStructure dataclass**: Holds VIX9D/VIX/VIX3M with backwardation detection
+- **RegimeResult dataclass**: Enhanced to support SPY and/or VIX data
 - **200-day SMA calculation**: Accurate moving average computation
+- **VIX term structure analysis**: Detects panic (backwardation) vs calm (contango)
+- **Combined regime logic**: Intelligent fusion of SPY SMA and VIX signals
 - **Rate limiting**: Reused RateLimiter from DCF module (60 calls/min)
 - **Caching**: 1-hour cache for regime results to minimize API calls
 - **Error handling**: Graceful failure with error messages
 - **Convenience functions**: `get_market_regime()`, `is_bull_market()`, `is_bear_market()`
+- **Method parameter**: All APIs support method="sma"/"vix"/"combined"
 
 #### Test Results ✅
 ```
 Current Market Status (Dec 22, 2025):
+
+SPY 200-Day SMA Method:
 - Regime: RISK_ON (Bull Market)
-- SPY Price: $685.21
+- SPY Price: $684.46
 - 200-day SMA: $619.48
-- Signal Strength: +10.61% (strong bullish)
-- Data Points: 208 days
+- Signal Strength: +10.49% (strong bullish)
+
+VIX Term Structure Method:
+- Regime: RISK_ON (Calm Market)
+- VIX 9-Day: 10.99
+- VIX 30-Day: 14.44
+- VIX 3-Month: 17.88
+- Structure: Contango (normal upward slope)
+- 9D→30D Slope: +3.45
+- 30D→3M Slope: +3.44
+
+Combined Method:
+- Final Regime: RISK_ON
+- Both SPY and VIX agree: Bullish conditions
 ```
 
 #### Technical Details
