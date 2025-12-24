@@ -71,6 +71,41 @@ def display_valuation(result: dict, engine=None, detailed: bool = False):
     current = result['current_price']
     fair = result['value_per_share']
     
+    # Calculate Monte Carlo probability for conviction rating
+    mc_probability = None
+    if engine and method == "DCF":
+        try:
+            import numpy as np
+            np.random.seed(42)
+            mc_result = engine.simulate_value(iterations=3000)
+            if "error" not in mc_result:
+                mc_probability = mc_result['prob_undervalued']
+        except Exception:
+            pass
+    
+    # Calculate Conviction Rating
+    conviction = "N/A"
+    conviction_color = "dim"
+    conviction_emoji = "⚪"
+    
+    if mc_probability is not None:
+        if upside > 15 and mc_probability > 75:
+            conviction = "HIGH CONVICTION"
+            conviction_color = "bold green"
+            conviction_emoji = "🟢"
+        elif upside > 15 and mc_probability < 60:
+            conviction = "SPECULATIVE"
+            conviction_color = "bold yellow"
+            conviction_emoji = "🟡"
+        elif upside < 15:
+            conviction = "HOLD/PASS"
+            conviction_color = "bold red" if upside < 0 else "dim"
+            conviction_emoji = "🔴" if upside < 0 else "⚪"
+        else:  # upside > 15 and 60 <= mc_probability <= 75
+            conviction = "MODERATE"
+            conviction_color = "yellow"
+            conviction_emoji = "🟡"
+    
     # Build summary content
     summary_lines = []
     summary_lines.append(f"[bold]Current Price:[/bold]  ${current:.2f}")
@@ -81,6 +116,9 @@ def display_valuation(result: dict, engine=None, detailed: bool = False):
     assess = result['assessment']
     emoji = "🟢" if "UNDER" in assess else "🔴" if "OVER" in assess else "🟡"
     summary_lines.append(f"[bold]Assessment:[/bold]     {emoji} {assess}")
+    
+    # Add Conviction Rating
+    summary_lines.append(f"[bold]Conviction:[/bold]     {conviction_emoji} [{conviction_color}]{conviction}[/{conviction_color}]")
     summary_lines.append("")
     
     # Key Insight (Reverse DCF)
@@ -108,12 +146,13 @@ def display_valuation(result: dict, engine=None, detailed: bool = False):
         except Exception:
             pass
     
-    # Monte Carlo (if engine available)
-    if engine and method == "DCF":
+    # Monte Carlo (if engine available) - reuse result from conviction calculation
+    if mc_probability is not None and engine and method == "DCF":
         try:
+            # Use the same mc_result from conviction calculation
             import numpy as np
-            np.random.seed(42)  # Consistent results
-            mc_result = engine.simulate_value(iterations=3000)  # Faster for CLI
+            np.random.seed(42)
+            mc_result = engine.simulate_value(iterations=3000)
             
             if "error" not in mc_result:
                 prob = mc_result['prob_undervalued']
