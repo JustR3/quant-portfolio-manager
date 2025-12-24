@@ -402,6 +402,78 @@ def display_sensitivity(sensitivity: dict, ticker: str):
                 print(f"  {rate}%: ${value:.2f} ({vs:+.1f}%)")
 
 
+def display_stress_test(stress_data: dict):
+    """Display stress test heatmap showing valuation sensitivity to growth/WACC.
+    
+    Args:
+        stress_data: Output from DCFEngine.run_stress_test()
+    """
+    if not HAS_RICH or not console:
+        # Fallback for non-Rich environments
+        print(f"\nStress Test - {stress_data['ticker']}")
+        print(f"Current Price: ${stress_data['current_price']:.2f}")
+        print(f"Base Case: Growth {stress_data['base_case']['growth']*100:.1f}%, WACC {stress_data['base_case']['wacc']*100:.1f}%")
+        print(f"Base Fair Value: ${stress_data['base_case']['fair_value']:.2f} ({stress_data['base_case']['upside']:+.1f}%)")
+        return
+    
+    ticker = stress_data['ticker']
+    current_price = stress_data['current_price']
+    heatmap = stress_data['heatmap']
+    growth_values = stress_data['growth_values']
+    wacc_values = stress_data['wacc_values']
+    base_case = stress_data['base_case']
+    
+    # Header
+    console.print(Panel(
+        f"[bold]{ticker}[/bold] - Current Price: ${current_price:.2f}\n"
+        f"Base Case: Growth [cyan]{base_case['growth']*100:.1f}%[/cyan], WACC [cyan]{base_case['wacc']*100:.1f}%[/cyan]\n"
+        f"Base Fair Value: [{'green' if base_case['upside'] > 0 else 'red'}]${base_case['fair_value']:.2f} ({base_case['upside']:+.1f}%)[/{'green' if base_case['upside'] > 0 else 'red'}]",
+        title="Stress Test Heatmap",
+        border_style="cyan"
+    ))
+    
+    # Build heatmap table
+    table = Table(title="Upside % at Different Growth/WACC Combinations", box=box.SIMPLE)
+    table.add_column("WACC ↓", style="cyan", justify="right")
+    
+    # Add growth column headers
+    for growth in growth_values:
+        table.add_column(f"{growth*100:+.0f}%", justify="center")
+    
+    # Add rows (WACC on y-axis, growth on x-axis)
+    for i, wacc in enumerate(wacc_values):
+        row = [f"{wacc*100:.1f}%"]
+        for j, growth in enumerate(growth_values):
+            upside = heatmap[i][j]
+            
+            if upside != upside:  # Check for NaN
+                cell = "[dim]—[/dim]"
+            else:
+                # Color coding
+                if upside > 20:
+                    color = "green"
+                elif upside > 0:
+                    color = "yellow"
+                else:
+                    color = "red"
+                cell = f"[{color}]{upside:+.0f}%[/{color}]"
+            
+            row.append(cell)
+        table.add_row(*row)
+    
+    console.print(table)
+    
+    # Legend
+    legend_text = (
+        "[bold]Legend:[/bold]\n"
+        "[green]Green (>20%):[/green] Strong upside\n"
+        "[yellow]Yellow (0-20%):[/yellow] Modest upside\n"
+        "[red]Red (<0%):[/red] Overvalued\n\n"
+        "[dim]Growth % → (horizontal), WACC % ↓ (vertical)[/dim]"
+    )
+    console.print(Panel(legend_text, title="How to Read", box=box.ROUNDED))
+
+
 def display_portfolio(result: dict, regime: str = "UNKNOWN"):
     """Display portfolio optimization results with conviction and probability."""
     if HAS_RICH and console:
@@ -732,6 +804,7 @@ def parse_args():
     val.add_argument("-y", "--years", type=int, default=5, help="Forecast years")
     val.add_argument("-s", "--scenarios", action="store_true", help="Scenario analysis")
     val.add_argument("--sensitivity", action="store_true", help="Sensitivity analysis")
+    val.add_argument("--stress", action="store_true", help="Stress test heatmap")
     val.add_argument("-c", "--compare", action="store_true", help="Compare stocks")
     val.add_argument("-d", "--detailed", action="store_true", help="Show detailed technical breakdown")
     val.add_argument("-e", "--export", type=str, help="Export CSV")
@@ -794,6 +867,8 @@ def main():
                 display_scenarios(engine.run_scenario_analysis(base_growth=growth, base_term_growth=term, base_wacc=wacc, years=args.years), ticker)
             elif args.sensitivity:
                 display_sensitivity(engine.run_sensitivity_analysis(base_growth=growth, base_term_growth=term, base_wacc=wacc, years=args.years), ticker)
+            elif args.stress:
+                display_stress_test(engine.run_stress_test(years=args.years))
             else:
                 detailed = getattr(args, 'detailed', False)
                 display_valuation(engine.get_intrinsic_value(growth=growth, term_growth=term, wacc=wacc, years=args.years), engine, detailed=detailed)

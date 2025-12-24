@@ -805,6 +805,82 @@ class DCFEngine:
 
         return results
 
+    def run_stress_test(self, growth_range: tuple[float, float] = (-0.20, 0.30),
+                       wacc_range: tuple[float, float] = (0.06, 0.18),
+                       grid_size: int = 7, years: int = 5) -> dict:
+        """Generate stress test heatmap: valuation sensitivity to growth/WACC combinations.
+        
+        Args:
+            growth_range: (min_growth, max_growth) tuple (e.g., -20% to +30%)
+            wacc_range: (min_wacc, max_wacc) tuple (e.g., 6% to 18%)
+            grid_size: Number of points in each dimension (7x7 = 49 scenarios)
+            years: Forecast period
+            
+        Returns:
+            dict with heatmap matrix, growth_values, wacc_values, base_case
+        """
+        if not self.is_ready:
+            raise RuntimeError(f"No data for {self.ticker}")
+        
+        data = self._company_data
+        
+        # Generate grid points
+        growth_values = np.linspace(growth_range[0], growth_range[1], grid_size)
+        wacc_values = np.linspace(wacc_range[0], wacc_range[1], grid_size)
+        
+        # Determine terminal method
+        base_growth = data.analyst_growth or 0.05
+        high_growth_sectors = {"Technology", "Communication Services", "Healthcare"}
+        is_high_growth = base_growth > 0.10 or data.sector in high_growth_sectors
+        terminal_method = "exit_multiple" if is_high_growth else "gordon_growth"
+        
+        # Build heatmap matrix (upside percentages)
+        heatmap = np.zeros((len(wacc_values), len(growth_values)))
+        
+        for i, wacc in enumerate(wacc_values):
+            for j, growth in enumerate(growth_values):
+                try:
+                    _, _, _, ev, _ = self.calculate_dcf(
+                        data.fcf, growth, 0.025, wacc, years,
+                        terminal_method=terminal_method
+                    )
+                    fair_value = ev / data.shares if data.shares > 0 else 0
+                    upside = ((fair_value - data.current_price) / data.current_price * 100
+                             if data.current_price > 0 else 0)
+                    heatmap[i, j] = upside
+                except (ValueError, ZeroDivisionError):
+                    heatmap[i, j] = np.nan  # Mark failed calculations
+        
+        # Calculate base case (analyst growth + CAPM WACC)
+        base_wacc = self.calculate_wacc(data.beta)
+        try:
+            _, _, _, base_ev, _ = self.calculate_dcf(
+                data.fcf, base_growth, 0.025, base_wacc, years,
+                terminal_method=terminal_method
+            )
+            base_value = base_ev / data.shares if data.shares > 0 else 0
+            base_upside = ((base_value - data.current_price) / data.current_price * 100
+                          if data.current_price > 0 else 0)
+        except (ValueError, ZeroDivisionError):
+            base_value = 0
+            base_upside = 0
+        
+        return {
+            "ticker": self.ticker,
+            "current_price": data.current_price,
+            "heatmap": heatmap.tolist(),  # Convert to list for JSON serialization
+            "growth_values": growth_values.tolist(),
+            "wacc_values": wacc_values.tolist(),
+            "base_case": {
+                "growth": base_growth,
+                "wacc": base_wacc,
+                "fair_value": base_value,
+                "upside": base_upside
+            },
+            "terminal_method": terminal_method,
+            "grid_size": grid_size
+        }
+
     def to_dataframe(self, **kwargs) -> pd.DataFrame:
         """Export cash flow projections as DataFrame."""
         result = self.get_intrinsic_value(**kwargs)

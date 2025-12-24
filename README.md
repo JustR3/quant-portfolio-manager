@@ -17,6 +17,7 @@ Integrates fundamental analysis (DCF) with modern portfolio theory to generate d
 - **EV/Sales fallback**: Automatic valuation for loss-making companies
 - Scenario analysis (Bull/Base/Bear cases)
 - Sensitivity analysis for key assumptions
+- **Stress test heatmap**: Visualize valuation across growth/WACC combinations
 - Multi-stock comparison with ranking
 - Robust growth rate normalization (handles data quirks)
 - CSV export capabilities
@@ -60,6 +61,11 @@ uv run main.py valuation AAPL --detailed
 
 # Multi-stock comparison
 uv run main.py valuation AAPL MSFT GOOGL --compare
+
+# Analysis types
+uv run main.py valuation NVDA --scenarios      # Bull/Base/Bear scenarios
+uv run main.py valuation AAPL --sensitivity    # Growth/WACC sensitivity
+uv run main.py valuation TSLA --stress         # Stress test heatmap (7x7 grid)
 
 # Portfolio optimization
 uv run main.py portfolio
@@ -108,6 +114,15 @@ print(f"Assessment: {mc_result['assessment']}")
 
 # Scenario analysis
 scenarios = engine.run_scenario_analysis()
+
+# Sensitivity analysis
+sensitivity = engine.run_sensitivity_analysis()
+
+# Stress test heatmap (7x7 grid)
+stress = engine.run_stress_test()
+print(f"Base Case: {stress['base_case']['upside']:+.1f}% upside")
+print(f"Best Case (low WACC, high growth): {stress['heatmap'][0][-1]:+.0f}%")
+print(f"Worst Case (high WACC, low growth): {stress['heatmap'][-1][0]:+.0f}%")
 
 # Multi-stock comparison
 comparison = DCFEngine.compare_stocks(["AAPL", "MSFT", "GOOGL"])
