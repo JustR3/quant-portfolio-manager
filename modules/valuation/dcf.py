@@ -385,6 +385,144 @@ class DCFEngine:
             "company_data": data.to_dict(),
         }
 
+    def calculate_implied_growth(self, target_price: Optional[float] = None,
+                                 wacc: Optional[float] = None,
+                                 term_growth: float = 0.025,
+                                 years: int = 5,
+                                 terminal_method: Optional[str] = None,
+                                 exit_multiple: Optional[float] = None,
+                                 bounds: tuple = (-0.50, 1.50)) -> dict:
+        """Reverse DCF: Solve for implied growth rate given market price.
+        
+        Back-solves for the growth rate that makes DCF fair value equal to market price.
+        Uses scipy.optimize.brentq for robust convergence.
+        
+        Args:
+            target_price: Price to solve for (defaults to current market price)
+            wacc: WACC to use (defaults to calculated WACC)
+            term_growth: Terminal growth rate
+            years: Forecast period
+            terminal_method: 'exit_multiple' or 'gordon_growth' (auto-selects if None)
+            exit_multiple: Exit multiple for terminal value
+            bounds: Search bracket for growth rate (min, max)
+            
+        Returns:
+            dict with implied_growth, analyst_growth, gap, and status
+        """
+        from scipy.optimize import brentq
+        
+        if not self.is_ready:
+            return {"error": f"No data for {self.ticker}: {self._last_error}"}
+        
+        data = self._company_data
+        
+        # Can only do reverse DCF for companies with positive FCF
+        if data.fcf <= 0:
+            return {
+                "error": "Reverse DCF requires positive FCF",
+                "method": "N/A - Use EV/Sales for loss-making companies",
+                "implied_growth": None,
+                "analyst_growth": data.analyst_growth,
+            }
+        
+        # Target price defaults to current market price
+        if target_price is None:
+            target_price = data.current_price
+        
+        # Calculate WACC if not provided
+        if wacc is None:
+            wacc = self.calculate_wacc(data.beta)
+        
+        # Determine terminal method (same logic as forward DCF)
+        if terminal_method is None:
+            high_growth_sectors = {"Technology", "Communication Services", "Healthcare"}
+            # Use sector as primary signal since we're solving for growth
+            terminal_method = "exit_multiple" if data.sector in high_growth_sectors else "gordon_growth"
+        
+        # Objective function: DCF_value(g) - target_price = 0
+        def objective(growth: float) -> float:
+            try:
+                _, _, _, ev, _ = self.calculate_dcf(
+                    data.fcf, growth, term_growth, wacc, years,
+                    terminal_method, exit_multiple
+                )
+                value_per_share = ev / data.shares if data.shares > 0 else 0
+                return value_per_share - target_price
+            except (ValueError, ZeroDivisionError):
+                # Return large number if parameters are invalid
+                return 1e10 if growth > 0 else -1e10
+        
+        # Check if solution exists within bounds
+        min_growth, max_growth = bounds
+        
+        try:
+            f_min = objective(min_growth)
+            f_max = objective(max_growth)
+        except Exception as e:
+            return {
+                "error": f"Failed to evaluate bounds: {e}",
+                "implied_growth": None,
+                "analyst_growth": data.analyst_growth,
+            }
+        
+        # brentq requires f(a) and f(b) to have opposite signs
+        if f_min * f_max > 0:
+            # No solution in bracket
+            if f_min > 0:
+                # Even at min growth, DCF value > target price
+                msg = f"Price too low (${target_price:.2f}). Implies growth < {min_growth*100:.0f}%"
+            else:
+                # Even at max growth, DCF value < target price
+                msg = f"Price too high (${target_price:.2f}). Implies growth > {max_growth*100:.0f}%"
+            
+            return {
+                "error": msg,
+                "implied_growth": None,
+                "analyst_growth": data.analyst_growth,
+                "status": "no_solution_in_bounds",
+                "bounds_checked": bounds,
+            }
+        
+        # Solve for implied growth using brentq
+        try:
+            implied_growth = brentq(objective, min_growth, max_growth, xtol=1e-6, maxiter=100)
+        except Exception as e:
+            return {
+                "error": f"Solver failed: {e}",
+                "implied_growth": None,
+                "analyst_growth": data.analyst_growth,
+            }
+        
+        # Calculate gap vs analyst consensus
+        analyst_growth = data.analyst_growth or 0.05
+        gap = implied_growth - analyst_growth
+        
+        # Assess reasonableness
+        if implied_growth > 0.50:
+            assessment = "HIGHLY SPECULATIVE (>50% CAGR required)"
+        elif implied_growth > 0.30:
+            assessment = "AGGRESSIVE (30-50% CAGR required)"
+        elif implied_growth > 0.15:
+            assessment = "OPTIMISTIC (15-30% CAGR required)"
+        elif implied_growth > 0.05:
+            assessment = "REASONABLE (5-15% CAGR required)"
+        elif implied_growth > 0:
+            assessment = "CONSERVATIVE (<5% CAGR required)"
+        else:
+            assessment = "DECLINING (Negative growth required)"
+        
+        return {
+            "ticker": self.ticker,
+            "target_price": target_price,
+            "implied_growth": implied_growth,
+            "analyst_growth": analyst_growth,
+            "gap": gap,
+            "assessment": assessment,
+            "terminal_method": terminal_method,
+            "wacc": wacc,
+            "status": "success",
+        }
+
     def run_scenario_analysis(self, base_growth: Optional[float] = None, 
                                base_term_growth: float = 0.025,
                                base_wacc: Optional[float] = None, years: int = 5) -> dict:

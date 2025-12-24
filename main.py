@@ -54,7 +54,7 @@ def print_msg(msg: str, style: str = "info"):
         print(f"{sym} {msg}")
 
 
-def display_valuation(result: dict):
+def display_valuation(result: dict, engine=None):
     """Display valuation result."""
     method = result.get('valuation_method', 'DCF')
     
@@ -125,6 +125,38 @@ def display_valuation(result: dict):
                     term_table.add_row("Terminal % of Value", f"{term_pct:.1f}%")
                 
                 console.print(term_table)
+            
+            # Reverse DCF Analysis
+            if engine:
+                try:
+                    reverse = engine.calculate_implied_growth()
+                    
+                    if reverse.get("status") == "success":
+                        console.print("\n[bold cyan]Reverse DCF Analysis[/bold cyan]")
+                        
+                        rev_table = Table(box=box.SIMPLE, show_header=False)
+                        rev_table.add_column("Metric", style="dim")
+                        rev_table.add_column("Value", justify="right")
+                        
+                        impl = reverse['implied_growth']
+                        anly = reverse['analyst_growth']
+                        gap = reverse['gap']
+                        
+                        impl_color = "red" if impl > 0.30 else "yellow" if impl > 0.15 else "green"
+                        gap_color = "red" if abs(gap) > 0.15 else "yellow" if abs(gap) > 0.05 else "green"
+                        
+                        rev_table.add_row("Market Price", f"${reverse['target_price']:.2f}")
+                        rev_table.add_row("Implied Growth (CAGR)", f"[{impl_color}]{impl*100:.1f}%[/{impl_color}]")
+                        rev_table.add_row("Analyst Consensus", f"{anly*100:.1f}%")
+                        rev_table.add_row("Gap (Implied - Analyst)", f"[{gap_color}]{gap*100:+.1f}pp[/{gap_color}]")
+                        rev_table.add_row("Assessment", f"[dim]{reverse['assessment']}[/dim]")
+                        
+                        console.print(rev_table)
+                    elif "error" in reverse and reverse.get("status") != "no_solution_in_bounds":
+                        console.print(f"[dim]⚠ Reverse DCF: {reverse['error']}[/dim]")
+                except Exception:
+                    pass  # Silently skip reverse DCF if it fails
+                
         elif method == "EV/Sales":
             # Show EV/Sales inputs
             inputs = result["inputs"]
@@ -334,7 +366,7 @@ def run_valuation_interactive():
     
     try:
         if "1" in choice or "Standard" in choice:
-            display_valuation(engine.get_intrinsic_value(**params))
+            display_valuation(engine.get_intrinsic_value(**params), engine)
         elif "2" in choice or "Scenario" in choice:
             display_scenarios(engine.run_scenario_analysis(**{k.replace('growth', 'base_growth').replace('wacc', 'base_wacc').replace('term_growth', 'base_term_growth'): v for k, v in params.items()}), ticker)
         elif "3" in choice or "Sensitivity" in choice:
@@ -576,7 +608,7 @@ def main():
             elif args.sensitivity:
                 display_sensitivity(engine.run_sensitivity_analysis(base_growth=growth, base_term_growth=term, base_wacc=wacc, years=args.years), ticker)
             else:
-                display_valuation(engine.get_intrinsic_value(growth=growth, term_growth=term, wacc=wacc, years=args.years))
+                display_valuation(engine.get_intrinsic_value(growth=growth, term_growth=term, wacc=wacc, years=args.years), engine)
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             sys.exit(1)
