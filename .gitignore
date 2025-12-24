@@ -24,3 +24,6 @@ list/
 
 # Output files
 *.csv
+
+# Cache directory
+data/cache/

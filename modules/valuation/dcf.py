@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from ..utils import rate_limiter
+from ..utils import rate_limiter, cache_response, default_cache
 
 
 @dataclass
@@ -79,13 +79,48 @@ class DCFEngine:
     def is_ready(self) -> bool:
         return self._company_data is not None
 
+    def _get_ticker_info(self, ticker: str) -> Optional[dict]:
+        """Fetch ticker info with caching."""
+        cache_key = f"info_{ticker}"
+        cached = default_cache.get(cache_key)
+        
+        if cached is not None:
+            return cached
+        
+        # Fetch from API
+        try:
+            stock = yf.Ticker(ticker)
+            info = stock.info
+            if info:
+                default_cache.set(cache_key, info)
+            return info
+        except Exception:
+            return None
+    
+    def _get_ticker_cashflow(self, ticker: str) -> Optional[pd.DataFrame]:
+        """Fetch ticker cashflow with caching."""
+        cache_key = f"cashflow_{ticker}"
+        cached = default_cache.get(cache_key)
+        
+        if cached is not None:
+            return cached
+        
+        # Fetch from API
+        try:
+            stock = yf.Ticker(ticker)
+            cash_flow = stock.quarterly_cashflow
+            if cash_flow is not None and not cash_flow.empty:
+                default_cache.set(cache_key, cash_flow)
+            return cash_flow
+        except Exception:
+            return None
+
     @rate_limiter
     def fetch_data(self) -> bool:
         """Fetch company financial data from yfinance."""
         try:
-            stock = yf.Ticker(self.ticker)
-            info = stock.info
-            cash_flow = stock.quarterly_cashflow
+            info = self._get_ticker_info(self.ticker)
+            cash_flow = self._get_ticker_cashflow(self.ticker)
 
             if not info or info.get("regularMarketPrice") is None:
                 self._last_error = f"Invalid ticker: {self.ticker}"

@@ -205,7 +205,51 @@ quant-portfolio-manager/
 - Soft bounds: -50% to +100% growth (allows temporary declines, prevents absurd forecasts)
 - Growth rate normalization: Automatically detects and converts percentage formats
 - Probabilistic framework: Monte Carlo provides confidence intervals and risk metrics
+- **Smart caching**: 24-hour Parquet cache prevents Yahoo rate limits (instant S&P 500 analysis)
 - Comprehensive test suite: Full pipeline validation from DCF to portfolio allocation
+
+## 🗄️ Caching System
+
+**Automatic Rate Limit Protection:**
+- All Yahoo Finance API calls are cached for 24 hours in `data/cache/`
+- Uses efficient Parquet format for DataFrames, JSON for metadata
+- Cache persists between runs - second analysis is instant
+- Critical for batch operations (S&P 500 screening, portfolio optimization)
+
+**Cache Management:**
+```bash
+# View cache status
+uv run python scripts/cache_manager.py --list
+
+# Show total size
+uv run python scripts/cache_manager.py --size
+
+# Clear all cache
+uv run python scripts/cache_manager.py --clear
+
+# Clear specific ticker
+uv run python scripts/cache_manager.py --clear AAPL
+```
+
+**Python API:**
+```python
+from modules.utils import default_cache, cache_response
+
+# Check if data is cached
+cached_data = default_cache.get("AAPL_info")
+
+# Manually cache data
+default_cache.set("custom_key", dataframe)
+
+# Invalidate cache
+default_cache.invalidate("AAPL_info")
+
+# Decorator for custom functions
+@cache_response(expiry_hours=24)
+def fetch_custom_data(ticker: str) -> pd.DataFrame:
+    # Your data fetching logic
+    return data
+```
 
 ## 📄 License
 

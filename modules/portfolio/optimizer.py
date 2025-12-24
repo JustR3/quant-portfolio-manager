@@ -14,6 +14,8 @@ import yfinance as yf
 from pypfopt import EfficientFrontier, risk_models, expected_returns, black_litterman
 from pypfopt.discrete_allocation import DiscreteAllocation, get_latest_prices
 
+from ..utils import default_cache
+
 
 class OptimizationMethod(Enum):
     """Portfolio optimization objectives."""
@@ -76,14 +78,37 @@ class PortfolioEngine:
             time.sleep(1.0 - elapsed)
         self._last_call = time.time()
 
+    def _get_historical_prices(self, tickers: List[str], period: str = "2y",
+                               start: Optional[datetime] = None,
+                               end: Optional[datetime] = None) -> Optional[pd.DataFrame]:
+        """Fetch historical prices with caching."""
+        # Create cache key from parameters
+        cache_key = f"prices_{'_'.join(sorted(tickers))}_{period}"
+        if start and end:
+            cache_key = f"prices_{'_'.join(sorted(tickers))}_{start.date()}_{end.date()}"
+        
+        cached = default_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        
+        # Fetch from API
+        try:
+            self._rate_limit()
+            data = (yf.download(tickers, start=start, end=end, progress=False, auto_adjust=True)
+                    if start and end else
+                    yf.download(tickers, period=period, progress=False, auto_adjust=True))
+            
+            if data is not None and not data.empty:
+                default_cache.set(cache_key, data)
+            return data
+        except Exception:
+            return None
+
     def fetch_data(self, period: str = "2y", start: Optional[datetime] = None,
                    end: Optional[datetime] = None) -> bool:
         """Fetch historical price data for all tickers."""
         try:
-            self._rate_limit()
-            data = (yf.download(self.tickers, start=start, end=end, progress=False, auto_adjust=True)
-                    if start and end else
-                    yf.download(self.tickers, period=period, progress=False, auto_adjust=True))
+            data = self._get_historical_prices(self.tickers, period, start, end)
 
             if data is None or data.empty:
                 self._last_error = "No data returned"

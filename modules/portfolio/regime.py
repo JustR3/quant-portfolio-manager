@@ -10,7 +10,7 @@ from typing import Optional, Any
 import pandas as pd
 import yfinance as yf
 
-from ..utils import rate_limiter
+from ..utils import rate_limiter, default_cache
 
 
 class MarketRegime(Enum):
@@ -106,14 +106,31 @@ class RegimeDetector:
             return False
         return (datetime.now() - self._cache_timestamp).total_seconds() < self.cache_duration
 
+    def _get_spy_history(self, ticker: str, lookback_days: int) -> Optional[pd.DataFrame]:
+        """Fetch SPY data with caching."""
+        cache_key = f"spy_history_{ticker}_{lookback_days}"
+        cached = default_cache.get(cache_key, expiry_hours=1)  # 1 hour cache for market data
+        
+        if cached is not None:
+            return cached
+        
+        # Fetch from API
+        try:
+            data = yf.Ticker(ticker).history(
+                start=datetime.now() - timedelta(days=lookback_days),
+                end=datetime.now()
+            )
+            if not data.empty:
+                default_cache.set(cache_key, data)
+            return data if not data.empty else None
+        except Exception:
+            return None
+
     @rate_limiter
     def _fetch_spy_data(self) -> Optional[pd.DataFrame]:
         try:
-            data = yf.Ticker(self.ticker).history(
-                start=datetime.now() - timedelta(days=self.lookback_days),
-                end=datetime.now()
-            )
-            if data.empty:
+            data = self._get_spy_history(self.ticker, self.lookback_days)
+            if data is None:
                 self._last_error = f"No data for {self.ticker}"
                 return None
             return data
@@ -121,13 +138,30 @@ class RegimeDetector:
             self._last_error = f"Error fetching {self.ticker}: {e}"
             return None
 
-    @rate_limiter
-    def _fetch_vix_term_structure(self) -> Optional[VixTermStructure]:
+    def _get_vix_data(self) -> Optional[pd.DataFrame]:
+        """Fetch VIX term structure with caching."""
+        cache_key = "vix_term_structure"
+        cached = default_cache.get(cache_key, expiry_hours=1)  # 1 hour cache
+        
+        if cached is not None:
+            return cached
+        
+        # Fetch from API
         try:
             import warnings
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 data = yf.download(['^VIX9D', '^VIX', '^VIX3M'], period='5d', progress=False)
+            if data is not None and not data.empty:
+                default_cache.set(cache_key, data)
+            return data
+        except Exception:
+            return None
+
+    @rate_limiter
+    def _fetch_vix_term_structure(self) -> Optional[VixTermStructure]:
+        try:
+            data = self._get_vix_data()
             if data is None or data.empty or 'Close' not in data.columns:
                 return None
             close = data['Close']
