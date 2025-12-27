@@ -26,6 +26,7 @@ except ImportError:
 from config import config
 from modules.valuation import DCFEngine
 from modules.portfolio import PortfolioEngine, OptimizationMethod, optimize_portfolio_with_dcf, RegimeDetector
+from src.models.factor_engine import FactorEngine
 
 # Styling
 custom_style = Style([
@@ -815,6 +816,11 @@ def parse_args():
     
     sub.add_parser("portfolio", aliases=["port", "opt"], help="Portfolio Optimization")
     
+    # New: Factor Engine verify command
+    verify = sub.add_parser("verify", help="Factor Engine: Verify/audit a stock's ranking")
+    verify.add_argument("ticker", help="Ticker symbol to verify")
+    verify.add_argument("--universe", nargs="+", help="Universe of tickers for comparison (default: mini-universe)")
+    
     return parser.parse_args()
 
 
@@ -827,6 +833,65 @@ def main():
     
     if args.module in ("portfolio", "port", "opt"):
         run_portfolio_interactive()
+        return
+    
+    if args.module == "verify":
+        # Factor Engine: Verify a stock's ranking
+        print_header("Factor Engine - Stock Verification")
+        
+        ticker = args.ticker.upper().strip()
+        
+        # Use default mini-universe or custom universe
+        if args.universe:
+            universe = [t.upper().strip() for t in args.universe]
+        else:
+            # Default mini-universe (must include the ticker being verified)
+            universe = ["NVDA", "XOM", "JPM", "PFE", "TSLA", "AAPL", "MSFT", "GOOGL", "META", "AMZN"]
+            if ticker not in universe:
+                universe.append(ticker)
+        
+        if ticker not in universe:
+            print_msg(f"Adding {ticker} to universe...", "info")
+            universe.append(ticker)
+        
+        print_msg(f"Ranking {len(universe)} stocks in universe...", "info")
+        
+        # Initialize and run factor engine
+        engine = FactorEngine(tickers=universe)
+        rankings = engine.rank_universe()
+        
+        # Display full rankings
+        if HAS_RICH and console:
+            table = Table(title="Universe Rankings", box=box.ROUNDED)
+            table.add_column("Rank", justify="center")
+            table.add_column("Ticker", style="bold")
+            table.add_column("Value Z", justify="right")
+            table.add_column("Quality Z", justify="right")
+            table.add_column("Momentum Z", justify="right")
+            table.add_column("Total Score", justify="right")
+            
+            for idx, row in rankings.head(10).iterrows():
+                rank = idx + 1
+                # Highlight the target ticker
+                ticker_style = "bold green" if row['Ticker'] == ticker else ""
+                table.add_row(
+                    str(rank),
+                    f"[{ticker_style}]{row['Ticker']}[/{ticker_style}]" if ticker_style else row['Ticker'],
+                    f"{row['Value_Z']:.2f}",
+                    f"{row['Quality_Z']:.2f}",
+                    f"{row['Momentum_Z']:.2f}",
+                    f"{row['Total_Score']:.2f}"
+                )
+            
+            console.print(table)
+        else:
+            print("\nTop 10 Rankings:")
+            for idx, row in rankings.head(10).iterrows():
+                print(f"  {idx+1}. {row['Ticker']}: {row['Total_Score']:.2f}")
+        
+        # Display detailed audit report for the requested ticker
+        engine.display_audit_report(ticker)
+        
         return
     
     if args.module in ("valuation", "val", "dcf"):
