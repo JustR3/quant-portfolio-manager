@@ -1,0 +1,4 @@
+# API Keys and Secrets (DO NOT COMMIT)
+*.env
+secrets.env
+config/secrets.env

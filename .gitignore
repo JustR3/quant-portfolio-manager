@@ -22,8 +22,15 @@ list/
 # macOS
 .DS_Store
 
+# Environment variables (secrets)
+*.env
+config/secrets.env
+
 # Output files
 *.csv
 
 # Cache directory
 data/cache/
+
+# Local analysis files (not for GitHub)
+CRITICAL_ANALYSIS.md
