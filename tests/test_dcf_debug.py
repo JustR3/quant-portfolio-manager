@@ -33,7 +33,7 @@ def test_dcf_calculation_logic():
     wacc = 0.10
     years = 5
     
-    cash_flows, pv_explicit, term_pv, ev = engine.calculate_dcf(
+    cash_flows, pv_explicit, term_pv, ev, terminal_info = engine.calculate_dcf(
         100.0, growth, term_growth, wacc, years
     )
     
@@ -43,30 +43,20 @@ def test_dcf_calculation_logic():
     print(f"  Value per Share: ${ev/100:.2f}")
     print(f"  ✅ PASS: Value per share is positive")
     
-    # Test 2: Negative FCF (loss-making company)
-    print("\n📊 Test 1b: Negative FCF (-$50M), 5% growth, 10% WACC")
-    cash_flows, pv_explicit, term_pv, ev = engine.calculate_dcf(
-        -50.0, growth, term_growth, wacc, years
-    )
-    
-    print(f"  PV of Explicit Period: ${pv_explicit:.2f}M")
-    print(f"  PV of Terminal Value: ${term_pv:.2f}M")
-    print(f"  Enterprise Value: ${ev:.2f}M")
-    print(f"  Value per Share: ${ev/100:.2f}")
-    
-    if ev < 0:
-        print(f"  ❌ FAIL: Enterprise Value is NEGATIVE! This should not happen.")
-        print(f"  🔍 Analysis:")
-        print(f"     - Starting FCF: -$50M (negative)")
-        print(f"     - After 5 years of 5% 'growth': ${-50 * (1.05**5):.2f}M (more negative)")
-        print(f"     - Terminal Value: ${cash_flows[-1]['fcf'] * (1 + term_growth) / (wacc - term_growth):.2f}M")
-        print(f"  💡 INSIGHT: For loss-making companies, positive 'growth' makes losses WORSE!")
-    else:
-        print(f"  ✅ PASS: Value per share is positive")
+    # Test 2: Negative FCF (loss-making company) - should raise error
+    print("\n📊 Test 1b: Negative FCF (-$50M) - Should reject")
+    try:
+        cash_flows, pv_explicit, term_pv, ev, terminal_info = engine.calculate_dcf(
+            -50.0, growth, term_growth, wacc, years
+        )
+        print(f"  ❌ FAIL: Should have raised ValueError for negative FCF!")
+    except ValueError as e:
+        print(f"  ✅ PASS: Correctly raised ValueError: {str(e)[:80]}...")
+        print(f"  💡 INSIGHT: DCF requires positive FCF. Loss-making companies use EV/Sales instead.")
     
     # Test 3: Very high WACC vs growth (should still be positive with positive FCF)
     print("\n📊 Test 1c: Positive FCF ($100M), 2% growth, 15% WACC (high discount)")
-    cash_flows, pv_explicit, term_pv, ev = engine.calculate_dcf(
+    cash_flows, pv_explicit, term_pv, ev, terminal_info = engine.calculate_dcf(
         100.0, 0.02, term_growth, 0.15, years
     )
     

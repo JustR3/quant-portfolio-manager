@@ -4,6 +4,13 @@
 
 A comprehensive system for fundamental analysis and portfolio construction, featuring Bayesian data cleaning, Monte Carlo simulation, conviction-based filtering, and intelligent caching for batch S&P 500 screening.
 
+## 🆕 Recent Updates (December 2025)
+
+- **50% Performance Boost**: Optimized Monte Carlo simulation (removed redundant calculations)
+- **Advanced Risk Metrics**: Added VaR, CVaR, Sortino Ratio, Calmar Ratio, and Max Drawdown to portfolio analysis
+- **Centralized Configuration**: All parameters now in `config.py` for easy tuning
+- **Enhanced Code Quality**: Cleaner DataFrame operations, consistent patterns throughout
+
 ## ✨ Key Features
 
 ### 📊 DCF Valuation Engine
@@ -22,6 +29,7 @@ A comprehensive system for fundamental analysis and portfolio construction, feat
 
 ### 🎯 Portfolio Optimization
 - **Black-Litterman Integration**: DCF views with Monte Carlo probability as confidence weights
+- **Comprehensive Risk Metrics**: VaR, CVaR, Sortino Ratio, Calmar Ratio, Max Drawdown
 - **Conviction-Based Filtering**: 
   - HIGH CONVICTION: Full upside, confidence 0.3-0.6
   - MODERATE: Full upside, confidence 0.2-0.4
@@ -246,6 +254,37 @@ print(f"Market Regime: {regime.regime.value}")  # RISK_ON, RISK_OFF, CAUTION
 print(f"SPY vs SMA-200: ${regime.current_price:.2f} vs ${regime.sma_200:.2f}")
 print(f"VIX Structure: {regime.vix_structure.vix:.2f}")
 ```
+
+### Comprehensive Risk Metrics
+
+Portfolio optimization now includes advanced risk measures beyond just Sharpe ratio:
+
+```python
+from modules.portfolio import PortfolioEngine, OptimizationMethod
+
+engine = PortfolioEngine(['AAPL', 'MSFT', 'GOOGL'])
+engine.fetch_data(period="2y")
+metrics = engine.optimize(method=OptimizationMethod.MAX_SHARPE)
+
+# Performance Metrics
+print(f"Expected Return: {metrics.expected_annual_return:.2f}%")
+print(f"Volatility: {metrics.annual_volatility:.2f}%")
+print(f"Sharpe Ratio: {metrics.sharpe_ratio:.2f}")
+
+# Risk Metrics (NEW)
+print(f"Sortino Ratio: {metrics.sortino_ratio:.2f}")  # Downside risk focus
+print(f"Calmar Ratio: {metrics.calmar_ratio:.2f}")    # Return / Max Drawdown
+print(f"Max Drawdown: {metrics.max_drawdown:.2%}")     # Worst peak-to-trough
+print(f"VaR (95%): {metrics.var_95:.2%}")              # 5th percentile daily loss
+print(f"CVaR (95%): {metrics.cvar_95:.2%}")            # Expected loss beyond VaR
+```
+
+**What These Mean:**
+- **Sortino Ratio**: Like Sharpe, but only penalizes downside volatility (higher is better)
+- **Calmar Ratio**: Return relative to maximum drawdown (measures risk-adjusted performance)
+- **Max Drawdown**: Largest peak-to-trough decline (shows worst-case scenario)
+- **VaR (95%)**: Maximum expected daily loss 95% of the time
+- **CVaR (95%)**: Average loss in the worst 5% of days (tail risk)
 
 ### Intelligent Caching (Automatic)
 

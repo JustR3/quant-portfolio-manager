@@ -23,6 +23,7 @@ try:
 except ImportError:
     HAS_RICH = False
 
+from config import config
 from modules.valuation import DCFEngine
 from modules.portfolio import PortfolioEngine, OptimizationMethod, optimize_portfolio_with_dcf, RegimeDetector
 
@@ -60,13 +61,13 @@ def calculate_conviction_rating(upside: float, mc_probability: float) -> tuple[s
     Returns:
         tuple: (conviction_label, conviction_color, conviction_emoji)
     """
-    if upside > 15 and mc_probability > 75:
+    if upside > config.CONVICTION_UPSIDE_THRESHOLD and mc_probability > config.CONVICTION_HIGH_PROBABILITY:
         return "HIGH CONVICTION", "bold green", "🟢"
-    elif upside > 15 and mc_probability < 60:
+    elif upside > config.CONVICTION_UPSIDE_THRESHOLD and mc_probability < config.CONVICTION_MODERATE_PROBABILITY:
         return "SPECULATIVE", "bold yellow", "🟡"
-    elif upside < 15:
+    elif upside < config.CONVICTION_UPSIDE_THRESHOLD:
         return "HOLD/PASS", "bold red" if upside < 0 else "dim", "🔴" if upside < 0 else "⚪"
-    else:  # upside > 15 and 60 <= mc_probability <= 75
+    else:  # upside > threshold and moderate <= mc_probability <= high
         return "MODERATE", "yellow", "🟡"
 
 
@@ -85,8 +86,8 @@ def enrich_dcf_with_monte_carlo(engine: DCFEngine, result: dict) -> dict:
     # Monte Carlo simulation
     try:
         import numpy as np
-        np.random.seed(42)
-        mc_result = engine.simulate_value(iterations=3000)
+        np.random.seed(config.MONTE_CARLO_SEED)
+        mc_result = engine.simulate_value(iterations=config.MONTE_CARLO_ITERATIONS)
         
         if "error" not in mc_result:
             enriched['monte_carlo'] = {
@@ -127,9 +128,19 @@ def enrich_dcf_with_monte_carlo(engine: DCFEngine, result: dict) -> dict:
 
 
 def display_valuation(result: dict, engine=None, detailed: bool = False):
-    """Display valuation result with insight-first presentation."""
+    """Display valuation result with insight-first presentation.
+    
+    Args:
+        result: DCF result dict (will be enriched if engine provided)
+        engine: DCFEngine instance for enrichment (optional)
+        detailed: Show technical breakdown
+    """
     method = result.get('valuation_method', 'DCF')
     ticker = result['ticker']
+    
+    # Enrich result with Monte Carlo, Reverse DCF, and Conviction ONCE
+    if engine and method == "DCF" and 'monte_carlo' not in result:
+        result = enrich_dcf_with_monte_carlo(engine, result)
     
     if not HAS_RICH or not console:
         # Fallback for non-Rich environments
@@ -143,23 +154,11 @@ def display_valuation(result: dict, engine=None, detailed: bool = False):
     current = result['current_price']
     fair = result['value_per_share']
     
-    # Calculate Monte Carlo probability for conviction rating
-    mc_probability = None
-    if engine and method == "DCF":
-        try:
-            import numpy as np
-            np.random.seed(42)
-            mc_result = engine.simulate_value(iterations=3000)
-            if "error" not in mc_result:
-                mc_probability = mc_result['prob_undervalued']
-        except Exception:
-            pass
-    
-    # Calculate Conviction Rating using extracted function
-    if mc_probability is not None:
-        conviction, conviction_color, conviction_emoji = calculate_conviction_rating(upside, mc_probability)
-    else:
-        conviction, conviction_color, conviction_emoji = "N/A", "dim", "⚪"
+    # Extract pre-calculated conviction rating
+    conviction_data = result.get('conviction', {'label': 'N/A', 'color': 'dim', 'emoji': '⚪'})
+    conviction = conviction_data['label']
+    conviction_color = conviction_data['color']
+    conviction_emoji = conviction_data['emoji']
     
     # Build summary content
     summary_lines = []
@@ -176,57 +175,45 @@ def display_valuation(result: dict, engine=None, detailed: bool = False):
     summary_lines.append(f"[bold]Conviction:[/bold]     {conviction_emoji} [{conviction_color}]{conviction}[/{conviction_color}]")
     summary_lines.append("")
     
-    # Key Insight (Reverse DCF)
-    if engine and method == "DCF":
-        try:
-            reverse = engine.calculate_implied_growth()
-            if reverse.get("status") == "success":
-                impl = reverse['implied_growth']
-                anly = reverse['analyst_growth']
-                gap = reverse['gap']
-                
-                summary_lines.append("[bold cyan]💡 Key Insight:[/bold cyan]")
-                impl_pct = impl * 100
-                anly_pct = anly * 100
-                
-                if gap > 0.10:  # Market expects more than analysts
-                    summary_lines.append(f"Market prices in [yellow]{impl_pct:.1f}%[/yellow] growth. Analysts expect [cyan]{anly_pct:.1f}%[/cyan].")
-                    summary_lines.append(f"[yellow]Market is more optimistic than analysts ([yellow]{gap*100:+.1f}pp[/yellow] gap).[/yellow]")
-                elif gap < -0.10:  # Analysts expect more than market
-                    summary_lines.append(f"Market prices in [cyan]{impl_pct:.1f}%[/cyan] growth. Analysts expect [yellow]{anly_pct:.1f}%[/yellow].")
-                    summary_lines.append(f"[green]If analysts are right, significant upside potential.[/green]")
-                else:
-                    summary_lines.append(f"Market and analysts aligned: ~[cyan]{impl_pct:.1f}%[/cyan] growth expected.")
-                summary_lines.append("")
-        except Exception:
-            pass
+    # Key Insight (Reverse DCF) - use pre-calculated result
+    reverse_dcf = result.get('reverse_dcf')
+    if reverse_dcf and method == "DCF":
+        impl = reverse_dcf['implied_growth']
+        anly = reverse_dcf['analyst_growth']
+        gap = reverse_dcf['gap']
+        
+        summary_lines.append("[bold cyan]💡 Key Insight:[/bold cyan]")
+        impl_pct = impl * 100
+        anly_pct = anly * 100
+        
+        if gap > 0.10:  # Market expects more than analysts
+            summary_lines.append(f"Market prices in [yellow]{impl_pct:.1f}%[/yellow] growth. Analysts expect [cyan]{anly_pct:.1f}%[/cyan].")
+            summary_lines.append(f"[yellow]Market is more optimistic than analysts ([yellow]{gap*100:+.1f}pp[/yellow] gap).[/yellow]")
+        elif gap < -0.10:  # Analysts expect more than market
+            summary_lines.append(f"Market prices in [cyan]{impl_pct:.1f}%[/cyan] growth. Analysts expect [yellow]{anly_pct:.1f}%[/yellow].")
+            summary_lines.append(f"[green]If analysts are right, significant upside potential.[/green]")
+        else:
+            summary_lines.append(f"Market and analysts aligned: ~[cyan]{impl_pct:.1f}%[/cyan] growth expected.")
+        summary_lines.append("")
     
-    # Monte Carlo (if engine available) - reuse result from conviction calculation
-    if mc_probability is not None and engine and method == "DCF":
-        try:
-            # Use the same mc_result from conviction calculation
-            import numpy as np
-            np.random.seed(42)
-            mc_result = engine.simulate_value(iterations=3000)
-            
-            if "error" not in mc_result:
-                prob = mc_result['prob_undervalued']
-                var = mc_result['var_95']
-                upside_95 = mc_result['upside_95']
-                
-                summary_lines.append("[bold cyan]📊 Monte Carlo Analysis:[/bold cyan] [dim](3,000 simulations)[/dim]")
-                
-                prob_color = "green" if prob > 75 else "yellow" if prob > 40 else "red"
-                summary_lines.append(f"Probability Undervalued: [{prob_color}]{prob:.1f}%[/{prob_color}]")
-                
-                var_pct = (var - current) / current * 100
-                up_pct = (upside_95 - current) / current * 100
-                var_color = "green" if var_pct > 0 else "yellow" if var_pct > -15 else "red"
-                summary_lines.append(f"Worst Case (5th %ile): [{var_color}]${var:.2f} ({var_pct:+.1f}%)[/{var_color}]")
-                summary_lines.append(f"Best Case (95th %ile): [green]${upside_95:.2f} ({up_pct:+.1f}%)[/green]")
-                summary_lines.append("")
-        except Exception:
-            pass
+    # Monte Carlo - use pre-calculated result from enrichment
+    mc_data = result.get('monte_carlo')
+    if mc_data and method == "DCF":
+        prob = mc_data['probability']
+        var = mc_data['var_95']
+        upside_95 = mc_data['upside_95']
+        
+        summary_lines.append("[bold cyan]📊 Monte Carlo Analysis:[/bold cyan] [dim](3,000 simulations)[/dim]")
+        
+        prob_color = "green" if prob > 75 else "yellow" if prob > 40 else "red"
+        summary_lines.append(f"Probability Undervalued: [{prob_color}]{prob:.1f}%[/{prob_color}]")
+        
+        var_pct = (var - current) / current * 100
+        up_pct = (upside_95 - current) / current * 100
+        var_color = "green" if var_pct > 0 else "yellow" if var_pct > -15 else "red"
+        summary_lines.append(f"Worst Case (5th %ile): [{var_color}]${var:.2f} ({var_pct:+.1f}%)[/{var_color}]")
+        summary_lines.append(f"Best Case (95th %ile): [green]${upside_95:.2f} ({up_pct:+.1f}%)[/green]")
+        summary_lines.append("")
     
     # Display executive summary
     summary_text = "\n".join(summary_lines)
@@ -533,14 +520,31 @@ def display_portfolio(result: dict, regime: str = "UNKNOWN"):
         
         console.print(table)
         
-        # Portfolio metrics
-        metrics_text = (
-            f"Return: {result['expected_annual_return']:.2f}% | "
-            f"Vol: {result['annual_volatility']:.2f}% | "
-            f"Sharpe: {result['sharpe_ratio']:.2f} | "
-            f"Regime: {regime}"
-        )
-        console.print(Panel(metrics_text, title="Metrics", box=box.ROUNDED))
+        # Portfolio metrics with comprehensive risk measures
+        metrics_lines = []
+        metrics_lines.append(f"[bold]Expected Return:[/bold] {result['expected_annual_return']:.2f}%")
+        metrics_lines.append(f"[bold]Volatility:[/bold] {result['annual_volatility']:.2f}%")
+        metrics_lines.append(f"[bold]Sharpe Ratio:[/bold] {result['sharpe_ratio']:.2f}")
+        
+        # Add new risk metrics if available
+        if result.get('sortino_ratio'):
+            metrics_lines.append(f"[bold]Sortino Ratio:[/bold] {result['sortino_ratio']:.2f}")
+        if result.get('calmar_ratio'):
+            metrics_lines.append(f"[bold]Calmar Ratio:[/bold] {result['calmar_ratio']:.2f}")
+        if result.get('max_drawdown'):
+            dd_pct = result['max_drawdown'] * 100
+            metrics_lines.append(f"[bold]Max Drawdown:[/bold] [{('red' if dd_pct < -20 else 'yellow')}]{dd_pct:.2f}%[/]")
+        if result.get('var_95'):
+            var_pct = result['var_95'] * 100
+            metrics_lines.append(f"[bold]VaR (95%):[/bold] [{('red' if var_pct < -2 else 'yellow')}]{var_pct:.2f}%[/] daily")
+        if result.get('cvar_95'):
+            cvar_pct = result['cvar_95'] * 100
+            metrics_lines.append(f"[bold]CVaR (95%):[/bold] [red]{cvar_pct:.2f}%[/] daily")
+        
+        metrics_lines.append(f"[bold]Market Regime:[/bold] {regime}")
+        
+        metrics_text = "\n".join(metrics_lines)
+        console.print(Panel(metrics_text, title="Portfolio Metrics & Risk Analysis", box=box.ROUNDED))
         
         # Portfolio conviction breakdown
         conviction_text = (
@@ -616,9 +620,9 @@ def run_valuation_interactive():
         if "1" in choice or "Standard" in choice:
             display_valuation(engine.get_intrinsic_value(**params), engine)
         elif "2" in choice or "Scenario" in choice:
-            display_scenarios(engine.run_scenario_analysis(**{k.replace('growth', 'base_growth').replace('wacc', 'base_wacc').replace('term_growth', 'base_term_growth'): v for k, v in params.items()}), ticker)
+            display_scenarios(engine.run_scenario_analysis(**{k.replace('term_growth', 'base_term_growth').replace('growth', 'base_growth').replace('wacc', 'base_wacc'): v for k, v in params.items()}), ticker)
         elif "3" in choice or "Sensitivity" in choice:
-            display_sensitivity(engine.run_sensitivity_analysis(**{k.replace('growth', 'base_growth').replace('wacc', 'base_wacc').replace('term_growth', 'base_term_growth'): v for k, v in params.items()}), ticker)
+            display_sensitivity(engine.run_sensitivity_analysis(**{k.replace('term_growth', 'base_term_growth').replace('growth', 'base_growth').replace('wacc', 'base_wacc'): v for k, v in params.items()}), ticker)
     except Exception as e:
         print_msg(f"Error: {e}", "error")
 

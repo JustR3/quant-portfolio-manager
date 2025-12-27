@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
+from config import config
 from ..utils import rate_limiter, cache_response, default_cache
 
 
@@ -38,27 +39,12 @@ class CompanyData:
 class DCFEngine:
     """Discounted Cash Flow valuation engine."""
 
-    RISK_FREE_RATE: float = 0.045
-    MARKET_RISK_PREMIUM: float = 0.07
-    
-    # Data quality bounds for growth rates
-    MIN_GROWTH_THRESHOLD: float = -0.50  # -50% (allow real declines)
-    MAX_GROWTH_THRESHOLD: float = 1.00   # 100% (catch data errors)
-    
-    # Sector-specific Bayesian priors for growth rates
-    SECTOR_GROWTH_PRIORS = {
-        "Technology": 0.15,               # 15% - High innovation
-        "Communication Services": 0.12,  # 12% - Digital growth
-        "Healthcare": 0.10,              # 10% - Demographics
-        "Consumer Cyclical": 0.08,       # 8% - Economic cycles
-        "Industrials": 0.06,             # 6% - GDP-linked
-        "Financial Services": 0.07,      # 7% - Credit growth
-        "Consumer Defensive": 0.04,      # 4% - Stable demand
-        "Energy": 0.05,                  # 5% - Commodity-driven
-        "Utilities": 0.03,               # 3% - Regulated
-        "Real Estate": 0.05,             # 5% - Property markets
-        "Basic Materials": 0.05,         # 5% - Commodity cycles
-    }
+    # Use centralized config
+    RISK_FREE_RATE: float = config.RISK_FREE_RATE
+    MARKET_RISK_PREMIUM: float = config.MARKET_RISK_PREMIUM
+    MIN_GROWTH_THRESHOLD: float = config.MIN_GROWTH_RATE
+    MAX_GROWTH_THRESHOLD: float = config.MAX_GROWTH_RATE
+    SECTOR_GROWTH_PRIORS: dict = config.SECTOR_GROWTH_PRIORS
 
     def __init__(self, ticker: str, auto_fetch: bool = True):
         self.ticker = ticker.upper().strip()
@@ -228,17 +214,21 @@ class DCFEngine:
     
     def clean_growth_rate(self, analyst_growth: Optional[float], 
                          sector: Optional[str] = None,
-                         blend_weight: float = 0.7) -> tuple[float, str]:
+                         blend_weight: Optional[float] = None) -> tuple[float, str]:
         """Clean analyst growth rate using Bayesian prior blending.
         
         Args:
             analyst_growth: Raw growth rate from yfinance
             sector: Company sector for prior selection
-            blend_weight: Weight for analyst data (0.7 = 70% analyst, 30% prior)
+            blend_weight: Weight for analyst data (default from config: 70% analyst, 30% prior)
             
         Returns:
             (cleaned_growth, source_message)
         """
+        # Use config defaults
+        if blend_weight is None:
+            blend_weight = config.BAYESIAN_ANALYST_WEIGHT
+        
         # Get sector prior
         sector_prior = self.SECTOR_GROWTH_PRIORS.get(sector, 0.08)  # Default 8%
         
@@ -343,23 +333,8 @@ class DCFEngine:
         if sector is None:
             sector = self._company_data.sector if self._company_data else "Technology"
         
-        # Industry-standard exit multiples (EV/FCF) by sector
-        # Sources: Investment banking comps, historical M&A data
-        exit_multiples = {
-            "Technology": 25.0,              # High-growth SaaS, AI, Cloud
-            "Communication Services": 22.0,  # Social media, streaming
-            "Healthcare": 18.0,              # Biotech, medtech
-            "Consumer Cyclical": 15.0,       # E-commerce, consumer discretionary
-            "Industrials": 12.0,             # Manufacturing, logistics
-            "Financial Services": 12.0,      # Banks, fintech
-            "Consumer Defensive": 14.0,      # Consumer staples
-            "Energy": 10.0,                  # Oil & gas, renewables
-            "Utilities": 12.0,               # Regulated utilities
-            "Real Estate": 20.0,             # REITs, property
-            "Basic Materials": 10.0,         # Mining, chemicals
-        }
-        
-        return exit_multiples.get(sector, 15.0)  # Default to 15x if sector unknown
+        # Use centralized config for exit multiples
+        return config.EXIT_MULTIPLES.get(sector, 15.0)  # Default to 15x if sector unknown
     
     def calculate_ev_sales_valuation(self) -> dict:
         """Calculate valuation using EV/Sales multiple for negative FCF companies."""
