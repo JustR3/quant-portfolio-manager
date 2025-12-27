@@ -1,0 +1,436 @@
+"""
+Black-Litterman Portfolio Optimizer with Factor-Based Views
+Phase 3: Factor-Driven Portfolio Construction
+
+Converts factor scores (Value, Quality, Momentum) into portfolio allocation
+using Black-Litterman framework with market equilibrium priors.
+"""
+
+import pandas as pd
+import numpy as np
+import yfinance as yf
+from typing import Dict, Optional, Tuple
+from dataclasses import dataclass
+from pypfopt import BlackLittermanModel, risk_models, expected_returns
+from pypfopt.efficient_frontier import EfficientFrontier
+from pypfopt.discrete_allocation import DiscreteAllocation
+
+
+@dataclass
+class OptimizationResult:
+    """Container for optimization results."""
+    weights: Dict[str, float]
+    expected_return: float
+    volatility: float
+    sharpe_ratio: float
+    performance: Dict[str, float]
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary."""
+        return {
+            'weights': self.weights,
+            'expected_return': self.expected_return,
+            'volatility': self.volatility,
+            'sharpe_ratio': self.sharpe_ratio,
+            'performance': self.performance
+        }
+
+
+class BlackLittermanOptimizer:
+    """
+    Factor-based Black-Litterman portfolio optimizer.
+    
+    Converts factor Z-scores into expected return views and optimizes
+    portfolio weights using Bayesian framework.
+    """
+    
+    def __init__(
+        self,
+        tickers: list,
+        risk_free_rate: float = 0.04,
+        factor_alpha_scalar: float = 0.02,
+        market_cap_weights: Optional[Dict[str, float]] = None
+    ):
+        """
+        Initialize the optimizer.
+        
+        Args:
+            tickers: List of stock tickers
+            risk_free_rate: Risk-free rate for Sharpe ratio
+            factor_alpha_scalar: Scaling factor for Z-score to return conversion
+                               (e.g., 0.02 means 1-sigma beat = 2% outperformance)
+            market_cap_weights: Prior market cap weights (if None, uses equal weight)
+        """
+        self.tickers = tickers
+        self.risk_free_rate = risk_free_rate
+        self.factor_alpha_scalar = factor_alpha_scalar
+        self.market_cap_weights = market_cap_weights or self._get_equal_weights()
+        
+        # Data containers
+        self.prices = None
+        self.factor_scores = None
+        self.views = None
+        self.confidences = None
+        
+    def _get_equal_weights(self) -> Dict[str, float]:
+        """Generate equal weights for prior if no market cap provided."""
+        weight = 1.0 / len(self.tickers)
+        return {ticker: weight for ticker in self.tickers}
+    
+    def fetch_price_data(self, period: str = "2y") -> pd.DataFrame:
+        """
+        Fetch historical price data for the universe.
+        
+        Args:
+            period: Historical period (e.g., '2y', '5y')
+            
+        Returns:
+            DataFrame with adjusted close prices
+        """
+        print(f"📊 Fetching price data for {len(self.tickers)} tickers ({period})...")
+        
+        data = yf.download(
+            self.tickers,
+            period=period,
+            progress=False,
+            auto_adjust=True
+        )
+        
+        # Extract close prices
+        if len(self.tickers) == 1:
+            prices = pd.DataFrame(data['Close'])
+            prices.columns = self.tickers
+        else:
+            # Multi-ticker download returns MultiIndex columns
+            if isinstance(data.columns, pd.MultiIndex):
+                prices = data['Close']
+            else:
+                # Single ticker returns flat columns
+                prices = pd.DataFrame(data['Close'])
+                prices.columns = self.tickers
+        
+        # Drop any tickers with insufficient data
+        prices = prices.dropna(axis=1, how='all')
+        valid_tickers = prices.columns.tolist()
+        
+        if len(valid_tickers) < len(self.tickers):
+            dropped = set(self.tickers) - set(valid_tickers)
+            print(f"  ⚠️  Dropped {len(dropped)} tickers with no price data: {dropped}")
+            self.tickers = valid_tickers
+        
+        self.prices = prices
+        print(f"✅ Price data loaded: {len(prices)} days, {len(valid_tickers)} tickers\n")
+        
+        return prices
+    
+    def generate_views_from_scores(
+        self,
+        factor_scores_df: pd.DataFrame
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        """
+        Convert factor scores into Black-Litterman views.
+        
+        Args:
+            factor_scores_df: DataFrame from FactorEngine with columns:
+                             [Ticker, Value_Z, Quality_Z, Momentum_Z, Total_Score]
+        
+        Returns:
+            Tuple of (views, confidences) dictionaries
+            - views: Implied excess return for each ticker
+            - confidences: Confidence level based on factor agreement
+        """
+        print("🔬 Generating Black-Litterman views from factor scores...")
+        
+        # Store factor scores
+        self.factor_scores = factor_scores_df
+        
+        views = {}
+        confidences = {}
+        
+        # Calculate sample covariance for volatility estimate
+        if self.prices is None:
+            raise ValueError("Must fetch price data before generating views")
+        
+        returns = self.prices.pct_change().dropna()
+        mean_volatility = returns.std().mean() * np.sqrt(252)  # Annualized
+        
+        for _, row in factor_scores_df.iterrows():
+            ticker = row['Ticker']
+            
+            if ticker not in self.tickers:
+                continue
+            
+            # Extract Z-scores
+            total_z = row['Total_Score']
+            value_z = row['Value_Z']
+            quality_z = row['Quality_Z']
+            momentum_z = row['Momentum_Z']
+            
+            # Convert Z-score to implied excess return
+            # Formula: Implied_Excess_Return = Z_Score * sigma * alpha_scalar
+            implied_return = total_z * mean_volatility * self.factor_alpha_scalar
+            views[ticker] = implied_return
+            
+            # Calculate confidence based on factor agreement
+            # Low std dev of factor Z-scores = high confidence (factors agree)
+            # High std dev = low confidence (factors disagree)
+            factor_zscores = [value_z, quality_z, momentum_z]
+            factor_std = np.std(factor_zscores)
+            
+            # Confidence scoring (inverse of std dev)
+            # Low std dev (< 0.5) → High confidence (~0.8)
+            # Medium std dev (0.5-1.5) → Medium confidence (~0.5)
+            # High std dev (> 1.5) → Low confidence (~0.2)
+            if factor_std < 0.5:
+                confidence = 0.8
+            elif factor_std < 1.0:
+                confidence = 0.6
+            elif factor_std < 1.5:
+                confidence = 0.4
+            else:
+                confidence = 0.2
+            
+            confidences[ticker] = confidence
+        
+        self.views = views
+        self.confidences = confidences
+        
+        # Display summary
+        print(f"  ✓ Generated views for {len(views)} tickers")
+        print(f"  ✓ Mean view: {np.mean(list(views.values()))*100:.2f}%")
+        print(f"  ✓ View range: [{min(views.values())*100:.2f}%, {max(views.values())*100:.2f}%]")
+        print(f"  ✓ Mean confidence: {np.mean(list(confidences.values())):.2f}\n")
+        
+        return views, confidences
+    
+    def optimize(
+        self,
+        objective: str = 'max_sharpe',
+        weight_bounds: Tuple[float, float] = (0.0, 0.30)
+    ) -> OptimizationResult:
+        """
+        Optimize portfolio using Black-Litterman with factor views.
+        
+        Args:
+            objective: Optimization objective ('max_sharpe', 'min_volatility', 'max_quadratic_utility')
+            weight_bounds: Min/max weight per asset (default: 0-30%)
+        
+        Returns:
+            OptimizationResult with optimal weights and performance metrics
+        """
+        if self.prices is None:
+            raise ValueError("Must fetch price data first")
+        
+        if self.views is None:
+            raise ValueError("Must generate views first")
+        
+        print(f"🎯 Optimizing portfolio ({objective})...")
+        
+        # Calculate sample covariance matrix
+        S = risk_models.CovarianceShrinkage(self.prices).ledoit_wolf()
+        
+        # Calculate market-implied prior returns using CAPM
+        # Use historical returns as a starting point
+        market_returns = expected_returns.mean_historical_return(self.prices)
+        
+        # Convert views dictionary to series aligned with tickers
+        viewdict = {ticker: self.views.get(ticker, 0) for ticker in self.tickers}
+        
+        # Use view confidences for Idzorek method
+        # Higher confidence = views are more certain
+        confidence_series = pd.Series({
+            ticker: self.confidences.get(ticker, 0.5) for ticker in self.tickers
+        })
+        
+        # Black-Litterman model with Idzorek method for omega
+        bl = BlackLittermanModel(
+            cov_matrix=S,
+            pi=market_returns,
+            absolute_views=viewdict,
+            omega="idzorek",  # Use Idzorek method to calculate omega from confidences
+            view_confidences=confidence_series
+        )
+        
+        # Posterior expected returns
+        ret_bl = bl.bl_returns()
+        
+        # Optimize
+        ef = EfficientFrontier(ret_bl, S, weight_bounds=weight_bounds)
+        
+        if objective == 'max_sharpe':
+            weights = ef.max_sharpe(risk_free_rate=self.risk_free_rate)
+        elif objective == 'min_volatility':
+            weights = ef.min_volatility()
+        elif objective == 'max_quadratic_utility':
+            weights = ef.max_quadratic_utility()
+        else:
+            raise ValueError(f"Unknown objective: {objective}")
+        
+        # Clean weights (remove tiny positions)
+        weights = ef.clean_weights()
+        
+        # Performance metrics
+        performance = ef.portfolio_performance(risk_free_rate=self.risk_free_rate)
+        
+        result = OptimizationResult(
+            weights=weights,
+            expected_return=performance[0],
+            volatility=performance[1],
+            sharpe_ratio=performance[2],
+            performance={
+                'expected_annual_return': performance[0] * 100,
+                'annual_volatility': performance[1] * 100,
+                'sharpe_ratio': performance[2]
+            }
+        )
+        
+        print(f"✅ Optimization complete!\n")
+        print(f"  Expected Return: {result.expected_return*100:.2f}%")
+        print(f"  Volatility: {result.volatility*100:.2f}%")
+        print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}\n")
+        
+        return result
+    
+    def get_discrete_allocation(
+        self,
+        weights: Dict[str, float],
+        total_portfolio_value: float
+    ) -> Dict:
+        """
+        Convert continuous weights to discrete share quantities.
+        
+        Args:
+            weights: Optimized weights dictionary
+            total_portfolio_value: Total portfolio value in dollars
+        
+        Returns:
+            Dictionary with allocation details
+        """
+        latest_prices = self.prices.iloc[-1]
+        
+        da = DiscreteAllocation(
+            weights,
+            latest_prices,
+            total_portfolio_value=total_portfolio_value
+        )
+        
+        allocation, leftover = da.greedy_portfolio()
+        
+        return {
+            'allocation': allocation,
+            'leftover': leftover,
+            'total_value': total_portfolio_value,
+            'invested': total_portfolio_value - leftover
+        }
+    
+    def display_results(
+        self,
+        result: OptimizationResult,
+        show_views: bool = True
+    ) -> None:
+        """
+        Display optimization results in a formatted table.
+        
+        Args:
+            result: OptimizationResult object
+            show_views: Whether to show factor views alongside weights
+        """
+        print("=" * 80)
+        print("📈 BLACK-LITTERMAN PORTFOLIO OPTIMIZATION")
+        print("=" * 80)
+        
+        if show_views and self.views and self.confidences:
+            print(f"\n{'Ticker':<8} {'Weight':<10} {'View':<12} {'Confidence':<12} {'Total Score':<12}")
+            print("-" * 80)
+            
+            for ticker in sorted(result.weights.keys(), key=lambda t: result.weights[t], reverse=True):
+                weight = result.weights[ticker]
+                if weight > 0.001:  # Only show non-zero weights
+                    view = self.views.get(ticker, 0)
+                    confidence = self.confidences.get(ticker, 0)
+                    
+                    # Get total score if available
+                    if self.factor_scores is not None:
+                        score_row = self.factor_scores[self.factor_scores['Ticker'] == ticker]
+                        total_score = score_row['Total_Score'].iloc[0] if not score_row.empty else 0
+                    else:
+                        total_score = 0
+                    
+                    print(f"{ticker:<8} {weight*100:>8.2f}%  {view*100:>9.2f}%  {confidence:>10.2f}  {total_score:>10.2f}")
+        else:
+            print(f"\n{'Ticker':<8} {'Weight':<10}")
+            print("-" * 30)
+            for ticker, weight in sorted(result.weights.items(), key=lambda x: x[1], reverse=True):
+                if weight > 0.001:
+                    print(f"{ticker:<8} {weight*100:>8.2f}%")
+        
+        print("\n" + "=" * 80)
+        print(f"Expected Return: {result.expected_return*100:.2f}%")
+        print(f"Volatility: {result.volatility*100:.2f}%")
+        print(f"Sharpe Ratio: {result.sharpe_ratio:.2f}")
+        print("=" * 80 + "\n")
+
+
+if __name__ == "__main__":
+    """Test the optimizer with a mini-universe."""
+    
+    print("\n" + "=" * 80)
+    print("🚀 PHASE 3: BLACK-LITTERMAN OPTIMIZER - TEST")
+    print("=" * 80 + "\n")
+    
+    # Mini-universe for testing
+    test_tickers = ["NVDA", "XOM", "JPM", "PFE", "TSLA"]
+    
+    # Create mock factor scores (normally from FactorEngine)
+    mock_scores = pd.DataFrame({
+        'Ticker': test_tickers,
+        'Value_Z': [-0.71, 0.93, 0.00, 0.78, -1.01],
+        'Quality_Z': [1.61, -0.40, -0.95, 0.26, -0.52],
+        'Momentum_Z': [0.97, -0.15, 1.10, -1.02, -0.90],
+        'Total_Score': [0.55, 0.18, -0.16, 0.21, -0.79]
+    })
+    
+    print("Mock Factor Scores:")
+    print(mock_scores)
+    print()
+    
+    # Initialize optimizer
+    optimizer = BlackLittermanOptimizer(
+        tickers=test_tickers,
+        factor_alpha_scalar=0.02  # 1-sigma = 2% outperformance
+    )
+    
+    # Fetch price data
+    optimizer.fetch_price_data(period="2y")
+    
+    # Generate views from factor scores
+    views, confidences = optimizer.generate_views_from_scores(mock_scores)
+    
+    # Optimize portfolio
+    result = optimizer.optimize(objective='max_sharpe')
+    
+    # Display results
+    optimizer.display_results(result, show_views=True)
+    
+    # Discrete allocation example
+    print("\n" + "=" * 80)
+    print("💰 DISCRETE ALLOCATION ($50,000 Portfolio)")
+    print("=" * 80 + "\n")
+    
+    allocation = optimizer.get_discrete_allocation(result.weights, 50000)
+    
+    if allocation['allocation']:
+        print(f"{'Ticker':<8} {'Shares':<10} {'Value':<12}")
+        print("-" * 40)
+        for ticker, shares in allocation['allocation'].items():
+            price = optimizer.prices[ticker].iloc[-1]
+            value = shares * price
+            print(f"{ticker:<8} {shares:<10} ${value:>10,.2f}")
+        
+        print("-" * 40)
+        print(f"Total Invested: ${allocation['invested']:,.2f}")
+        print(f"Leftover Cash: ${allocation['leftover']:,.2f}")
+    else:
+        print("No allocation generated")
+    
+    print("\n")

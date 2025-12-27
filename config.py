@@ -28,6 +28,10 @@ class AppConfig:
     MIN_POSITION_SIZE: float = 0.00  # Allow zero weight
     DEFAULT_RISK_FREE_RATE: float = 0.04  # 4% for Sharpe ratio
     
+    # Factor-Based Black-Litterman
+    FACTOR_ALPHA_SCALAR: float = 0.02  # 1-sigma factor beat = 2% outperformance
+    FACTOR_VIEW_TAU: float = 0.025  # Uncertainty in prior (Black-Litterman tau parameter)
+    
     # Conviction Rating Thresholds
     CONVICTION_UPSIDE_THRESHOLD: float = 15.0  # 15% upside
     CONVICTION_HIGH_PROBABILITY: float = 75.0  # 75% probability
