@@ -4,7 +4,25 @@
 
 Combines real-time macroeconomic data, academic financial research, and multi-factor stock ranking with Black-Litterman optimization for institutional-grade portfolio management.
 
-## 🎯 Overview
+## 📦 Architecture
+
+This repository contains **two independent toolkits**:
+
+### 1. **Systematic Factor-Based Workflow** *(Main/Production)*
+- **CLI**: `main.py` (optimize, verify commands)
+- **Location**: `src/` directory
+- **Approach**: Pure quantitative multi-factor ranking + Black-Litterman optimization
+- **Data**: Systematic signals (Value/Quality/Momentum), macro adjustments, factor regimes
+
+### 2. **Legacy DCF Fundamental Analysis** *(Isolated)*
+- **CLI**: `dcf_cli.py` (valuation, portfolio commands)
+- **Location**: `legacy/` directory  
+- **Approach**: Fundamental bottom-up DCF valuation with conviction-based filtering
+- **Data**: Company financials, growth projections, Monte Carlo simulation
+
+**Key Difference**: Systematic workflow uses factor-based quantitative signals across the universe. DCF uses company-specific fundamental analysis. Both use Black-Litterman optimization but with different view generation methods.
+
+## 🎯 Overview - Systematic Workflow
 
 The Quant Portfolio Manager implements a systematic approach to quantitative investing through an integrated pipeline:
 
@@ -68,8 +86,11 @@ The Quant Portfolio Manager implements a systematic approach to quantitative inv
 
 ### 💼 Legacy DCF System
 - **DCF Valuation**: Fundamental analysis with Monte Carlo simulation
+- **Conviction Scoring**: HIGH/MODERATE/SPECULATIVE ratings based on confidence
+- **Portfolio Integration**: DCF-aware Black-Litterman with conviction weighting
 - **Risk Metrics**: VaR, CVaR, Sortino Ratio, Calmar Ratio, Max Drawdown
 - **Market Regime Detection**: Adaptive allocation based on market conditions
+- **Access**: Use `uv run python dcf_cli.py` for DCF analysis (see `legacy/README.md`)
 
 ## 🚀 Quick Start
 
@@ -83,7 +104,7 @@ uv sync
 
 ### Usage Examples
 
-#### Systematic Portfolio Optimization (Recommended)
+#### Systematic Portfolio Optimization (Main CLI)
 
 Build an optimized portfolio using the full factor-based Black-Litterman pipeline:
 
@@ -137,16 +158,21 @@ uv run ./main.py verify NVDA
 
 # Compare against custom universe
 uv run ./main.py verify TSLA --universe NVDA XOM JPM PFE TSLA
-
-# Run DCF valuation
-uv run ./main.py valuation AAPL
 ```
 
-#### Legacy Portfolio Workflow
+#### Legacy DCF Analysis
 
 ```bash
-# Interactive DCF-based portfolio builder (legacy)
-uv run ./main.py portfolio
+# DCF valuation with detailed scenarios
+uv run python dcf_cli.py valuation AAPL --detailed
+
+# Build DCF-based portfolio (conviction-weighted)
+uv run python dcf_cli.py portfolio --tickers AAPL MSFT GOOGL NVDA
+
+# Interactive DCF portfolio builder
+uv run python dcf_cli.py portfolio --interactive
+
+# See legacy/README.md for complete DCF documentation
 ```
 
 ## 📖 Factor Methodology

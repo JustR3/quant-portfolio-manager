@@ -325,105 +325,6 @@ class PortfolioEngine:
         except Exception:
             return {}
 
-    def optimize_with_views(self, dcf_results: Dict[str, dict], confidence: float = 0.3,
-                            method: OptimizationMethod = OptimizationMethod.MAX_SHARPE,
-                            weight_bounds: Tuple[float, float] = (0, 1)) -> Optional[PortfolioMetrics]:
-        """Optimize using Black-Litterman with DCF valuations as views.
-        
-        Now uses Monte Carlo probabilities as confidence weights and filters by conviction.
-        """
-        try:
-            if self.prices is None:
-                self._last_error = "No price data"
-                return None
-
-            # Build views with conviction-based filtering FIRST
-            viewdict = {}
-            view_confidences = []
-            viable_tickers = []
-            
-            for ticker in self.tickers:
-                if ticker not in dcf_results:
-                    continue
-                
-                dcf = dcf_results[ticker]
-                
-                # Skip if no positive value
-                if dcf.get('value_per_share', 0) <= 0:
-                    continue
-                
-                upside = dcf['upside_downside'] / 100.0
-                conviction_data = dcf.get('conviction', {})
-                conviction = conviction_data.get('label', 'N/A')
-                mc_data = dcf.get('monte_carlo', {})
-                mc_probability = mc_data.get('probability', 0) if mc_data else 0
-                
-                # Conviction-based filtering and discounting
-                if conviction == 'HIGH CONVICTION':
-                    viewdict[ticker] = upside
-                    view_confidences.append(0.3 + (mc_probability / 100) * 0.3)
-                    viable_tickers.append(ticker)
-                    
-                elif conviction == 'MODERATE':
-                    viewdict[ticker] = upside
-                    view_confidences.append(0.2 + (mc_probability / 100) * 0.2)
-                    viable_tickers.append(ticker)
-                    
-                elif conviction == 'SPECULATIVE':
-                    viewdict[ticker] = upside * 0.5
-                    view_confidences.append(0.1 + (mc_probability / 100) * 0.1)
-                    viable_tickers.append(ticker)
-                    
-                # HOLD/PASS: Exclude entirely
-            
-            if not viewdict:
-                self._last_error = "No valid DCF results after conviction filtering"
-                return None
-            
-            # Filter prices to viable tickers only and recalculate matrices
-            filtered_prices = self.prices[viable_tickers]
-            
-            # Recalculate expected returns and covariance for filtered tickers
-            mu = expected_returns.capm_return(filtered_prices, risk_free_rate=self.risk_free_rate)
-            S = risk_models.CovarianceShrinkage(filtered_prices).ledoit_wolf()
-
-            # Get market caps for Black-Litterman
-            market_caps = pd.Series({t: dcf_results.get(t, {}).get('market_cap', 1.0)
-                                     for t in viewdict.keys()})
-            
-            # Convert to numpy array
-            confidences_array = np.array(view_confidences)
-
-            bl = black_litterman.BlackLittermanModel(
-                S, pi="market", market_caps=market_caps,
-                absolute_views=viewdict, omega="idzorek", view_confidences=confidences_array
-            )
-            bl_returns = bl.bl_returns()
-
-            ef = EfficientFrontier(bl_returns, S, weight_bounds=weight_bounds)
-            try:
-                if method == OptimizationMethod.MAX_SHARPE:
-                    ef.max_sharpe(risk_free_rate=self.risk_free_rate)
-                elif method == OptimizationMethod.MIN_VOLATILITY:
-                    ef.min_volatility()
-                else:
-                    ef.efficient_risk(target_volatility=0.15)
-            except ValueError:
-                # If all returns are below risk-free rate, fall back to min volatility
-                ef = EfficientFrontier(bl_returns, S, weight_bounds=weight_bounds)
-                ef.min_volatility()
-
-            weights = {k: v for k, v in ef.clean_weights().items() if v > 0.001}
-            perf = ef.portfolio_performance(verbose=False, risk_free_rate=self.risk_free_rate)
-            self.optimized_weights = weights
-            self.performance = PortfolioMetrics(
-                perf[0] * 100, perf[1] * 100, perf[2], weights, f"{method.value}_black_litterman"
-            )
-            return self.performance
-        except Exception as e:
-            self._last_error = str(e)
-            return None
-
     def get_discrete_allocation(self, total_portfolio_value: float) -> Optional[DiscretePortfolio]:
         """Calculate discrete share allocation."""
         try:
@@ -460,20 +361,6 @@ def optimize_portfolio(tickers: List[str], method: OptimizationMethod = Optimiza
     if not engine.fetch_data(period=period):
         return None
     return engine.optimize(method=method)
-
-
-def optimize_portfolio_with_dcf(dcf_results: Dict[str, dict],
-                                method: OptimizationMethod = OptimizationMethod.MAX_SHARPE,
-                                period: str = "2y", risk_free_rate: float = 0.04,
-                                confidence: float = 0.3) -> Optional[PortfolioMetrics]:
-    """Optimize portfolio using DCF valuations via Black-Litterman."""
-    tickers = list(dcf_results.keys())
-    if not tickers:
-        return None
-    engine = PortfolioEngine(tickers=tickers, risk_free_rate=risk_free_rate)
-    if not engine.fetch_data(period=period):
-        return None
-    return engine.optimize_with_views(dcf_results=dcf_results, confidence=confidence, method=method)
 
 
 def get_efficient_frontier_points(tickers: List[str], num_points: int = 100,

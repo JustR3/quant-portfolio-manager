@@ -11,7 +11,7 @@ import pandas as pd
 import yfinance as yf
 
 from config import config
-from ..utils import rate_limiter, cache_response, default_cache
+from modules.utils import rate_limiter, cache_response, default_cache
 
 
 @dataclass
