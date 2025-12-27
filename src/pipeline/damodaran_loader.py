@@ -113,45 +113,66 @@ class DamodaranLoader:
             )
             return self._get_generic_priors(sector)
         
-        # For now, use generic priors since Damodaran Excel format changes frequently
-        # Future enhancement: Build robust parser or use API if available
-        logger.info(f"Using generic priors for {sector} (Damodaran parser TBD)")
-        return self._get_generic_priors(sector)
+        # Try to fetch from Damodaran datasets
+        try:
+            # Ensure cache is fresh
+            if not self._is_cache_valid():
+                self._refresh_cache()
+            
+            # Extract data from cached DataFrames
+            if self._beta_cache is not None and self._margin_cache is not None:
+                return self._parse_sector_data(sector, damodaran_sector)
+            else:
+                logger.warning(f"Cache not available for {sector}, using generic priors")
+                return self._get_generic_priors(sector)
+                
+        except Exception as e:
+            logger.warning(f"Failed to parse Damodaran data for {sector}: {e}. Using generic priors")
+            return self._get_generic_priors(sector)
     
     def _refresh_cache(self):
         """Download fresh data from Damodaran's website."""
         logger.info("Refreshing Damodaran datasets...")
         
         try:
-            # Fetch beta data
+            # Fetch beta data from "Industry Averages" sheet
             logger.info(f"Downloading betas from {self.URL_BETAS}")
             beta_response = requests.get(self.URL_BETAS, timeout=30)
             beta_response.raise_for_status()
             
-            # Parse Excel
+            # Parse Excel - header is at row 9 (0-indexed)
             self._beta_cache = pd.read_excel(
                 io.BytesIO(beta_response.content),
-                sheet_name=0  # First sheet
+                sheet_name='Industry Averages',
+                header=9
             )
             
-            logger.info(f"Loaded {len(self._beta_cache)} industries from beta dataset")
+            # Clean column names (remove extra spaces)
+            self._beta_cache.columns = self._beta_cache.columns.str.strip()
+            
+            logger.info(f"✓ Loaded {len(self._beta_cache)} industries from beta dataset")
             
         except Exception as e:
             logger.error(f"Failed to load beta data: {e}")
             self._beta_cache = None
         
         try:
-            # Fetch margin/growth data
+            # Fetch margin/growth data from "Industry Averages" sheet
             logger.info(f"Downloading margins from {self.URL_MARGINS}")
             margin_response = requests.get(self.URL_MARGINS, timeout=30)
             margin_response.raise_for_status()
             
+            # Parse Excel - header is at row 8 (0-indexed)
             self._margin_cache = pd.read_excel(
                 io.BytesIO(margin_response.content),
-                sheet_name=0
+                sheet_name='Industry Averages',
+                header=8
             )
             
-            logger.info(f"Loaded {len(self._margin_cache)} industries from margin dataset")
+            # Clean column names
+            self._margin_cache.columns = self._margin_cache.columns.str.strip()
+            
+            logger.info(f"✓ Loaded {len(self._margin_cache)} industries from margin dataset")
             
         except Exception as e:
             logger.error(f"Failed to load margin data: {e}")
@@ -175,6 +196,77 @@ class DamodaranLoader:
             return float(value)
         except (ValueError, TypeError):
             return None
+    
+    def _parse_sector_data(self, sector: str, damodaran_sector: str) -> SectorPriors:
+        """
+        Parse sector data from cached Damodaran DataFrames.
+        
+        Args:
+            sector: yfinance sector name
+            damodaran_sector: Damodaran industry name
+        
+        Returns:
+            SectorPriors with parsed data
+        """
+        import re
+        
+        beta = None
+        unlevered_beta = None
+        operating_margin = None
+        
+        # Escape regex special characters in search string
+        search_pattern = re.escape(damodaran_sector)
+        
+        # Extract beta data
+        if self._beta_cache is not None:
+            beta_row = self._beta_cache[
+                self._beta_cache['Industry Name'].str.contains(
+                    search_pattern, case=False, na=False, regex=True
+                )
+            ]
+            
+            if not beta_row.empty:
+                beta = self._safe_float(beta_row.iloc[0]['Beta'])
+                unlevered_beta = self._safe_float(beta_row.iloc[0]['Unlevered beta'])
+                logger.info(f"✓ Found {sector} beta: {beta} (unlevered: {unlevered_beta})")
+            else:
+                logger.warning(f"No beta data found for '{damodaran_sector}'")
+        
+        # Extract margin data
+        if self._margin_cache is not None:
+            margin_row = self._margin_cache[
+                self._margin_cache['Industry Name'].str.contains(
+                    search_pattern, case=False, na=False, regex=True
+                )
+            ]
+            
+            if not margin_row.empty:
+                # Use "Pre-tax, Pre-stock compensation Operating Margin" if available
+                margin_col = 'Pre-tax, Pre-stock compensation Operating Margin'
+                if margin_col in self._margin_cache.columns:
+                    operating_margin = self._safe_float(margin_row.iloc[0][margin_col])
+                    if operating_margin is not None:
+                        logger.info(f"✓ Found {sector} operating margin: {operating_margin:.2%}")
+            else:
+                logger.warning(f"No margin data found for '{damodaran_sector}'")
+        
+        # If we got data from Damodaran, use it; otherwise fall back to generic
+        if beta is not None or operating_margin is not None:
+            # Use generic defaults for missing fields
+            generic = self._get_generic_priors(sector)
+            
+            return SectorPriors(
+                sector=sector,
+                beta=beta if beta is not None else generic.beta,
+                unlevered_beta=unlevered_beta,
+                operating_margin=operating_margin if operating_margin is not None else generic.operating_margin,
+                revenue_growth=generic.revenue_growth,  # Not in Damodaran datasets
+                erp=0.055  # ~5.5% equity risk premium (historical US average)
+            )
+        else:
+            # No data found, use generic
+            logger.warning(f"No Damodaran data found for {sector}, using generic priors")
+            return self._get_generic_priors(sector)
     
     def _get_generic_priors(self, sector: str) -> SectorPriors:
         """
