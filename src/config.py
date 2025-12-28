@@ -55,7 +55,7 @@ from src.constants import (
     MONTE_CARLO_ITERATIONS,
     MONTE_CARLO_SEED,
     MONTE_CARLO_HIGH_PRECISION_ITERATIONS,
-    # DCF
+    # Forecast Parameters
     MIN_GROWTH_RATE,
     MAX_GROWTH_RATE,
     DEFAULT_TERMINAL_GROWTH,
@@ -160,7 +160,7 @@ class Config:
     monte_carlo_high_precision: int = MONTE_CARLO_HIGH_PRECISION_ITERATIONS
     
     # =========================================================================
-    # DCF Valuation
+    # Forecast Parameters (for projection models)
     # =========================================================================
     min_growth_rate: float = MIN_GROWTH_RATE
     max_growth_rate: float = MAX_GROWTH_RATE
