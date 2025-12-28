@@ -90,6 +90,15 @@ For DCF fundamental analysis:
                      help="Apply Shiller CAPE-based equity risk adjustment")
     opt.add_argument("--use-french", action="store_true",
                      help="Apply Fama-French factor regime tilts")
+    opt.add_argument("--use-regime", action="store_true",
+                     help="Apply regime-based portfolio exposure adjustment")
+    opt.add_argument("--regime-method", type=str, default="combined",
+                     choices=["sma", "vix", "combined"],
+                     help="Regime detection method (default: combined)")
+    opt.add_argument("--regime-risk-off", type=float, default=0.50,
+                     help="Equity exposure in RISK_OFF regime (default: 0.50)")
+    opt.add_argument("--regime-caution", type=float, default=0.75,
+                     help="Equity exposure in CAUTION regime (default: 0.75)")
     opt.add_argument("--export", type=str, metavar="FILE",
                      help="Export portfolio weights to CSV")
     opt.add_argument("--batch-size", type=int, default=50,
@@ -131,6 +140,15 @@ For DCF fundamental analysis:
                          help="Apply Shiller CAPE-based equity risk adjustment")
     backtest.add_argument("--use-french", action="store_true",
                          help="Apply Fama-French factor regime tilts")
+    backtest.add_argument("--use-regime", action="store_true",
+                         help="Apply regime-based portfolio exposure adjustment")
+    backtest.add_argument("--regime-method", type=str, default="combined",
+                         choices=["sma", "vix", "combined"],
+                         help="Regime detection method (default: combined)")
+    backtest.add_argument("--regime-risk-off", type=float, default=0.50,
+                         help="Equity exposure in RISK_OFF regime (default: 0.50)")
+    backtest.add_argument("--regime-caution", type=float, default=0.75,
+                         help="Equity exposure in CAUTION regime (default: 0.75)")
     backtest.add_argument("--export", type=str, metavar="DIR",
                          help="Export results to directory (default: data/backtests/)")
     
@@ -165,7 +183,11 @@ def main():
                 batch_size=args.batch_size,
                 factor_alpha_scalar=AppConfig.FACTOR_ALPHA_SCALAR,
                 use_macro_adjustment=args.use_macro,
-                use_factor_regimes=args.use_french
+                use_factor_regimes=args.use_french,
+                use_regime_adjustment=args.use_regime,
+                regime_method=args.regime_method,
+                regime_risk_off_exposure=args.regime_risk_off,
+                regime_caution_exposure=args.regime_caution
             )
             
             # Display results
@@ -333,6 +355,10 @@ def main():
                 initial_capital=args.capital,
                 use_macro=args.use_macro,
                 use_french=args.use_french,
+                use_regime=args.use_regime,
+                regime_method=args.regime_method,
+                regime_risk_off_exposure=args.regime_risk_off,
+                regime_caution_exposure=args.regime_caution,
                 factor_alpha_scalar=AppConfig.FACTOR_ALPHA_SCALAR
             )
             

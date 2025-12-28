@@ -106,8 +106,25 @@ class RegimeDetector:
             return False
         return (datetime.now() - self._cache_timestamp).total_seconds() < self.cache_duration
 
-    def _get_spy_history(self, ticker: str, lookback_days: int) -> Optional[pd.DataFrame]:
-        """Fetch SPY data with caching."""
+    def _get_spy_history(self, ticker: str, lookback_days: int, as_of_date: Optional[str] = None) -> Optional[pd.DataFrame]:
+        """Fetch SPY data with caching.
+        
+        Args:
+            ticker: Ticker symbol
+            lookback_days: Number of days of history
+            as_of_date: Historical date (YYYY-MM-DD) for point-in-time data. If None, uses current date.
+        """
+        # For backtesting, don't cache historical data (each date needs its own data)
+        if as_of_date:
+            end_date = pd.to_datetime(as_of_date)
+            start_date = end_date - timedelta(days=lookback_days)
+            try:
+                data = yf.Ticker(ticker).history(start=start_date, end=end_date)
+                return data if not data.empty else None
+            except Exception:
+                return None
+        
+        # For current data, use cache
         cache_key = f"spy_history_{ticker}_{lookback_days}"
         cached = default_cache.get(cache_key, expiry_hours=1)  # 1 hour cache for market data
         
@@ -127,9 +144,10 @@ class RegimeDetector:
             return None
 
     @rate_limiter
-    def _fetch_spy_data(self) -> Optional[pd.DataFrame]:
+    def _fetch_spy_data(self, as_of_date: Optional[str] = None) -> Optional[pd.DataFrame]:
+        """Fetch SPY data, optionally as of a historical date."""
         try:
-            data = self._get_spy_history(self.ticker, self.lookback_days)
+            data = self._get_spy_history(self.ticker, self.lookback_days, as_of_date)
             if data is None:
                 self._last_error = f"No data for {self.ticker}"
                 return None
@@ -198,22 +216,41 @@ class RegimeDetector:
         return MarketRegime.CAUTION
 
     def get_regime_with_details(self, use_cache: bool = True, 
-                                 method: str = "combined") -> Optional[RegimeResult]:
-        if use_cache and self._is_cache_valid():
+                                 method: str = "combined",
+                                 as_of_date: Optional[str] = None) -> Optional[RegimeResult]:
+        """Get regime with details, optionally as of a historical date.
+        
+        Args:
+            use_cache: Use cached result (ignored if as_of_date is provided)
+            method: Detection method ('sma', 'vix', 'combined')
+            as_of_date: Historical date (YYYY-MM-DD) for point-in-time detection
+        """
+        # Don't use cache for historical dates (backtesting)
+        if as_of_date is None and use_cache and self._is_cache_valid():
             return self._cached_result
 
         try:
             if method == "vix":
-                vix = self._fetch_vix_term_structure()
-                if not vix:
-                    return None
-                result = RegimeResult(
-                    regime=self._get_vix_regime(vix), method="vix",
-                    vix_structure=vix, vix_regime=self._get_vix_regime(vix),
-                    last_updated=datetime.now(),
-                )
-            elif method == "sma":
-                spy = self._fetch_spy_data()
+                # VIX term structure not available historically via yfinance
+                # For backtesting, fall back to SMA-only when as_of_date is provided
+                if as_of_date:
+                    method = "sma"  # Override to SMA for historical dates
+                else:
+                    vix = self._fetch_vix_term_structure()
+                    if not vix:
+                        return None
+                    result = RegimeResult(
+                        regime=self._get_vix_regime(vix), method="vix",
+                        vix_structure=vix, vix_regime=self._get_vix_regime(vix),
+                        last_updated=datetime.now(),
+                    )
+                    if not as_of_date:  # Only cache current data
+                        self._cached_result = result
+                        self._cache_timestamp = datetime.now()
+                    return result
+            
+            if method == "sma":
+                spy = self._fetch_spy_data(as_of_date=as_of_date)
                 if spy is None:
                     return None
                 regime, price, sma, strength = self._calculate_sma_regime(spy)
@@ -223,8 +260,9 @@ class RegimeDetector:
                     last_updated=datetime.now(),
                 )
             else:  # combined
-                spy = self._fetch_spy_data()
-                vix = self._fetch_vix_term_structure()
+                spy = self._fetch_spy_data(as_of_date=as_of_date)
+                # VIX term structure not available historically
+                vix = None if as_of_date else self._fetch_vix_term_structure()
                 
                 if spy is None and vix is None:
                     return None
@@ -244,14 +282,16 @@ class RegimeDetector:
                     combined = vix_regime or sma_regime or MarketRegime.UNKNOWN
 
                 result = RegimeResult(
-                    regime=combined, method="combined", current_price=price,
+                    regime=combined, method="combined" if not as_of_date else "sma", current_price=price,
                     sma_200=sma, sma_signal_strength=strength,
                     vix_structure=vix, vix_regime=vix_regime,
                     last_updated=datetime.now(),
                 )
 
-            self._cached_result = result
-            self._cache_timestamp = datetime.now()
+            # Only cache current data, not historical
+            if not as_of_date:
+                self._cached_result = result
+                self._cache_timestamp = datetime.now()
             return result
         except Exception as e:
             self._last_error = f"Error calculating regime: {e}"

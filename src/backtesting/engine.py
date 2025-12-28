@@ -57,7 +57,11 @@ class BacktestEngine:
         objective: str = 'max_sharpe',
         weight_bounds: Tuple[float, float] = (0.0, 0.30),
         use_macro: bool = False,
-        use_french: bool = False
+        use_french: bool = False,
+        use_regime: bool = False,
+        regime_method: str = "combined",
+        regime_risk_off_exposure: float = 0.50,
+        regime_caution_exposure: float = 0.75
     ):
         """
         Initialize backtest engine.
@@ -76,6 +80,10 @@ class BacktestEngine:
             weight_bounds: Min/max weight per asset
             use_macro: Apply CAPE-based macro adjustments
             use_french: Apply Fama-French factor tilts
+            use_regime: Apply regime-based exposure adjustment
+            regime_method: Regime detection method ('sma', 'vix', 'combined')
+            regime_risk_off_exposure: Equity exposure in RISK_OFF (default: 0.50)
+            regime_caution_exposure: Equity exposure in CAUTION (default: 0.75)
         """
         self.start_date = pd.to_datetime(start_date)
         self.end_date = pd.to_datetime(end_date)
@@ -90,6 +98,10 @@ class BacktestEngine:
         self.weight_bounds = weight_bounds
         self.use_macro = use_macro
         self.use_french = use_french
+        self.use_regime = use_regime
+        self.regime_method = regime_method
+        self.regime_risk_off_exposure = regime_risk_off_exposure
+        self.regime_caution_exposure = regime_caution_exposure
         
         # State tracking
         self.rebalance_dates = []
@@ -336,6 +348,34 @@ class BacktestEngine:
                 
                 new_weights = opt_result.weights
                 
+                # Apply regime adjustment if enabled
+                if self.use_regime:
+                    from src.utils.regime_adjustment import apply_regime_adjustment
+                    
+                    # Build weights DataFrame for adjustment (lowercase 'weight' to match adjuster)
+                    weights_df = pd.DataFrame([
+                        {'ticker': ticker, 'weight': weight}
+                        for ticker, weight in new_weights.items()
+                    ])
+                    
+                    # Apply adjustment using HISTORICAL regime (critical: no look-ahead bias)
+                    adjusted_weights_df, regime_metadata = apply_regime_adjustment(
+                        weights_df=weights_df,
+                        risk_off_exposure=self.regime_risk_off_exposure,
+                        caution_exposure=self.regime_caution_exposure,
+                        method=self.regime_method,
+                        verbose=False,  # Don't print during backtest
+                        as_of_date=as_of_date  # Use historical regime, not current!
+                    )
+                    
+                    # Convert back to dict
+                    new_weights = dict(zip(adjusted_weights_df['ticker'], adjusted_weights_df['weight']))
+                    
+                    if verbose and not HAS_TQDM:
+                        regime_name = regime_metadata['regime']
+                        exposure = regime_metadata['exposure']
+                        print(f"   Regime: {regime_name} ({exposure:.1%} equity)")
+                
                 if verbose and not HAS_TQDM:
                     print(f"   Portfolio: {len(new_weights)} positions")
                     print(f"   Expected Sharpe: {opt_result.sharpe_ratio:.2f}")
@@ -429,8 +469,14 @@ class BacktestEngine:
         # Benchmark metrics
         spy_aligned = spy_prices.reindex(equity_series.index, method='ffill')
         benchmark_returns = spy_aligned.pct_change().dropna()
-        benchmark_equity = self.initial_capital * (1 + benchmark_returns).cumprod()
-        benchmark_equity.iloc[0] = self.initial_capital
+        
+        if len(benchmark_returns) > 0:
+            benchmark_equity = self.initial_capital * (1 + benchmark_returns).cumprod()
+            if len(benchmark_equity) > 0:
+                benchmark_equity.iloc[0] = self.initial_capital
+        else:
+            # Fallback if no benchmark data available
+            benchmark_equity = pd.Series([self.initial_capital], index=equity_series.index[:1])
         
         benchmark_return = PerformanceMetrics.total_return(benchmark_equity)
         benchmark_sharpe = PerformanceMetrics.sharpe_ratio(benchmark_returns, self.risk_free_rate)
