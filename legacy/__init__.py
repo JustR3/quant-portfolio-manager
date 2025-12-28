@@ -1,19 +1,26 @@
 """
-Legacy DCF Valuation Toolkit
+Legacy code archive.
 
-This module contains the original fundamental analysis approach using
-Discounted Cash Flow (DCF) models. It's maintained as an optional toolkit
-for client work and one-off valuations.
+ARCHIVED (Dec 2025): DCF-based valuation has been deprecated in favor of 
+systematic factor-based portfolio construction. The DCF code has been moved
+to legacy/archived/ for historical reference.
 
-For systematic portfolio construction, use the factor-based approach in src/.
+Active approach: See src/pipeline/systematic_workflow.py for current methodology.
+
+Archived code (in legacy/archived/):
+- dcf_engine.py: Bottom-up discounted cash flow valuation
+- dcf_portfolio.py: DCF-aware portfolio optimizer
+- dcf_cli.py: Command-line interface for DCF analysis
+
+Reason for archival: DCF (bottom-up, intrinsic value) is philosophically 
+incompatible with systematic factor investing (top-down, relative value).
+Attempting to combine them creates conflicting signals.
+
+See README.md for details on the systematic approach.
 """
 
-from .dcf_engine import DCFEngine, CompanyData
-from .dcf_portfolio import DCFPortfolioOptimizer, optimize_portfolio_with_dcf
+# DCF components have been archived to legacy/archived/
+# To use them, import directly from that directory:
+# from legacy.archived.dcf_engine import DCFEngine
 
-__all__ = [
-    "DCFEngine",
-    "CompanyData",
-    "DCFPortfolioOptimizer",
-    "optimize_portfolio_with_dcf"
-]
+__all__ = []

@@ -1,76 +1,53 @@
-# Legacy DCF Valuation Toolkit
+# Legacy Code Archive
+
+**Status:** ARCHIVED (December 2025)
 
 ## Overview
-This module implements fundamental valuation using Discounted Cash Flow (DCF) analysis.
-It's maintained as a legacy toolkit for:
-- Client-specific fundamental analysis requests
-- One-off stock valuations
-- Educational/research purposes
 
-**For production systematic portfolios, use the factor-based workflow in `src/`.**
+This directory contains deprecated code from the original DCF-based approach to portfolio management. These files are **no longer actively maintained** and have been superseded by the systematic factor-based methodology in `src/`.
 
-## Features
-- DCF valuation with Monte Carlo simulation
-- Reverse DCF (implied growth analysis)
-- Scenario analysis (Bull/Base/Bear)
-- Sensitivity analysis
-- Multi-stock comparison
-- Portfolio optimization with DCF-based views
+## Why Archived?
 
-## Usage
+The DCF (Discounted Cash Flow) approach and systematic factor investing are **philosophically incompatible**:
 
-### Interactive CLI
+- **DCF Philosophy:** Bottom-up, intrinsic value, company-specific ("what's it worth?")
+- **Systematic Philosophy:** Top-down, relative value, factor-driven ("what will outperform?")
+
+Attempting to merge both approaches creates:
+- Conflicting signals (value vs momentum)
+- Overcomplicated architecture
+- Maintenance burden without clear benefit
+
+**Decision:** Archive DCF, focus on systematic factor investing.
+
+---
+
+## Archived Components
+
+Located in `legacy/archived/`:
+
+### 1. `dcf_engine.py` (942 lines)
+Bottom-up DCF valuation engine
+
+### 2. `dcf_portfolio.py` (188 lines)
+DCF-aware portfolio optimizer
+
+### 3. `dcf_cli.py` (819 lines)
+Command-line interface for DCF analysis
+
+---
+
+## Current Approach
+
+**Active code:** `src/pipeline/systematic_workflow.py`
+
+**Usage:**
 ```bash
-# Run the DCF-specific CLI
-uv run python dcf_cli.py
-
-# Single stock valuation
-uv run python dcf_cli.py valuation AAPL
-
-# Portfolio optimization with DCF views
-uv run python dcf_cli.py portfolio AAPL,MSFT,GOOG
+uv run ./main.py optimize --top-n 50 --use-macro --use-french
 ```
 
-### Programmatic Usage
-```python
-from legacy import DCFEngine, optimize_portfolio_with_dcf
+See main README.md for full documentation.
 
-# Value a stock
-engine = DCFEngine("AAPL", auto_fetch=True)
-result = engine.get_intrinsic_value()
-print(f"Fair Value: ${result['value_per_share']:.2f}")
+---
 
-# Build DCF-based portfolio
-dcf_results = {
-    "AAPL": engine.get_intrinsic_value(),
-    # ... more stocks
-}
-portfolio = optimize_portfolio_with_dcf(dcf_results)
-```
-
-## Architecture
-
-### Files
-- `dcf_engine.py`: Core DCF valuation logic (942 lines)
-- `dcf_portfolio.py`: DCF-aware portfolio optimizer (extracted from modules/portfolio)
-- `examples/`: Usage examples
-
-### Dependencies
-- Shares utilities from `modules/utils.py` (caching, rate limiting)
-- Uses config from `config.py` (risk-free rate, sector priors)
-- Independent of systematic workflow in `src/`
-
-## Comparison to Systematic Approach
-
-| Aspect | DCF (Legacy) | Factor-Based (Production) |
-|--------|-------------|---------------------------|
-| Philosophy | Fundamental intrinsic value | Statistical factor ranking |
-| Data | Company financials, analyst estimates | Price/fundamental ratios, market data |
-| Scalability | 5-20 stocks (computationally intensive) | 50-500 stocks (fast) |
-| Subjectivity | High (growth assumptions, WACC) | Low (Z-score normalization) |
-| Best For | Deep dives, client reports | Systematic portfolio construction |
-
-## Maintenance Status
-**Status:** Maintenance mode (bug fixes only)  
-**Last Updated:** December 2025  
-**Contact:** For questions about DCF methodology, see documentation or raise an issue.
+**For questions or to use archived DCF code, see `legacy/archived/`.**
