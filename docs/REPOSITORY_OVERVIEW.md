@@ -51,8 +51,8 @@ The system follows a clear, repeatable process from data collection to portfolio
 └─────────────────────────────────────────────────────────────────────┘
 
 1. UNIVERSE SELECTION
-   ├─ Fetch S&P 500 constituents from Wikipedia
-   ├─ Get market capitalizations
+   ├─ Load S&P 500 from curated static list (~250 tickers)
+   ├─ Enrich with market caps and sector data from yfinance
    └─ Select top N stocks by market cap
            ↓
 2. DATA COLLECTION (Cached & Batched)
@@ -295,9 +295,10 @@ quant-portfolio-manager/
 **Purpose:** Fetches stock universes (S&P 500, etc.)
 
 **Data Sources:**
-- Wikipedia: S&P 500 constituents
-- Yahoo Finance: Market caps
-- Manual lists: Custom universes
+- Curated static list: S&P 500 constituents (~250 tickers)
+- Yahoo Finance (yfinance): Market caps, sector, and validation
+- Optional Wikipedia scraper: Backup method for latest constituents
+- Custom lists: User-defined universes
 
 **Output:** DataFrame with [ticker, sector, industry, market_cap]
 
@@ -720,7 +721,7 @@ REGIME_CAUTION_EXPOSURE = 0.75       # 75% equity in CAUTION
 |-----------|--------|------------------|---------|
 | Stock prices | Yahoo Finance | Daily | 24h |
 | Financials | Yahoo Finance | Quarterly | 24h |
-| S&P 500 list | Wikipedia | Weekly | 168h |
+| S&P 500 list | Curated static (yfinance validated) | Manual updates | N/A |
 | Risk-free rate | FRED API | Daily | 24h |
 | Shiller CAPE | Yale | Monthly | 168h |
 | Fama-French | Dartmouth | Daily | 168h |
