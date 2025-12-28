@@ -418,6 +418,48 @@ The Glass Box verification layer provides full transparency into stock rankings:
    Mixed profile. Strong in Quality, Momentum. Weak in Value.
 ```
 
+## 🎯 Advanced Features: Regime Detection & Risk Management
+
+Beyond the core factor-based system, this platform includes validated tactical overlays for downside protection and factor timing:
+
+### Market Regime Detection (Optional)
+
+**Tactical asset allocation** based on real-time market conditions using SPY 200-day SMA and VIX term structure:
+
+- **RISK_ON (Bullish)**: 100% equity exposure when SPY > 200-day MA and VIX in normal contango
+- **CAUTION (Mixed)**: 75% equity, 25% cash when signals conflict
+- **RISK_OFF (Bearish)**: 50% equity, 50% cash when SPY < 200-day MA + VIX backwardation
+
+**Validated Performance (25-year backtest, 2000-2024):**
+- 14,785% total return (100K → 14.9M)
+- 22.16% CAGR vs SPY 7.2%
+- 75.51% win rate, 0.91 Sharpe ratio
+- 27x better returns than SPY buy-and-hold
+
+**Enable with:**
+```bash
+uv run ./main.py optimize --use-regime --top-n 20
+uv run ./main.py backtest --use-regime --start 2020-01-01 --end 2024-12-31
+```
+
+### Comprehensive User Guide
+
+For detailed documentation on all features including:
+- Regime adjustment strategies and configurations
+- CAPE (Macro God) valuation adjustments
+- Fama-French (Factor God) factor timing
+- Recommended configurations (Conservative/Balanced/Aggressive)
+- Validation results and crisis performance analysis
+
+**See:** [docs/REGIME_AND_GODS_GUIDE.md](docs/REGIME_AND_GODS_GUIDE.md)
+
+**Quick recommendations:**
+- **Default (Recommended)**: `--use-french` (validated +17.59% alpha over 25 years)
+- **Conservative**: `--use-french --use-regime` (tactical defense + factor timing)
+- **Aggressive**: No flags (pure factors, maximum CAGR)
+
+---
+
 ## 📁 Project Structure
 
 ```

@@ -63,13 +63,58 @@ class FactorEngine:
     def _fetch_ticker_data(self, ticker: str) -> Optional[Dict]:
         """Fetch data for a single ticker with caching and retry.
         
+        Data priority (automatic fallback):
+        1. Historical storage (local parquet files) - for backtesting with as_of_date
+        2. Consolidated cache (24h expiry) - for recent data
+        3. Legacy cache files - backward compatibility
+        4. Live Yahoo Finance API - fallback if above unavailable
+        
         Args:
             ticker: Stock ticker
             
         Returns:
             Dictionary with history, financial statements, and info, or None if failed
         """
-        # Try consolidated cache first (Phase 2 optimization)
+        # 1. TRY HISTORICAL STORAGE (for backtesting with as_of_date)
+        if self.as_of_date:
+            from pathlib import Path
+            hist_file = Path(f"data/historical/prices/{ticker}.parquet")
+            
+            if hist_file.exists():
+                try:
+                    df = pd.read_parquet(hist_file)
+                    
+                    # Point-in-time filter: only data BEFORE as_of_date
+                    df = df[df.index < self.as_of_date]
+                    
+                    # Need at least 2 years (~500 trading days) for factor calculations
+                    if len(df) >= 400:
+                        # Still need fundamentals - try cache or API
+                        info = default_cache.get(f"info_{ticker}")
+                        
+                        if info is None:
+                            # Fetch info from API (no historical info available)
+                            try:
+                                thread_safe_rate_limiter.wait()
+                                stock = yf.Ticker(ticker)
+                                info = stock.info
+                                default_cache.set(f"info_{ticker}", info)
+                            except:
+                                info = {}
+                        
+                        return {
+                            'history': df,
+                            'info': info,
+                            'cash_flow': None,  # Historical fundamentals not stored yet
+                            'income_stmt': None,
+                            'balance_sheet': None,
+                            'source': 'historical_storage'
+                        }
+                except Exception as e:
+                    logger.debug(f"Failed to load historical storage for {ticker}: {e}")
+                    # Fall through to cache/API
+        
+        # 2. TRY CONSOLIDATED CACHE (Phase 2 optimization)
         consolidated_key = f"ticker_{ticker}"
         cached_data = default_cache.get_consolidated(consolidated_key, expiry_hours=self.cache_expiry_hours)
         
@@ -82,7 +127,7 @@ class FactorEngine:
                     cached_data['history'] = hist[hist.index < self.as_of_date]
             return cached_data
         
-        # Fallback: Try legacy cache (individual files)
+        # 3. FALLBACK: Try legacy cache (individual files)
         hist_key = f"history_{ticker}_2y"
         info_key = f"info_{ticker}"
         cashflow_key = f"cashflow_{ticker}"

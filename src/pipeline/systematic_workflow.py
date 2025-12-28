@@ -19,6 +19,7 @@ from src.models.optimizer import BlackLittermanOptimizer
 from src.pipeline.universe_loader import get_universe
 from src.pipeline.shiller_loader import get_equity_risk_scalar, display_cape_summary
 from src.pipeline.french_loader import get_factor_regime, get_factor_tilts, display_factor_summary
+from src.utils.regime_adjustment import apply_regime_adjustment
 from config import AppConfig
 
 
@@ -33,7 +34,11 @@ def run_systematic_portfolio(
     batch_size: int = 50,
     cache_expiry_hours: int = 24,
     use_macro_adjustment: bool = False,
-    use_factor_regimes: bool = False
+    use_factor_regimes: bool = False,
+    use_regime_adjustment: bool = False,
+    regime_method: str = "combined",
+    regime_risk_off_exposure: float = 0.50,
+    regime_caution_exposure: float = 0.75
 ) -> Dict:
     """
     Run the complete systematic portfolio workflow.
@@ -50,6 +55,10 @@ def run_systematic_portfolio(
         cache_expiry_hours: Cache freshness threshold
         use_macro_adjustment: Apply Shiller CAPE-based equity risk adjustment
         use_factor_regimes: Apply Fama-French factor regime tilts
+        use_regime_adjustment: Apply regime-based exposure adjustment
+        regime_method: Regime detection method ('sma', 'vix', 'combined')
+        regime_risk_off_exposure: Equity exposure in RISK_OFF regime (default: 50%)
+        regime_caution_exposure: Equity exposure in CAUTION regime (default: 75%)
     
     Returns:
         Dictionary containing:
@@ -273,6 +282,84 @@ def run_systematic_portfolio(
     weights_df = weights_df.sort_values('weight', ascending=False).reset_index(drop=True)
     
     # =========================================================================
+    # Optional: Regime-Based Adjustment
+    # =========================================================================
+    regime_metadata = None
+    if use_regime_adjustment:
+        print("\n🎯 Step 5/4: Regime-Based Exposure Adjustment")
+        print("-" * 90)
+        
+        weights_df, regime_metadata = apply_regime_adjustment(
+            weights_df=weights_df,
+            risk_off_exposure=regime_risk_off_exposure,
+            caution_exposure=regime_caution_exposure,
+            method=regime_method,
+            verbose=True
+        )
+        
+        print()
+    
+    # =========================================================================
+    # Portfolio Construction Summary
+    # =========================================================================
+    print("\n" + "=" * 90)
+    print("📊 PORTFOLIO CONSTRUCTION SUMMARY")
+    print("=" * 90)
+    print()
+    
+    print("Configuration:")
+    print(f"  Universe: {universe_name.upper()} (top {top_n} by market cap)")
+    print(f"  Factor scoring: Value (40%), Quality (40%), Momentum (20%)")
+    print(f"  Optimization: {objective}")
+    print(f"  Weight bounds: {weight_bounds[0]:.0%} - {weight_bounds[1]:.0%}")
+    print()
+    
+    print("Active Adjustments:")
+    adjustment_count = 0
+    
+    if use_macro_adjustment and macro_adjustment:
+        print(f"  ✅ Macro God (CAPE): {macro_adjustment['regime']}")
+        print(f"     Current CAPE: {macro_adjustment.get('current_cape', 'N/A')}")
+        print(f"     Return scalar: {macro_adjustment['risk_scalar']:.2f}x")
+        adjustment_count += 1
+    else:
+        print(f"  ⭕ Macro God (CAPE): Disabled")
+    
+    if use_factor_regimes and factor_tilts:
+        print(f"  ✅ Factor God (Fama-French):")
+        print(f"     Value tilt: {factor_tilts['value_tilt']:.2f}x")
+        print(f"     Quality tilt: {factor_tilts['quality_tilt']:.2f}x")
+        print(f"     Momentum tilt: {factor_tilts['momentum_tilt']:.2f}x")
+        adjustment_count += 1
+    else:
+        print(f"  ⭕ Factor God (Fama-French): Disabled")
+    
+    if use_regime_adjustment and regime_metadata:
+        print(f"  ✅ Regime Adjustment: {regime_metadata['regime']}")
+        print(f"     Equity exposure: {regime_metadata['exposure']:.0%}")
+        print(f"     Cash allocation: {regime_metadata['cash_allocation']:.0%}")
+        adjustment_count += 1
+    else:
+        print(f"  ⭕ Regime Adjustment: Disabled")
+    
+    if adjustment_count == 0:
+        print(f"  ⚠️  No adjustments active (pure factor-based portfolio)")
+    
+    print()
+    
+    print("Final Portfolio:")
+    print(f"  Total positions: {len(weights_df)}")
+    print(f"  Total weight: {weights_df['weight'].sum():.2%}")
+    if regime_metadata:
+        print(f"  Equity allocation: {weights_df['weight'].sum():.2%}")
+        print(f"  Cash allocation: {1.0 - weights_df['weight'].sum():.2%}")
+    print(f"  Expected return: {optimization_result.expected_return*100:.2f}%")
+    print(f"  Expected volatility: {optimization_result.volatility*100:.2f}%")
+    print(f"  Sharpe ratio: {optimization_result.sharpe_ratio:.2f}")
+    
+    print("\n" + "=" * 90)
+    
+    # =========================================================================
     # Return Complete Results
     # =========================================================================
     pipeline_elapsed = time.time() - pipeline_start
@@ -291,7 +378,8 @@ def run_systematic_portfolio(
         'weights_df': weights_df,
         'optimizer': optimizer,
         'macro_adjustment': macro_adjustment,
-        'factor_tilts': factor_tilts
+        'factor_tilts': factor_tilts,
+        'regime_metadata': regime_metadata
     }
 
 
