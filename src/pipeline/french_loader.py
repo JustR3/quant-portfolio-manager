@@ -290,7 +290,7 @@ def get_factor_regime(
     }
 
 
-def get_factor_tilts(factor_regime: Dict) -> Dict[str, float]:
+def get_factor_tilts(regime_info: Dict, tilt_strength: float = 0.5) -> Dict[str, float]:
     """
     Convert factor regimes to factor importance tilts.
     
@@ -302,25 +302,35 @@ def get_factor_tilts(factor_regime: Dict) -> Dict[str, float]:
     - CMA (Conservative Minus Aggressive) → Quality
     
     Args:
-        factor_regime: Output from get_factor_regime()
+        regime_info: Output from get_factor_regime()
+        tilt_strength: How much to adjust factor weights (0=none, 1=full). Default 0.5.
     
     Returns:
         Dictionary with tilts for Value, Quality, Momentum
     """
-    if not factor_regime.get('available', False):
+    if not regime_info.get('available', False):
         return {'Value': 1.0, 'Quality': 1.0, 'Momentum': 1.0}
     
-    factors = factor_regime.get('factors', {})
+    factors = regime_info.get('factors', {})
     
     # Map to our internal factors
-    value_tilt = factors.get('HML', {}).get('weight', 1.0)
+    raw_value_tilt = factors.get('HML', {}).get('weight', 1.0)
     
     # Quality is influenced by RMW and inverse of SMB
     quality_weight = factors.get('RMW', {}).get('weight', 1.0)
     smb_weight = factors.get('SMB', {}).get('weight', 1.0)
     # Inverse SMB: if small caps are doing well, reduce quality emphasis (large cap quality)
-    quality_tilt = quality_weight * (2.0 - smb_weight)
-    quality_tilt = max(0.7, min(1.3, quality_tilt))  # Clip to reasonable range
+    raw_quality_tilt = quality_weight * (2.0 - smb_weight)
+    
+    # Apply tilt strength: interpolate between neutral (1.0) and raw tilt
+    # tilt_strength=0 → no tilt (1.0), tilt_strength=1 → full tilt
+    value_tilt = 1.0 + tilt_strength * (raw_value_tilt - 1.0)
+    quality_tilt = 1.0 + tilt_strength * (raw_quality_tilt - 1.0)
+    
+    # Clip to reasonable range based on tilt strength
+    max_range = 0.3 * tilt_strength  # e.g., 0.3 if tilt_strength=1.0
+    value_tilt = max(1.0 - max_range, min(1.0 + max_range, value_tilt))
+    quality_tilt = max(1.0 - max_range, min(1.0 + max_range, quality_tilt))
     
     # Momentum: no direct FF factor, keep neutral
     momentum_tilt = 1.0
@@ -328,7 +338,15 @@ def get_factor_tilts(factor_regime: Dict) -> Dict[str, float]:
     return {
         'Value': value_tilt,
         'Quality': quality_tilt,
-        'Momentum': momentum_tilt
+        'Momentum': momentum_tilt,
+        # Also include keys expected by display_factor_summary()
+        'value_tilt': value_tilt,
+        'quality_tilt': quality_tilt,
+        'momentum_tilt': momentum_tilt,
+        'value_regime': factors.get('HML', {}).get('regime', 'NEUTRAL'),
+        'quality_regime': factors.get('RMW', {}).get('regime', 'NEUTRAL'),
+        'hml_regime': factors.get('HML', {}).get('regime', 'NEUTRAL'),
+        'quality_source': f"RMW={factors.get('RMW', {}).get('regime', 'N/A')}, SMB={factors.get('SMB', {}).get('regime', 'N/A')}"
     }
 
 
@@ -364,7 +382,7 @@ def display_factor_regime_summary(factor_set: str = "3factor"):
     print()
     
     # Show implied tilts
-    tilts = get_factor_tilts(regime_info)
+    tilts = get_factor_tilts(regime_info, tilt_strength=0.5)
     
     print("Implied Factor Tilts (for portfolio construction):")
     for factor, tilt in tilts.items():
@@ -420,7 +438,7 @@ if __name__ == "__main__":
     print()
     
     # Test 3: Get factor tilts
-    tilts = get_factor_tilts(regime)
+    tilts = get_factor_tilts(regime, tilt_strength=0.5)
     print(f"Factor Tilts: {tilts}")
     print()
     

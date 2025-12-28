@@ -54,14 +54,14 @@ SP500_TICKERS = [
     
     # Communication Services
     "DIS", "NFLX", "CMCSA", "T", "VZ", "TMUS", "CHTR", "GOOG",
-    "EA", "WBD", "OMC", "IPG", "NWSA", "MTCH", "FOXA", "LYV", "TTWO", "DISH",
+    "EA", "WBD", "OMC", "IPG", "NWSA", "MTCH", "FOXA", "LYV", "TTWO", "SATS",
     
     # Utilities
     "NEE", "SO", "DUK", "CEG", "AEP", "SRE", "D", "PEG", "EXC", "XEL",
     "ED", "WEC", "ES", "FE", "EIX", "ETR", "PPL", "AWK", "DTE", "AEE",
     
     # Additional major companies
-    "BRK.B", "PYPL", "UBER", "SHOP", "SQ", "COIN", "SNOW", "DDOG", "ZS",
+    "BRK-B", "PYPL", "UBER", "SHOP", "XYZ", "COIN", "SNOW", "DDOG", "ZS",
     "OKTA", "CRWD", "NET", "DKNG", "RBLX", "U", "PATH", "S", "BILL", "CFLT",
     
     # More diversification
@@ -75,7 +75,7 @@ SP500_TICKERS = [
 
 
 FALLBACK_SP500_TOP50 = [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK.B", "UNH", "XOM",
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK-B", "UNH", "XOM",
     "JNJ", "JPM", "V", "PG", "MA", "HD", "CVX", "MRK", "ABBV", "PEP",
     "AVGO", "COST", "KO", "MCD", "ADBE", "WMT", "CSCO", "ACN", "NKE", "TMO",
     "LLY", "DHR", "ABT", "CRM", "VZ", "ORCL", "BAC", "CMCSA", "TXN", "NEE",
