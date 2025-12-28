@@ -4,13 +4,9 @@ Verification Script: Confirm No Look-Ahead Bias
 Tests that backtesting uses only historical data at each rebalance point.
 """
 
-import pandas as pd
 from datetime import datetime, timedelta
-import sys
-from pathlib import Path
 
-# Add to path
-sys.path.insert(0, str(Path(__file__).parent))
+import pandas as pd
 
 from src.models.factor_engine import FactorEngine
 from src.models.optimizer import BlackLittermanOptimizer

@@ -9,43 +9,36 @@ Usage:
     python tools/download_historical_data.py --start 2000-01-01 --workers 5
 """
 
-import yfinance as yf
-import pandas as pd
-from pathlib import Path
-from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import argparse
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import List, Tuple, Optional
-import argparse
-import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+import yfinance as yf
+import pandas as pd
+from tqdm import tqdm
+
+from src.logging_config import get_logger
+from src.pipeline.universe import get_hybrid_universe
+
+logger = get_logger(__name__)
 
 
 def get_sp500_tickers() -> List[str]:
     """Fetch hybrid universe (S&P 500 + major delistings) for survivorship bias control."""
     try:
-        # Import from our universe module
-        import sys
-        sys.path.insert(0, str(Path(__file__).parent.parent))
-        from src.utils.universe import get_hybrid_universe
-        
         tickers = get_hybrid_universe()
-        logger.info(f"✅ Loaded hybrid universe: {len(tickers)} tickers (S&P 500 + major delistings)")
+        logger.info(f"Loaded hybrid universe: {len(tickers)} tickers (S&P 500 + major delistings)")
         return tickers
         
     except Exception as e:
-        logger.error(f"❌ Failed to load hybrid universe: {e}")
-        logger.info("📝 Using fallback ticker list...")
+        logger.error(f"Failed to load hybrid universe: {e}")
+        logger.info("Using fallback ticker list...")
         
         # Fallback to a smaller list for testing
-        return ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 
+        return ['AAPL', 'MSFT', 'GOOG', 'AMZN', 'META', 
                 'TSLA', 'NVDA', 'JPM', 'V', 'JNJ']
 
 

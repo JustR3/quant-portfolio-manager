@@ -9,17 +9,12 @@ Tests the complete data pipeline:
 Run with: pytest tests/test_phase1_integration.py -v
 """
 
-import pytest
-import sys
 import os
-from pathlib import Path
 
-# Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+import pytest
 
-from src.pipeline import FredConnector, DamodaranLoader
-from src.utils import DataValidator
+from src.pipeline.external import FredConnector, DamodaranLoader
+from src.utils.validation import DataValidator
 
 
 class TestFredConnector:

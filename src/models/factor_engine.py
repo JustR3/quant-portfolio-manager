@@ -8,20 +8,27 @@ Ranks stocks based on:
 - Momentum: 12-Month Price Return
 """
 
-import yfinance as yf
-import pandas as pd
-import numpy as np
 import time
-from typing import List, Dict, Optional
 import warnings
-import sys
-from pathlib import Path
+from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+import pandas as pd
+import numpy as np
+import yfinance as yf
 
-from modules.utils import default_cache, retry_with_backoff, thread_safe_rate_limiter, Timer
+from src.logging_config import get_logger
+from src.core import default_cache, retry_with_backoff, thread_safe_rate_limiter, Timer
+from src.constants import (
+    TRADING_DAYS_PER_YEAR,
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_CACHE_EXPIRY_HOURS,
+    MAX_PARALLEL_WORKERS,
+    VALUE_FACTOR_WEIGHT,
+    QUALITY_FACTOR_WEIGHT,
+    MOMENTUM_FACTOR_WEIGHT,
+    ZSCORE_WINSORIZE_THRESHOLD,
+)
 
 # Try to import tqdm for progress bars
 try:
@@ -31,6 +38,7 @@ except ImportError:
     HAS_TQDM = False
 
 warnings.filterwarnings('ignore')
+logger = get_logger(__name__)
 
 
 class FactorEngine:
@@ -41,7 +49,13 @@ class FactorEngine:
     and ranks stocks by composite Z-score.
     """
     
-    def __init__(self, tickers: List[str], batch_size: int = 50, cache_expiry_hours: int = 24, as_of_date: Optional[str] = None):
+    def __init__(
+        self,
+        tickers: List[str],
+        batch_size: int = DEFAULT_BATCH_SIZE,
+        cache_expiry_hours: int = DEFAULT_CACHE_EXPIRY_HOURS,
+        as_of_date: Optional[str] = None,
+    ):
         """
         Initialize the Factor Engine.
         

@@ -5,7 +5,16 @@ Scales portfolio weights based on market regime (SPY 200-SMA + VIX term structur
 
 from typing import Dict, Tuple, Optional
 import pandas as pd
-from modules.portfolio.regime import RegimeDetector, MarketRegime
+
+from src.logging_config import get_logger
+from src.models.regime import RegimeDetector, MarketRegime
+from src.constants import (
+    REGIME_RISK_OFF_EXPOSURE,
+    REGIME_CAUTION_EXPOSURE,
+    REGIME_RISK_ON_EXPOSURE,
+)
+
+logger = get_logger(__name__)
 
 
 class RegimePortfolioAdjuster:
@@ -13,10 +22,10 @@ class RegimePortfolioAdjuster:
     
     def __init__(
         self,
-        risk_off_exposure: float = 0.50,
-        caution_exposure: float = 0.75,
-        risk_on_exposure: float = 1.00,
-        method: str = "combined"
+        risk_off_exposure: float = REGIME_RISK_OFF_EXPOSURE,
+        caution_exposure: float = REGIME_CAUTION_EXPOSURE,
+        risk_on_exposure: float = REGIME_RISK_ON_EXPOSURE,
+        method: str = "combined",
     ):
         """
         Initialize regime adjuster.
