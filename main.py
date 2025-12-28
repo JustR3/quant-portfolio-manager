@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Quant Portfolio Manager - Systematic CLI
 
-For DCF-based fundamental analysis, use: uv run python dcf_cli.py
+Systematic quantitative portfolio management using factor-based Black-Litterman optimization.
 """
 
 from __future__ import annotations
@@ -62,10 +62,6 @@ Examples:
   qpm optimize --use-macro --use-french          Enable macro & factor adjustments
   qpm verify NVDA                                 Verify stock factor ranking
   qpm backtest --start 2023-01-01 --end 2023-12-31 --top-n 20   Test strategy
-
-For DCF fundamental analysis:
-  uv run python dcf_cli.py valuation AAPL        Run DCF valuation
-  uv run python dcf_cli.py portfolio             Build DCF-based portfolio
         """
     )
     sub = parser.add_subparsers(

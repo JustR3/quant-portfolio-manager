@@ -107,7 +107,7 @@ MONTE_CARLO_HIGH_PRECISION_ITERATIONS: Final[int] = 5000
 MONTE_CARLO_SEED: Final[int] = 42
 
 # =============================================================================
-# DCF VALUATION (Legacy, kept for reference)
+# FORECAST PARAMETERS (for projection models)
 # =============================================================================
 MIN_GROWTH_RATE: Final[float] = -0.50  # -50%
 MAX_GROWTH_RATE: Final[float] = 1.00  # +100%

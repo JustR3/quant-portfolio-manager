@@ -1,7 +1,7 @@
 [project]
 name = "quant-portfolio-manager"
 version = "0.1.0"
-description = "Modular quant toolkit: DCF valuation engine + portfolio optimization"
+description = "Systematic quantitative portfolio management with factor-based optimization"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
