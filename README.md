@@ -48,11 +48,12 @@ The Quant Portfolio Manager implements a systematic approach to quantitative inv
   - Weekly cache refresh, fallback to neutral (1.0x) if unavailable
 
 ### 📊 Real-Time Data Integration
-- **FRED Connector**: Live risk-free rate, inflation, and macroeconomic indicators from Federal Reserve Economic Data
-- **Damodaran Loader**: Academic datasets from NYU Stern (sector betas, equity risk premiums, industry margins)
-- **Yale Shiller Data**: Historical CAPE ratios for macro valuation signal
-- **Dartmouth Fama-French**: Empirical factor returns (3-factor and 5-factor)
-- **Data Validation**: Cross-verification and quality checks before processing
+- **FRED Connector**: Automatically fetches current risk-free rate (10-Year Treasury) from Federal Reserve Economic Data
+  - Falls back to hardcoded default if FRED_API_KEY unavailable
+  - Set `FRED_API_KEY` environment variable to enable: [Get free API key](https://fred.stlouisfed.org/docs/api/api_key.html)
+  - No manual rate updates needed - always uses latest market data
+- **Yale Shiller Data**: Historical CAPE ratios for macro valuation signal (via Macro God)
+- **Dartmouth Fama-French**: Empirical factor returns for factor regime analysis (via Factor God)
 - **Caching**: Automatic caching of all fetched data (historical prices, financials, market data)
 
 ### 🔬 Factor-Based Stock Ranking
@@ -427,7 +428,33 @@ For detailed documentation on all features including:
 
 ---
 
-## 📁 Project Structure
+## � Future Enhancements
+
+The following features are implemented but not yet integrated into the main workflow:
+
+### Damodaran Sector Priors *(Implemented, Not Integrated)*
+- **Status**: Code exists in [src/pipeline/external/damodaran.py](src/pipeline/external/damodaran.py)
+- **Description**: Downloads sector-level statistics from Aswath Damodaran's NYU Stern datasets
+  - Sector betas, equity risk premiums, industry margins
+  - Academic "ground truth" for sector-level priors
+  - Cached for 30 days (Damodaran updates ~quarterly)
+- **Current State**: Loader fully functional with caching and proper parsing
+- **Integration Plan**: Could be used for sector-aware portfolio construction or sector-level expected returns
+- **Why Not Integrated**: Current workflow uses market-cap-weighted priors from yfinance; Damodaran data would add sector tilts
+
+**To explore this feature:**
+```python
+from src.pipeline.external.damodaran import get_damodaran_loader
+
+loader = get_damodaran_loader()
+priors = loader.get_sector_priors("Technology")
+print(f"Tech sector beta: {priors.beta}")
+print(f"Tech sector ERP: {priors.expected_return}")
+```
+
+---
+
+## �📁 Project Structure
 
 ```
 quant-portfolio-manager/

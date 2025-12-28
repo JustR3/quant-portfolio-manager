@@ -3,8 +3,7 @@ Phase 1 Integration Test: Data Foundation Layer
 
 Tests the complete data pipeline:
 1. FredConnector - Dynamic risk-free rate
-2. DamodaranLoader - Sector priors
-3. DataValidator - Cross-source verification
+2. DamodaranLoader - Sector priors (not integrated but available)
 
 Run with: pytest tests/test_phase1_integration.py -v
 """
@@ -14,7 +13,6 @@ import os
 import pytest
 
 from src.pipeline.external import FredConnector, DamodaranLoader
-from src.utils.validation import DataValidator
 
 
 class TestFredConnector:
@@ -127,72 +125,6 @@ class TestDamodaranLoader:
         print("✓ Fallback priors work for unmapped sectors")
 
 
-class TestDataValidator:
-    """Test data validation layer."""
-    
-    def test_validator_init_no_key(self):
-        """Test validator initialization without API key."""
-        # Clear the env var temporarily
-        orig_key = os.environ.pop('ALPHA_VANTAGE_KEY', None)
-        
-        try:
-            validator = DataValidator()
-            assert validator.enabled == False
-            print("✓ Validator works without API key (cross-validation disabled)")
-        finally:
-            # Restore the key
-            if orig_key:
-                os.environ['ALPHA_VANTAGE_KEY'] = orig_key
-    
-    def test_validator_init_with_key(self):
-        """Test validator initialization with API key."""
-        if not os.getenv("ALPHA_VANTAGE_KEY"):
-            pytest.skip("ALPHA_VANTAGE_KEY not set")
-        
-        validator = DataValidator()
-        assert validator.enabled == True
-        print("✓ Validator initialized with Alpha Vantage")
-    
-    def test_validate_ticker_aapl(self):
-        """Test validation for AAPL (should be high quality)."""
-        validator = DataValidator()
-        
-        quality = validator.validate_ticker("AAPL")
-        
-        assert quality.ticker == "AAPL"
-        assert quality.overall_score >= 0
-        assert quality.overall_score <= 100
-        
-        print(f"✓ AAPL data quality: {quality.overall_score:.1f}/100")
-        print(f"  Timestamp freshness: {quality.timestamp_freshness:.1f}")
-        print(f"  Completeness: {quality.completeness:.1f}")
-        print(f"  Outlier check: {quality.outlier_check:.1f}")
-        
-        if quality.issues:
-            print(f"  Issues: {quality.issues}")
-        
-        # AAPL should have good quality (>60)
-        assert quality.is_acceptable(threshold=60), \
-            f"AAPL quality too low: {quality.overall_score:.1f}"
-    
-    def test_validate_multiple_tickers(self):
-        """Test validation for multiple tickers."""
-        validator = DataValidator()
-        tickers = ["AAPL", "MSFT", "GOOG"]
-        
-        results = {}
-        for ticker in tickers:
-            quality = validator.validate_ticker(ticker)
-            results[ticker] = quality.overall_score
-        
-        print(f"✓ Validated {len(tickers)} tickers:")
-        for ticker, score in results.items():
-            print(f"  {ticker}: {score:.1f}/100")
-        
-        # All should be acceptable
-        assert all(score >= 60 for score in results.values())
-
-
 class TestPhase1Integration:
     """Integration tests combining all Phase 1 components."""
     
@@ -210,15 +142,10 @@ class TestPhase1Integration:
         else:
             print("\n⚠ FRED_API_KEY not set - skipping macro data")
         
-        # Step 2: Load sector priors
+        # Step 2: Load sector priors (available but not integrated)
         loader = DamodaranLoader()
         tech_priors = loader.get_sector_priors("Technology")
         print(f"✓ Sector priors loaded: Tech beta = {tech_priors.beta:.2f}")
-        
-        # Step 3: Validate ticker
-        validator = DataValidator()
-        quality = validator.validate_ticker("AAPL")
-        print(f"✓ Data validation: AAPL quality = {quality.overall_score:.1f}/100")
         
         print("\n" + "="*60)
         print("PHASE 1 COMPLETE: Data foundation operational!")

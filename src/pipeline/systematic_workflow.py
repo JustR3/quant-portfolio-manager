@@ -28,6 +28,7 @@ from src.pipeline.universe import get_universe
 from src.pipeline.external.shiller import get_equity_risk_scalar
 from src.pipeline.external.french import get_factor_regime, get_factor_tilts
 from src.utils.regime_adjustment import apply_regime_adjustment
+from src.utils.market_data import get_risk_free_rate as fetch_risk_free_rate
 
 logger = get_logger(__name__)
 
@@ -84,6 +85,16 @@ def run_systematic_portfolio(
     print("\n" + "=" * 90)
     print("🚀 SYSTEMATIC PORTFOLIO WORKFLOW")
     print("=" * 90 + "\n")
+    
+    # Fetch real-time risk-free rate from FRED (or use provided/fallback)
+    if risk_free_rate == DEFAULT_RISK_FREE_RATE:
+        print("📊 Fetching risk-free rate from FRED...")
+        print("-" * 90)
+        risk_free_rate = fetch_risk_free_rate(use_fred=True, fallback=DEFAULT_RISK_FREE_RATE)
+        print()
+    else:
+        print(f"📊 Using provided risk-free rate: {risk_free_rate:.4f} ({risk_free_rate*100:.2f}%)")
+        print()
     
     # Optional: Macro God (Shiller CAPE)
     macro_adjustment = None
