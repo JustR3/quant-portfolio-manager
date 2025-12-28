@@ -81,24 +81,35 @@ class BlackLittermanOptimizer:
         weight = 1.0 / len(self.tickers)
         return {ticker: weight for ticker in self.tickers}
     
-    def fetch_price_data(self, period: str = "2y") -> pd.DataFrame:
+    def fetch_price_data(self, period: str = "2y", start_date: Optional[str] = None, end_date: Optional[str] = None) -> pd.DataFrame:
         """
         Fetch historical price data for the universe.
         
         Args:
-            period: Historical period (e.g., '2y', '5y')
+            period: Historical period (e.g., '2y', '5y') - used if start_date/end_date not provided
+            start_date: Start date for historical data (YYYY-MM-DD) for point-in-time backtesting
+            end_date: End date for historical data (YYYY-MM-DD) for point-in-time backtesting
             
         Returns:
             DataFrame with adjusted close prices
         """
-        print(f"📊 Fetching price data for {len(self.tickers)} tickers ({period})...")
-        
-        data = yf.download(
-            self.tickers,
-            period=period,
-            progress=False,
-            auto_adjust=True
-        )
+        if start_date and end_date:
+            print(f"📊 Fetching price data for {len(self.tickers)} tickers ({start_date} to {end_date})...")
+            data = yf.download(
+                self.tickers,
+                start=start_date,
+                end=end_date,
+                progress=False,
+                auto_adjust=True
+            )
+        else:
+            print(f"📊 Fetching price data for {len(self.tickers)} tickers ({period})...")
+            data = yf.download(
+                self.tickers,
+                period=period,
+                progress=False,
+                auto_adjust=True
+            )
         
         # Extract close prices
         if len(self.tickers) == 1:

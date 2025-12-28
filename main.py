@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import datetime
+from pathlib import Path
 
 try:
     from rich.console import Console
@@ -20,6 +22,7 @@ except ImportError:
 
 from src.models.factor_engine import FactorEngine
 from src.pipeline.systematic_workflow import run_systematic_portfolio, display_portfolio_summary
+from src.backtesting.engine import BacktestEngine
 from config import AppConfig
 
 console = Console() if HAS_RICH else None
@@ -50,13 +53,14 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  qpm optimize --universe sp500 --top-n 50     Build systematic portfolio
-  qpm optimize --use-macro --use-french        Enable macro & factor adjustments
-  qpm verify NVDA                               Verify stock factor ranking
+  qpm optimize --universe sp500 --top-n 50       Build systematic portfolio
+  qpm optimize --use-macro --use-french          Enable macro & factor adjustments
+  qpm verify NVDA                                 Verify stock factor ranking
+  qpm backtest --start 2023-01-01 --end 2023-12-31 --top-n 20   Test strategy
 
 For DCF fundamental analysis:
-  uv run python dcf_cli.py valuation AAPL      Run DCF valuation
-  uv run python dcf_cli.py portfolio           Build DCF-based portfolio
+  uv run python dcf_cli.py valuation AAPL        Run DCF valuation
+  uv run python dcf_cli.py portfolio             Build DCF-based portfolio
         """
     )
     sub = parser.add_subparsers(
@@ -101,6 +105,35 @@ For DCF fundamental analysis:
     verify.add_argument("--universe", nargs="+", metavar="TICKER",
                        help="Custom universe of tickers (default: predefined)")
     
+    # Backtest command
+    backtest = sub.add_parser(
+        "backtest",
+        aliases=["bt"],
+        help="Backtest systematic strategy with walk-forward validation",
+        description="Test portfolio performance on historical data with monthly/quarterly rebalancing"
+    )
+    backtest.add_argument("--start", type=str, required=True, metavar="YYYY-MM-DD",
+                         help="Backtest start date")
+    backtest.add_argument("--end", type=str, required=True, metavar="YYYY-MM-DD",
+                         help="Backtest end date")
+    backtest.add_argument("--frequency", type=str, default="monthly", 
+                         choices=["monthly", "quarterly"],
+                         help="Rebalancing frequency (default: monthly)")
+    backtest.add_argument("--universe", type=str, default="sp500", choices=["sp500", "custom"],
+                         help="Stock universe to use (default: sp500)")
+    backtest.add_argument("--top-n", type=int, default=50, metavar="N",
+                         help="Number of top stocks by market cap (default: 50)")
+    backtest.add_argument("--optimize-top", type=int, default=None, metavar="N",
+                         help="Number of top-ranked stocks for optimization (default: same as --top-n)")
+    backtest.add_argument("--capital", type=float, default=100000.0, metavar="AMOUNT",
+                         help="Initial capital for backtest (default: 100000)")
+    backtest.add_argument("--use-macro", action="store_true",
+                         help="Apply Shiller CAPE-based equity risk adjustment")
+    backtest.add_argument("--use-french", action="store_true",
+                         help="Apply Fama-French factor regime tilts")
+    backtest.add_argument("--export", type=str, metavar="DIR",
+                         help="Export results to directory (default: data/backtests/)")
+    
     return parser.parse_args()
 
 
@@ -113,6 +146,7 @@ def main():
         print("\nCommands:")
         print("  qpm optimize    - Build systematic factor-based portfolio")
         print("  qpm verify TICK - Verify stock factor ranking")
+        print("  qpm backtest    - Test strategy on historical data")
         print("\nFor DCF analysis: uv run python dcf_cli.py")
         print("\nUse 'qpm COMMAND -h' for detailed help\n")
         return
@@ -214,7 +248,7 @@ def main():
             universe = [t.upper().strip() for t in args.universe]
         else:
             # Default mini-universe (must include the ticker being verified)
-            universe = ["NVDA", "XOM", "JPM", "PFE", "TSLA", "AAPL", "MSFT", "GOOGL", "META", "AMZN"]
+            universe = ["NVDA", "XOM", "JPM", "PFE", "TSLA", "AAPL", "MSFT", "GOOG", "META", "AMZN"]
             if ticker not in universe:
                 universe.append(ticker)
         
@@ -264,6 +298,65 @@ def main():
         
         # Display detailed audit report for the requested ticker
         engine.display_audit_report(ticker)
+        
+        return
+    
+    # Backtest command
+    if args.module in ("backtest", "bt"):
+        print_header("Backtesting Systematic Strategy")
+        
+        try:
+            # Parse dates
+            start_date = datetime.strptime(args.start, "%Y-%m-%d")
+            end_date = datetime.strptime(args.end, "%Y-%m-%d")
+            
+            # Validate date range
+            if start_date >= end_date:
+                print_msg("Error: Start date must be before end date", "error")
+                sys.exit(1)
+            
+            # Set up export directory
+            export_dir = Path(args.export) if args.export else Path("data/backtests")
+            export_dir.mkdir(parents=True, exist_ok=True)
+            
+            print_msg(f"Backtesting {args.universe} from {args.start} to {args.end}", "info")
+            print_msg(f"Rebalancing: {args.frequency}, Capital: ${args.capital:,.0f}", "info")
+            
+            # Initialize backtest engine
+            engine = BacktestEngine(
+                start_date=args.start,
+                end_date=args.end,
+                universe=args.universe,
+                top_n=args.top_n,
+                top_n_for_optimization=args.optimize_top,
+                rebalance_frequency=args.frequency,
+                initial_capital=args.capital,
+                use_macro=args.use_macro,
+                use_french=args.use_french,
+                factor_alpha_scalar=AppConfig.FACTOR_ALPHA_SCALAR
+            )
+            
+            # Run backtest
+            print()
+            result = engine.run()
+            
+            # Display results
+            print()
+            result.display_summary()
+            
+            # Export results
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            result_file = export_dir / f"backtest_{args.frequency}_{timestamp}"
+            result.save(str(result_file))
+            
+            print()
+            print_msg(f"Results saved to {result_file}.json and {result_file}_equity.csv", "success")
+        
+        except Exception as e:
+            print_msg(f"Error: {e}", "error")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
         
         return
 

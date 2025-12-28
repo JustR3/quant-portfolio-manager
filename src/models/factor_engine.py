@@ -41,7 +41,7 @@ class FactorEngine:
     and ranks stocks by composite Z-score.
     """
     
-    def __init__(self, tickers: List[str], batch_size: int = 50, cache_expiry_hours: int = 24):
+    def __init__(self, tickers: List[str], batch_size: int = 50, cache_expiry_hours: int = 24, as_of_date: Optional[str] = None):
         """
         Initialize the Factor Engine.
         
@@ -49,10 +49,12 @@ class FactorEngine:
             tickers: List of stock tickers to analyze
             batch_size: Number of tickers to process per batch (default: 50)
             cache_expiry_hours: Cache freshness threshold in hours (default: 24)
+            as_of_date: Point-in-time date for backtesting (YYYY-MM-DD). Only data before this date will be used.
         """
         self.tickers = tickers
         self.batch_size = batch_size
         self.cache_expiry_hours = cache_expiry_hours
+        self.as_of_date = pd.to_datetime(as_of_date) if as_of_date else None
         self.data = {}
         self.factor_scores = None
         self.universe_stats = {}  # Store mean/std for each factor
@@ -73,6 +75,11 @@ class FactorEngine:
         
         if cached_data is not None:
             # Full cache hit from consolidated file
+            # Filter historical data to as_of_date if specified
+            if self.as_of_date and 'history' in cached_data:
+                hist = cached_data['history']
+                if hist is not None and not hist.empty:
+                    cached_data['history'] = hist[hist.index < self.as_of_date]
             return cached_data
         
         # Fallback: Try legacy cache (individual files)
@@ -92,8 +99,13 @@ class FactorEngine:
                 cached_cashflow is not None, cached_income is not None, 
                 cached_balance is not None]):
             # Full cache hit from legacy files - migrate to consolidated format
+            # Filter historical data to as_of_date if specified
+            filtered_hist = cached_hist
+            if self.as_of_date and cached_hist is not None and not cached_hist.empty:
+                filtered_hist = cached_hist[cached_hist.index < self.as_of_date]
+            
             legacy_data = {
-                'history': cached_hist,
+                'history': filtered_hist,
                 'info': cached_info,
                 'cash_flow': cached_cashflow,
                 'income_stmt': cached_income,
@@ -110,7 +122,21 @@ class FactorEngine:
             
             stock = yf.Ticker(ticker)
             
-            hist = stock.history(period='2y') if cached_hist is None else cached_hist
+            # Use as_of_date for point-in-time integrity in backtesting
+            if cached_hist is None:
+                if self.as_of_date:
+                    # Fetch 2 years of data ENDING at as_of_date
+                    start_date = self.as_of_date - pd.DateOffset(years=2)
+                    hist = stock.history(start=start_date, end=self.as_of_date)
+                else:
+                    hist = stock.history(period='2y')
+            else:
+                hist = cached_hist
+            
+            # Always filter historical data to as_of_date if specified (whether cached or fresh)
+            if self.as_of_date and hist is not None and not hist.empty:
+                hist = hist[hist.index < self.as_of_date]
+            
             info = stock.info if cached_info is None else cached_info
             cash_flow = stock.cashflow if cached_cashflow is None else cached_cashflow
             income_stmt = stock.income_stmt if cached_income is None else cached_income

@@ -21,6 +21,7 @@ list/
 
 # macOS
 .DS_Store
+**/.DS_Store
 
 # Environment variables (secrets)
 *.env
@@ -28,6 +29,10 @@ config/secrets.env
 
 # Output files
 *.csv
+*.log
 
-# Cache directory
+# Cache directory (exclude from git, generated dynamically)
 data/cache/
+
+# Backtest results
+data/backtests/
