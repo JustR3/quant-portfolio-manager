@@ -375,43 +375,128 @@ def fetch_combined_universe(
     top_n: Optional[int] = None,
 ) -> pd.DataFrame:
     """
-    Fetch combined S&P 500 + Russell 2000 universe for full market coverage.
+    Fetch combined S&P 500 + Russell 2000 universe with stratified market cap sampling.
     
-    This combines large-cap (S&P 500) and small-cap (Russell 2000) for complete
-    market cap spectrum. NASDAQ-100 is intentionally excluded to avoid duplication,
-    as 73 tickers (59% of NASDAQ-100) already exist in S&P 500.
+    Uses hybrid approach that adjusts to portfolio size:
+    - Small portfolios (≤50): 70% S&P 500, 30% Russell 2000
+    - Medium portfolios (≤100): 60% S&P 500, 40% Russell 2000
+    - Large portfolios (>100): Percentile-based stratification:
+      • Top 15%: Mega-caps (mostly S&P 500)
+      • Next 35%: Large-caps (S&P 500 + top Russell)
+      • Next 30%: Mid-caps (mixed)
+      • Bottom 20%: Small-caps (Russell 2000)
     
-    Design Rationale:
-    - S&P 500 + Russell 2000 = complementary market cap coverage (minimal 3% overlap)
-    - NASDAQ-100 = style/sector universe (tech/growth focused, high overlap by design)
-    - Users wanting tech exposure should explicitly choose --universe nasdaq100
+    This avoids small-cap overweight while ensuring diversification across
+    the full market cap spectrum. NASDAQ-100 intentionally excluded to avoid
+    duplication (59% overlap with S&P 500).
     
     Args:
-        top_n: Return only top N by market cap across both universes
+        top_n: Number of stocks to return (if None, returns full universe)
     
     Returns:
         DataFrame with columns: ticker, sector, market_cap
     """
-    logger.info("Loading combined S&P 500 + Russell 2000 universe (full market cap coverage)")
+    logger.info("Loading combined S&P 500 + Russell 2000 universe (stratified market cap sampling)")
     
     try:
-        # Fetch both universes (without top_n limit first)
+        # Fetch both universes
         sp500_df = fetch_sp500_constituents(top_n=None)
         russell_df = fetch_russell2000_constituents(top_n=None)
         
-        # Combine and deduplicate (prefer S&P 500 if overlap)
-        combined_df = pd.concat([sp500_df, russell_df], ignore_index=True)
+        if top_n is None:
+            # Return full deduplicated universe
+            combined_df = pd.concat([sp500_df, russell_df], ignore_index=True)
+            combined_df = combined_df.drop_duplicates(subset=["ticker"], keep="first")
+            combined_df = combined_df.sort_values("market_cap", ascending=False).reset_index(drop=True)
+            logger.info("Combined universe: %d unique stocks (full universe)", len(combined_df))
+            return combined_df
+        
+        # Stratified sampling based on portfolio size
+        if top_n <= 50:
+            # Small portfolio: Focus on quality large-caps with some small-cap exposure
+            sp_allocation = int(top_n * 0.70)
+            russell_allocation = top_n - sp_allocation
+            
+            sp500_selected = sp500_df.head(sp_allocation)
+            russell_selected = russell_df.head(russell_allocation)
+            
+            logger.info("Small portfolio allocation: %d S&P 500 (70%%), %d Russell 2000 (30%%)",
+                       sp_allocation, russell_allocation)
+            
+        elif top_n <= 100:
+            # Medium portfolio: Balanced approach
+            sp_allocation = int(top_n * 0.60)
+            russell_allocation = top_n - sp_allocation
+            
+            sp500_selected = sp500_df.head(sp_allocation)
+            russell_selected = russell_df.head(russell_allocation)
+            
+            logger.info("Medium portfolio allocation: %d S&P 500 (60%%), %d Russell 2000 (40%%)",
+                       sp_allocation, russell_allocation)
+            
+        else:
+            # Large portfolio: Percentile-based stratification
+            # Combine first, then stratify
+            combined_full = pd.concat([sp500_df, russell_df], ignore_index=True)
+            combined_full = combined_full.drop_duplicates(subset=["ticker"], keep="first")
+            combined_full = combined_full.sort_values("market_cap", ascending=False).reset_index(drop=True)
+            
+            # Define percentile buckets and allocations
+            mega_pct = 0.15    # Top 15% of universe → 15% of slots (mega-caps)
+            large_pct = 0.35   # Next 35% of universe → 35% of slots (large-caps)
+            mid_pct = 0.30     # Next 30% of universe → 30% of slots (mid-caps)
+            small_pct = 0.20   # Bottom 20% of universe → 20% of slots (small-caps)
+            
+            mega_slots = int(top_n * mega_pct)
+            large_slots = int(top_n * large_pct)
+            mid_slots = int(top_n * mid_pct)
+            small_slots = top_n - mega_slots - large_slots - mid_slots  # Remaining
+            
+            # Calculate bucket boundaries in the full universe
+            total_stocks = len(combined_full)
+            mega_end = int(total_stocks * 0.10)
+            large_end = int(total_stocks * 0.40)
+            mid_end = int(total_stocks * 0.70)
+            
+            # Sample from each bucket
+            mega_bucket = combined_full.iloc[:mega_end]
+            large_bucket = combined_full.iloc[mega_end:large_end]
+            mid_bucket = combined_full.iloc[large_end:mid_end]
+            small_bucket = combined_full.iloc[mid_end:]
+            
+            # Take top by market cap from each bucket
+            sp500_selected = pd.concat([
+                mega_bucket.head(mega_slots),
+                large_bucket.head(large_slots),
+                mid_bucket.head(mid_slots),
+                small_bucket.head(small_slots)
+            ])
+            russell_selected = pd.DataFrame()  # Already included in stratified sampling
+            
+            logger.info("Large portfolio stratification: Mega=%d (15%%), Large=%d (35%%), Mid=%d (30%%), Small=%d (20%%)",
+                       mega_slots, large_slots, mid_slots, small_slots)
+        
+        # Combine selections and handle overlaps
+        combined_df = pd.concat([sp500_selected, russell_selected], ignore_index=True)
         combined_df = combined_df.drop_duplicates(subset=["ticker"], keep="first")
         
-        # Sort by market cap
+        # If we lost stocks due to overlap, backfill from S&P 500
+        if len(combined_df) < top_n and top_n <= 100:
+            shortfall = top_n - len(combined_df)
+            existing_tickers = set(combined_df["ticker"])
+            
+            # Get additional stocks from S&P 500 not already selected
+            backfill = sp500_df[
+                ~sp500_df["ticker"].isin(existing_tickers)
+            ].head(shortfall)
+            
+            combined_df = pd.concat([combined_df, backfill], ignore_index=True)
+            logger.debug("Backfilled %d stocks from S&P 500 to reach target", shortfall)
+        
+        # Final sort by market cap
         combined_df = combined_df.sort_values("market_cap", ascending=False).reset_index(drop=True)
         
-        logger.info("Combined universe: %d unique stocks", len(combined_df))
-        
-        # Apply top_n filter if requested
-        if top_n:
-            combined_df = combined_df.head(top_n)
-            logger.info("Selected top %d by market cap", top_n)
+        logger.info("Combined universe: %d stocks selected with stratified sampling", len(combined_df))
         
         return combined_df
         

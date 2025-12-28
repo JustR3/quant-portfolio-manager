@@ -267,6 +267,11 @@ def run_systematic_portfolio(
         zip(selected_universe['ticker'], selected_universe['market_cap'] / total_market_cap)
     )
     
+    # Create sector mapping for constraints
+    sector_map = dict(
+        zip(selected_universe['ticker'], selected_universe['sector'])
+    )
+    
     # Determine macro return scalar (CAPE adjustment to equilibrium returns)
     # This is separate from factor confidence - we can believe factors work
     # while believing the overall market is expensive
@@ -276,13 +281,14 @@ def run_systematic_portfolio(
         print(f"   🌍 CAPE adjustment: {macro_return_scalar:.2f}x to equilibrium returns")
         print(f"      (Factor confidence unchanged at {factor_alpha_scalar:.3f})")
     
-    # Initialize optimizer with market-cap-weighted priors
+    # Initialize optimizer with market-cap-weighted priors and sector mapping
     optimizer = BlackLittermanOptimizer(
         tickers=selected_tickers,
         risk_free_rate=risk_free_rate,
         factor_alpha_scalar=factor_alpha_scalar,  # Keep factor confidence unchanged
         market_cap_weights=market_cap_weights,
-        macro_return_scalar=macro_return_scalar   # Apply macro view to priors
+        macro_return_scalar=macro_return_scalar,   # Apply macro view to priors
+        sector_map=sector_map  # Enable sector constraints
     )
     
     # Fetch price data (will use cache if available)
@@ -291,10 +297,26 @@ def run_systematic_portfolio(
     # Generate views from factor scores
     views, confidences = optimizer.generate_views_from_scores(selected_scores)
     
-    # Optimize
+    # Define default sector constraints (max 35% per sector to prevent concentration)
+    sector_constraints = {
+        'Technology': 0.35,
+        'Communication Services': 0.35,
+        'Consumer Cyclical': 0.35,
+        'Healthcare': 0.35,
+        'Financial Services': 0.35,
+        'Industrials': 0.35,
+        'Energy': 0.35,
+        'Consumer Defensive': 0.35,
+        'Real Estate': 0.35,
+        'Basic Materials': 0.35,
+        'Utilities': 0.35
+    }
+    
+    # Optimize with sector constraints
     optimization_result = optimizer.optimize(
         objective=objective,
-        weight_bounds=weight_bounds
+        weight_bounds=weight_bounds,
+        sector_constraints=sector_constraints
     )
     
     print(f"✅ Optimization complete")

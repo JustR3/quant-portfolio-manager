@@ -63,6 +63,7 @@ class BlackLittermanOptimizer:
         factor_alpha_scalar: float = DEFAULT_FACTOR_ALPHA_SCALAR,
         market_cap_weights: Optional[Dict[str, float]] = None,
         macro_return_scalar: float = 1.0,
+        sector_map: Optional[Dict[str, str]] = None,
     ):
         """
         Initialize the optimizer.
@@ -74,12 +75,14 @@ class BlackLittermanOptimizer:
                                (e.g., 0.02 means 1-sigma beat = 2% outperformance)
             market_cap_weights: Prior market cap weights (if None, uses equal weight)
             macro_return_scalar: Macro adjustment to equilibrium returns (e.g., 0.7 for expensive markets)
+            sector_map: Dict mapping tickers to sectors for sector constraints
         """
         self.tickers = tickers
         self.risk_free_rate = risk_free_rate
         self.factor_alpha_scalar = factor_alpha_scalar
         self.market_cap_weights = market_cap_weights or self._get_equal_weights()
         self.macro_return_scalar = macro_return_scalar
+        self.sector_map = sector_map or {}
         
         # Data containers
         self.prices = None
@@ -226,7 +229,8 @@ class BlackLittermanOptimizer:
     def optimize(
         self,
         objective: str = 'max_sharpe',
-        weight_bounds: Tuple[float, float] = (0.0, 0.30)
+        weight_bounds: Tuple[float, float] = (0.0, 0.30),
+        sector_constraints: Optional[Dict[str, float]] = None
     ) -> OptimizationResult:
         """
         Optimize portfolio using Black-Litterman with factor views.
@@ -234,6 +238,7 @@ class BlackLittermanOptimizer:
         Args:
             objective: Optimization objective ('max_sharpe', 'min_volatility', 'max_quadratic_utility')
             weight_bounds: Min/max weight per asset (default: 0-30%)
+            sector_constraints: Optional dict mapping sector name to max weight (e.g., {'Technology': 0.35})
         
         Returns:
             OptimizationResult with optimal weights and performance metrics
@@ -284,6 +289,10 @@ class BlackLittermanOptimizer:
         # Optimize
         ef = EfficientFrontier(ret_bl, S, weight_bounds=weight_bounds)
         
+        # Apply sector concentration constraints if provided
+        if sector_constraints:
+            self._apply_sector_constraints(ef, sector_constraints)
+        
         if objective == 'max_sharpe':
             weights = ef.max_sharpe(risk_free_rate=self.risk_free_rate)
         elif objective == 'min_volatility':
@@ -319,6 +328,42 @@ class BlackLittermanOptimizer:
         print(f"⏱️  Portfolio Optimization - Total: {opt_elapsed:.2f}s\n")
         
         return result
+    
+    def _apply_sector_constraints(
+        self,
+        ef: EfficientFrontier,
+        sector_constraints: Dict[str, float]
+    ) -> None:
+        """
+        Apply sector concentration constraints to the optimization.
+        
+        Args:
+            ef: EfficientFrontier object to add constraints to
+            sector_constraints: Dict mapping sector names to max weight (e.g., {'Technology': 0.35})
+        """
+        if not hasattr(self, 'sector_map') or not self.sector_map:
+            logger.warning("No sector mapping available, skipping sector constraints")
+            return
+        
+        # Group tickers by sector
+        sector_tickers = {}
+        for ticker, sector in self.sector_map.items():
+            if sector not in sector_tickers:
+                sector_tickers[sector] = []
+            sector_tickers[sector].append(ticker)
+        
+        # Add constraints for each sector with a specified limit
+        constraints_applied = 0
+        for sector, max_weight in sector_constraints.items():
+            if sector in sector_tickers:
+                tickers = sector_tickers[sector]
+                # Add constraint: sum of weights in sector <= max_weight
+                ef.add_constraint(lambda w, tickers=tickers: sum(w[self.tickers.index(t)] for t in tickers if t in self.tickers) <= max_weight)
+                constraints_applied += 1
+                logger.debug(f"Applied sector constraint: {sector} ≤ {max_weight*100:.0f}%")
+        
+        if constraints_applied > 0:
+            print(f"  📊 Applied {constraints_applied} sector concentration constraints")
     
     def get_discrete_allocation(
         self,
