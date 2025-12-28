@@ -25,10 +25,10 @@ from src.constants import (
 from src.models.factor_engine import FactorEngine
 from src.models.optimizer import BlackLittermanOptimizer
 from src.pipeline.universe import get_universe
+from src.pipeline.external.fred import get_fred_connector
 from src.pipeline.external.shiller import get_equity_risk_scalar
 from src.pipeline.external.french import get_factor_regime, get_factor_tilts
 from src.utils.regime_adjustment import apply_regime_adjustment
-from src.utils.market_data import get_risk_free_rate as fetch_risk_free_rate
 
 logger = get_logger(__name__)
 
@@ -90,7 +90,19 @@ def run_systematic_portfolio(
     if risk_free_rate == DEFAULT_RISK_FREE_RATE:
         print("📊 Fetching risk-free rate from FRED...")
         print("-" * 90)
-        risk_free_rate = fetch_risk_free_rate(use_fred=True, fallback=DEFAULT_RISK_FREE_RATE)
+        try:
+            fred = get_fred_connector()
+            macro_data = fred.get_macro_data()
+            risk_free_rate = macro_data.risk_free_rate
+            print(f"   ✓ Risk-free rate (10Y Treasury): {risk_free_rate:.4f} ({risk_free_rate*100:.2f}%)")
+            if macro_data.inflation_rate:
+                print(f"   ✓ Inflation (CPI YoY): {macro_data.inflation_rate:.2%}")
+            if macro_data.gdp_growth:
+                print(f"   ✓ GDP Growth (annualized): {macro_data.gdp_growth:.2%}")
+        except Exception as e:
+            logger.warning(f"Failed to fetch from FRED: {e}. Using default rate.")
+            print(f"   ⚠️  Using default risk-free rate: {DEFAULT_RISK_FREE_RATE:.4f} ({DEFAULT_RISK_FREE_RATE*100:.2f}%)")
+            risk_free_rate = DEFAULT_RISK_FREE_RATE
         print()
     else:
         print(f"📊 Using provided risk-free rate: {risk_free_rate:.4f} ({risk_free_rate*100:.2f}%)")

@@ -48,10 +48,12 @@ The Quant Portfolio Manager implements a systematic approach to quantitative inv
   - Weekly cache refresh, fallback to neutral (1.0x) if unavailable
 
 ### 📊 Real-Time Data Integration
-- **FRED Connector**: Automatically fetches current risk-free rate (10-Year Treasury) from Federal Reserve Economic Data
-  - Falls back to hardcoded default if FRED_API_KEY unavailable
-  - Set `FRED_API_KEY` environment variable to enable: [Get free API key](https://fred.stlouisfed.org/docs/api/api_key.html)
-  - No manual rate updates needed - always uses latest market data
+- **FRED Connector**: Automatically fetches current risk-free rate (10-Year Treasury), inflation, and GDP from Federal Reserve Economic Data
+  - Environment variables auto-loaded from `config/secrets.env` on startup
+  - Get free API key: [https://fred.stlouisfed.org/docs/api/api_key.html](https://fred.stlouisfed.org/docs/api/api_key.html)
+  - Add `FRED_API_KEY=your_key_here` to `config/secrets.env`
+  - Falls back to hardcoded default (4%) if key unavailable
+  - Displays live inflation and GDP metrics when available
 - **Yale Shiller Data**: Historical CAPE ratios for macro valuation signal (via Macro God)
 - **Dartmouth Fama-French**: Empirical factor returns for factor regime analysis (via Factor God)
 - **Caching**: Automatic caching of all fetched data (historical prices, financials, market data)
@@ -87,6 +89,10 @@ The Quant Portfolio Manager implements a systematic approach to quantitative inv
 git clone https://github.com/justr3/quant-portfolio-manager.git
 cd quant-portfolio-manager
 uv sync
+
+# Optional: Add your API keys to config/secrets.env for real-time data
+# FRED_API_KEY=your_key_here  # Get free key at https://fred.stlouisfed.org
+# Keys are auto-loaded on startup - no manual export needed
 ```
 
 ### Usage Examples

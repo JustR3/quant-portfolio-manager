@@ -6,6 +6,9 @@ Systematic quantitative portfolio management using factor-based Black-Litterman 
 
 from __future__ import annotations
 
+# Load environment variables first (FRED_API_KEY, etc.)
+import src.env_loader
+
 import argparse
 import sys
 from datetime import datetime
