@@ -59,8 +59,7 @@ class FactorEngine:
         self.raw_factors = None  # Store raw factor values for auditing
         
     def _fetch_ticker_data(self, ticker: str) -> Optional[Dict]:
-        """
-        Fetch data for a single ticker with caching and retry.
+        """Fetch data for a single ticker with caching and retry.
         
         Args:
             ticker: Stock ticker
@@ -68,14 +67,21 @@ class FactorEngine:
         Returns:
             Dictionary with history, financial statements, and info, or None if failed
         """
-        # Try cache first
+        # Try consolidated cache first (Phase 2 optimization)
+        consolidated_key = f"ticker_{ticker}"
+        cached_data = default_cache.get_consolidated(consolidated_key, expiry_hours=self.cache_expiry_hours)
+        
+        if cached_data is not None:
+            # Full cache hit from consolidated file
+            return cached_data
+        
+        # Fallback: Try legacy cache (individual files)
         hist_key = f"history_{ticker}_2y"
         info_key = f"info_{ticker}"
         cashflow_key = f"cashflow_{ticker}"
         income_key = f"income_{ticker}"
         balance_key = f"balance_{ticker}"
         
-        # Check if all required data is cached
         cached_hist = default_cache.get(hist_key, expiry_hours=self.cache_expiry_hours)
         cached_info = default_cache.get(info_key, expiry_hours=self.cache_expiry_hours)
         cached_cashflow = default_cache.get(cashflow_key, expiry_hours=self.cache_expiry_hours)
@@ -85,14 +91,17 @@ class FactorEngine:
         if all([cached_hist is not None, cached_info is not None, 
                 cached_cashflow is not None, cached_income is not None, 
                 cached_balance is not None]):
-            # Full cache hit
-            return {
+            # Full cache hit from legacy files - migrate to consolidated format
+            legacy_data = {
                 'history': cached_hist,
                 'info': cached_info,
                 'cash_flow': cached_cashflow,
                 'income_stmt': cached_income,
                 'balance_sheet': cached_balance
             }
+            # Migrate to consolidated format in background
+            default_cache.set_consolidated(consolidated_key, legacy_data)
+            return legacy_data
         
         # Cache miss - fetch from API with retry and rate limiting
         def fetch():
@@ -122,17 +131,8 @@ class FactorEngine:
         result = retry_with_backoff(fetch, max_attempts=3)
         
         if result:
-            # Update cache
-            if cached_hist is None:
-                default_cache.set(hist_key, result['history'])
-            if cached_info is None:
-                default_cache.set(info_key, result['info'])
-            if cached_cashflow is None:
-                default_cache.set(cashflow_key, result['cash_flow'])
-            if cached_income is None:
-                default_cache.set(income_key, result['income_stmt'])
-            if cached_balance is None:
-                default_cache.set(balance_key, result['balance_sheet'])
+            # Save to consolidated cache (Phase 2 optimization)
+            default_cache.set_consolidated(consolidated_key, result)
         
         return result
         

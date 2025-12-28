@@ -161,6 +161,86 @@ class DataCache:
             # Fail silently - caching is optional
             return False
     
+    def set_consolidated(self, key: str, data_dict: dict) -> bool:
+        """Store consolidated ticker data in a single file.
+        
+        Args:
+            key: Cache key (e.g., 'ticker_AAPL')
+            data_dict: Dictionary containing all ticker data:
+                {
+                    'history': DataFrame,
+                    'info': dict,
+                    'cash_flow': DataFrame,
+                    'income_stmt': DataFrame,
+                    'balance_sheet': DataFrame
+                }
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            cache_path = self._get_cache_path(key, "parquet")
+            
+            # Convert all DataFrames to dict format for nested storage
+            consolidated = {}
+            for data_key, data_value in data_dict.items():
+                if isinstance(data_value, pd.DataFrame):
+                    # Store DataFrame as dict with metadata
+                    consolidated[data_key] = {
+                        'type': 'dataframe',
+                        'data': data_value.to_dict('tight')
+                    }
+                else:
+                    # Store dict/json data directly
+                    consolidated[data_key] = {
+                        'type': 'dict',
+                        'data': data_value
+                    }
+            
+            # Save as JSON (parquet doesn't support nested dicts well)
+            json_path = self._get_cache_path(key, "json")
+            with open(json_path, 'w') as f:
+                json.dump(consolidated, f, default=str)
+            
+            return True
+        except Exception as e:
+            return False
+    
+    def get_consolidated(self, key: str, expiry_hours: Optional[int] = None) -> Optional[dict]:
+        """Retrieve consolidated ticker data from a single file.
+        
+        Args:
+            key: Cache key (e.g., 'ticker_AAPL')
+            expiry_hours: Override default expiry hours
+        
+        Returns:
+            Dictionary with ticker data or None if not found/expired
+        """
+        expiry = expiry_hours if expiry_hours is not None else self.default_expiry_hours
+        
+        json_path = self._get_cache_path(key, "json")
+        if not self._is_cache_valid(json_path, expiry):
+            return None
+        
+        try:
+            with open(json_path, 'r') as f:
+                consolidated = json.load(f)
+            
+            # Reconstruct DataFrames from stored format
+            result = {}
+            for data_key, data_value in consolidated.items():
+                if data_value.get('type') == 'dataframe':
+                    result[data_key] = pd.DataFrame.from_dict(
+                        data_value['data'], 
+                        orient='tight'
+                    )
+                else:
+                    result[data_key] = data_value['data']
+            
+            return result
+        except Exception:
+            return None
+    
     def invalidate(self, key: str) -> None:
         """Remove cache entry."""
         for ext in ["parquet", "json"]:

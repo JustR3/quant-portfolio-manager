@@ -29,7 +29,7 @@ warnings.filterwarnings('ignore')
 # This is more reliable than web scraping and is standard practice in industry
 SP500_TICKERS = [
     # Technology
-    "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "NVDA", "META", "TSLA", "AVGO", "ORCL", 
+    "AAPL", "MSFT", "GOOG", "AMZN", "NVDA", "META", "TSLA", "AVGO", "ORCL", 
     "ADBE", "CRM", "CSCO", "ACN", "AMD", "INTC", "IBM", "QCOM", "TXN", "NOW",
     "INTU", "AMAT", "ADI", "MU", "LRCX", "KLAC", "SNPS", "CDNS", "MCHP", "NXPI",
     
@@ -174,7 +174,17 @@ def _enrich_with_market_caps(df: pd.DataFrame, batch_size: int = 50) -> pd.DataF
         with ThreadPoolExecutor(max_workers=10) as executor:
             # Helper function to fetch single ticker info with caching
             def fetch_ticker_info(ticker: str) -> tuple:
-                # Check cache first (reuse data from factor_engine if available)
+                # Try consolidated cache first (Phase 2 optimization)
+                consolidated_key = f"ticker_{ticker}"
+                cached_data = default_cache.get_consolidated(consolidated_key, expiry_hours=24)
+                
+                if cached_data is not None and 'info' in cached_data:
+                    # Use info from consolidated cache
+                    market_cap = cached_data['info'].get('marketCap', 0)
+                    sector = cached_data['info'].get('sector', 'Unknown')
+                    return (ticker, market_cap, sector, True)
+                
+                # Fallback: Try legacy individual cache
                 info_key = f"info_{ticker}"
                 cached_info = default_cache.get(info_key, expiry_hours=24)
                 
@@ -238,7 +248,18 @@ def _enrich_tickers_with_info(tickers: List[str]) -> pd.DataFrame:
     print(f"📊 Enriching {len(tickers)} tickers with market data...")
     
     def fetch_ticker_info(ticker: str) -> dict:
-        # Check cache first
+        # Try consolidated cache first (Phase 2 optimization)
+        consolidated_key = f"ticker_{ticker}"
+        cached_data = default_cache.get_consolidated(consolidated_key, expiry_hours=24)
+        
+        if cached_data is not None and 'info' in cached_data:
+            return {
+                'ticker': ticker,
+                'sector': cached_data['info'].get('sector', 'Unknown'),
+                'market_cap': cached_data['info'].get('marketCap', 0)
+            }
+        
+        # Fallback: Check legacy cache
         info_key = f"info_{ticker}"
         cached_info = default_cache.get(info_key, expiry_hours=24)
         
