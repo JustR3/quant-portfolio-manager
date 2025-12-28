@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 from src.logging_config import get_logger
-from src.config import Config
+from src.config import config
 from src.constants import (
     DEFAULT_RISK_FREE_RATE,
     DEFAULT_FACTOR_ALPHA_SCALAR,
@@ -31,6 +31,22 @@ from src.pipeline.external.french import get_factor_regime, get_factor_tilts
 from src.utils.regime_adjustment import apply_regime_adjustment
 
 logger = get_logger(__name__)
+
+
+def display_factor_summary(factor_tilts: Dict) -> None:
+    """Display Fama-French factor regime summary."""
+    if not factor_tilts:
+        print("⚠️  No factor tilts available")
+        return
+    
+    print(f"✅ Factor Regime Analysis:")
+    print(f"   Value tilt: {factor_tilts['value_tilt']:.2f}x")
+    print(f"   Quality tilt: {factor_tilts['quality_tilt']:.2f}x")
+    print(f"   Momentum tilt: {factor_tilts['momentum_tilt']:.2f}x")
+    
+    if 'regime_info' in factor_tilts:
+        regime_info = factor_tilts['regime_info']
+        print(f"   Regime: {regime_info.get('description', 'N/A')}")
 
 
 def run_systematic_portfolio(
@@ -115,10 +131,10 @@ def run_systematic_portfolio(
         print("-" * 90)
         try:
             macro_adjustment = get_equity_risk_scalar(
-                cape_low=AppConfig.CAPE_LOW_THRESHOLD,
-                cape_high=AppConfig.CAPE_HIGH_THRESHOLD,
-                scalar_low=AppConfig.CAPE_SCALAR_LOW,
-                scalar_high=AppConfig.CAPE_SCALAR_HIGH
+                cape_low=config.cape_low_threshold,
+                cape_high=config.cape_high_threshold,
+                scalar_low=config.cape_scalar_low,
+                scalar_high=config.cape_scalar_high
             )
             display_cape_summary(macro_adjustment)
             print()
@@ -135,14 +151,14 @@ def run_systematic_portfolio(
         try:
             # First get regime info, then extract tilts
             regime_info = get_factor_regime(
-                factor_set=AppConfig.FF_FACTOR_SET,
-                window_months=AppConfig.FF_REGIME_WINDOW
+                factor_set=config.ff_factor_set,
+                window_months=config.ff_regime_window
             )
             
             if regime_info.get('available', False):
                 factor_tilts = get_factor_tilts(
                     regime_info=regime_info,
-                    tilt_strength=AppConfig.FF_TILT_STRENGTH
+                    tilt_strength=config.ff_tilt_strength
                 )
                 display_factor_summary(factor_tilts)
                 print()

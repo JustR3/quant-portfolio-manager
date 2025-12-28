@@ -6,6 +6,7 @@ Converts factor scores (Value, Quality, Momentum) into portfolio allocation
 using Black-Litterman framework with market equilibrium priors.
 """
 
+import time
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
