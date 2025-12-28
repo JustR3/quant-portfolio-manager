@@ -58,9 +58,11 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  qpm optimize --universe sp500 --top-n 50       Build systematic portfolio
-  qpm optimize --use-macro --use-french          Enable macro & factor adjustments
-  qpm verify NVDA                                 Verify stock factor ranking
+  qpm optimize --universe sp500 --top-n 50          Build portfolio from large-cap stocks
+  qpm optimize --universe russell2000 --top-n 100   Build portfolio from small-cap stocks
+  qpm optimize --universe combined --top-n 150      Build from full market (large + small cap)
+  qpm optimize --use-macro --use-french             Enable macro & factor adjustments
+  qpm verify NVDA                                    Verify stock factor ranking
   qpm backtest --start 2023-01-01 --end 2023-12-31 --top-n 20   Test strategy
         """
     )
@@ -78,8 +80,9 @@ Examples:
         help="Systematic portfolio optimization using factor-based Black-Litterman",
         description="Build optimized portfolios using multi-factor stock ranking"
     )
-    opt.add_argument("--universe", type=str, default="sp500", choices=["sp500", "custom"],
-                     help="Stock universe to use (default: sp500)")
+    opt.add_argument("--universe", type=str, default="sp500", 
+                     choices=["sp500", "russell2000", "combined", "custom"],
+                     help="Stock universe: sp500 (large-cap), russell2000 (small-cap), combined (both), custom (default: sp500)")
     opt.add_argument("--top-n", type=int, default=50, metavar="N",
                      help="Number of top stocks by market cap to analyze (default: 50)")
     opt.add_argument("--optimize-top", type=int, default=None, metavar="N",
@@ -129,8 +132,9 @@ Examples:
     backtest.add_argument("--frequency", type=str, default="monthly", 
                          choices=["monthly", "quarterly"],
                          help="Rebalancing frequency (default: monthly)")
-    backtest.add_argument("--universe", type=str, default="sp500", choices=["sp500", "custom"],
-                         help="Stock universe to use (default: sp500)")
+    backtest.add_argument("--universe", type=str, default="sp500",
+                         choices=["sp500", "russell2000", "combined", "custom"],
+                         help="Stock universe: sp500 (large-cap), russell2000 (small-cap), combined (both)")
     backtest.add_argument("--top-n", type=int, default=50, metavar="N",
                          help="Number of top stocks by market cap (default: 50)")
     backtest.add_argument("--optimize-top", type=int, default=None, metavar="N",
