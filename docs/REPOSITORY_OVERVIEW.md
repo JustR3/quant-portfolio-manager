@@ -366,90 +366,56 @@ Concentration (Top 10): 54.3%
 
 ### Example 2: Individual Stock Analysis
 
-**Goal:** Understand why NVIDIA ranks high/low
+**Goal:** Understand why a stock ranks high/low in the universe
 
 ```bash
+# Verify NVIDIA against default mini-universe
 uv run ./main.py verify NVDA
+
+# Verify against custom universe
+uv run ./main.py verify TSLA --universe AAPL MSFT NVDA GOOG META TSLA AMZN
 ```
 
 **Output:**
 ```
+================================================================================
 🔍 FACTOR AUDIT REPORT: NVDA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+================================================================================
 
 📊 OVERALL RANKING
-   Rank: #3 of 50 stocks
-   Percentile: 94.0%
-   Total Score: +1.45
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Rank: #1 of 10 stocks
+   Percentile: 100.0%
+   Total Score: 1.234
 
 📈 FACTOR BREAKDOWN
 
-   VALUE FACTOR (Weight: 40%):
-   ├─ Z-Score: -0.82 (Below Average)
-   ├─ Raw Score: 0.0156
-   ├─ Universe Mean: 0.0347 (±0.0183)
-   ├─ Percentile: 15.2%
-   └─ Contribution: -0.33
-   
-   Components:
-   ├─ FCF Yield: 1.23% (Universe: 2.89%)
-   └─ Earnings Yield: 1.89% (Universe: 3.94%)
-   
-   💡 Interpretation: EXPENSIVE
-      NVDA trades at a premium valuation relative to peers,
-      reflecting growth expectations rather than current value.
+   VALUE:
+      Z-Score:     -0.82  (Weak/Negative)
+      Raw Value: 0.0156  (Universe Mean: 0.0347)
+      Contribution to Total Score: -0.328
 
-   ────────────────────────────────────────────────────────
+   QUALITY:
+      Z-Score:     +2.34  (Very Strong Positive)
+      Raw Value: 0.7863  (Universe Mean: 0.4208)
+      Contribution to Total Score: +0.936
 
-   QUALITY FACTOR (Weight: 40%):
-   ├─ Z-Score: +2.34 (Exceptional)
-   ├─ Raw Score: 0.7863
-   ├─ Universe Mean: 0.4208 (±0.1562)
-   ├─ Percentile: 98.7%
-   └─ Contribution: +0.94
-   
-   Components:
-   ├─ ROIC: 89.3% (Universe: 38.6%)
-   └─ Gross Margin: 68.5% (Universe: 45.2%)
-   
-   💡 Interpretation: ELITE QUALITY
-      NVDA demonstrates exceptional capital efficiency and
-      pricing power, among the highest in the universe.
+   MOMENTUM:
+      Z-Score:     +1.89  (Very Strong Positive)
+      Raw Value: 0.6432  (Universe Mean: 0.1833)
+      Contribution to Total Score: +0.378
 
-   ────────────────────────────────────────────────────────
+💡 SUMMARY
+   Mixed profile. Strong in Quality, Momentum. Weak in Value.
 
-   MOMENTUM FACTOR (Weight: 20%):
-   ├─ Z-Score: +1.89 (Strong Positive)
-   ├─ Raw Score: 0.6432
-   ├─ Universe Mean: 0.1833 (±0.2437)
-   ├─ Percentile: 96.1%
-   └─ Contribution: +0.38
-   
-   💡 Interpretation: STRONG UPTREND
-      Stock has significantly outperformed peers over the
-      past 12 months, showing positive price momentum.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-💡 OVERALL SUMMARY
-   Mixed profile with standout quality and momentum.
-   
-   Strengths:
-   • Exceptional business quality (ROIC, margins)
-   • Strong positive momentum (price trend)
-   • High competitive moat
-   
-   Concerns:
-   • Expensive valuation relative to fundamentals
-   • High expectations priced in
-   
-   Suggested Use:
-   • Core holding for growth portfolios
-   • Monitor valuation for entry points
-   • Quality justifies premium, but watch for mean reversion
+================================================================================
 ```
+
+**Interpretation:**
+- **Rank #1**: NVDA is the top-ranked stock in this universe
+- **Value (-0.82)**: Trading at premium valuation (expensive)
+- **Quality (+2.34)**: Exceptional business fundamentals
+- **Momentum (+1.89)**: Strong upward price trend
+- **Total Score (1.234)**: Overall excellent despite expensive valuation
 
 ### Example 3: Backtesting Historical Performance
 
