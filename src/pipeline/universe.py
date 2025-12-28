@@ -113,6 +113,9 @@ RUSSELL_2000_TICKERS = [
     "WING", "TXRH", "BLMN", "CAKE", "CHUY", "BJRI", "DENN", "PLAY", "RUTH", "DRI",
     "JACK", "PZZA", "NDLS", "WEN", "SHAK", "PLNT", "PTON", "LULU", "DECK", "CROX",
     "BIRK", "ONON", "TPG", "KKR", "BX", "APO", "OWL", "ARES",
+    # Note: HOKA brand is part of DECK (Deckers Outdoor)
+    # Note: VUORI is VC-funded, not publicly traded
+    # Note: BGFV (Big 5 Sporting Goods) was acquired and delisted Oct 2025
     
     # Industrials - Small Cap
     "CARR", "GNRC", "AIT", "TTEK", "MSA", "ROAD", "PRIM", "FSS", "AZEK", "TREX",
@@ -131,8 +134,9 @@ RUSSELL_2000_TICKERS = [
     "PDM", "DEI", "JBGS", "SLG", "VNO", "PGRE", "CLI", "BDN", "EQC", "CLPR",
     
     # Healthcare Services - Small Cap
-    "ENSG", "CHE", "BKD", "USPH", "THC", "UHS", "SEM", "ACHC", "AHC",
+    "ENSG", "CHE", "AMED", "BKD", "USPH", "THC", "UHS", "SEM", "ACHC", "AHC",
     "GH", "EHC", "DVA", "OPCH", "NHC", "CLOV", "OSCR", "ACCD", "MOH", "CNC",
+    # Note: AMED = Amedisys, Inc. (home healthcare services)
     
     # Biotechnology - Small Cap
     "DAWN", "KRTX", "SNDX", "APLS", "ARVN", "SAVA", "PRTA", "XNCR", "IMVT", "RLAY",
@@ -159,6 +163,7 @@ RUSSELL_2000_TICKERS = [
     # Clean Energy - Small Cap
     "ENPH", "SEDG", "RUN", "NOVA", "ARRY", "SHLS", "MAXN", "CSIQ", "JKS", "DQ",
     "SPWR", "FSLR", "PLUG", "BE", "BLDP", "NEL", "QS", "BLNK",
+    # Note: BLDP = Ballard Power Systems (fuel cells)
     
     # Emerging Growth
     "HOOD", "AFRM", "UPST", "SOFI", "OPEN", "DOMA", "COMP", "LPRO", "OWN", "UWMC",
