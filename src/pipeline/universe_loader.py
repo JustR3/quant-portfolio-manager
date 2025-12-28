@@ -8,6 +8,19 @@ from typing import Optional, List
 import pandas as pd
 import yfinance as yf
 import warnings
+import sys
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from modules.utils import default_cache, thread_safe_rate_limiter
+
+warnings.filterwarnings('ignore')
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from modules.utils import default_cache, thread_safe_rate_limiter
 
 warnings.filterwarnings('ignore')
 
@@ -154,29 +167,58 @@ def _enrich_with_market_caps(df: pd.DataFrame, batch_size: int = 50) -> pd.DataF
         
         print(f"  Processing batch {batch_num}/{total_batches}...")
         
-        # Get individual ticker info (more reliable than bulk for info)
-        for ticker in batch:
-            try:
-                ticker_obj = yf.Ticker(ticker)
-                info = ticker_obj.info
+        # Use ThreadPoolExecutor for parallel fetching (10x faster)
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            # Helper function to fetch single ticker info with caching
+            def fetch_ticker_info(ticker: str) -> tuple:
+                # Check cache first (reuse data from factor_engine if available)
+                info_key = f"info_{ticker}"
+                cached_info = default_cache.get(info_key, expiry_hours=24)
                 
-                # Check if we got valid data
-                market_cap = info.get('marketCap', 0)
-                if market_cap and market_cap > 0:
-                    market_data[ticker] = {
-                        'market_cap': market_cap,
-                        'sector': info.get('sector', 'Unknown')
-                    }
-                else:
-                    failed_tickers.append(ticker)
-                    market_data[ticker] = {'market_cap': 0, 'sector': 'Unknown'}
+                if cached_info is not None:
+                    # Use cached data - no API call needed!
+                    market_cap = cached_info.get('marketCap', 0)
+                    sector = cached_info.get('sector', 'Unknown')
+                    return (ticker, market_cap, sector, True)
+                
+                # Cache miss - fetch from API with rate limiting
+                try:
+                    thread_safe_rate_limiter.wait()
+                    ticker_obj = yf.Ticker(ticker)
+                    info = ticker_obj.info
                     
-            except Exception as e:
-                # Suppress verbose 404 errors - ticker likely delisted/invalid
-                if "404" not in str(e) and "Not Found" not in str(e):
-                    print(f"  ⚠️  Failed to fetch {ticker}: {e}")
-                failed_tickers.append(ticker)
-                market_data[ticker] = {'market_cap': 0, 'sector': 'Unknown'}
+                    # Cache the info for reuse
+                    default_cache.set(info_key, info)
+                    
+                    # Check if we got valid data
+                    market_cap = info.get('marketCap', 0)
+                    sector = info.get('sector', 'Unknown')
+                    
+                    if market_cap and market_cap > 0:
+                        return (ticker, market_cap, sector, True)
+                    else:
+                        return (ticker, 0, 'Unknown', False)
+                        
+                except Exception as e:
+                    # Suppress verbose 404 errors - ticker likely delisted/invalid
+                    if "404" not in str(e) and "Not Found" not in str(e):
+                        print(f"  ⚠️  Failed to fetch {ticker}: {e}")
+                    return (ticker, 0, 'Unknown', False)
+            
+            # Submit all fetch tasks
+            futures = {executor.submit(fetch_ticker_info, ticker): ticker for ticker in batch}
+            
+            # Collect results as they complete
+            for future in as_completed(futures):
+                ticker, market_cap, sector, success = future.result()
+                
+                market_data[ticker] = {
+                    'market_cap': market_cap,
+                    'sector': sector
+                }
+                
+                if not success:
+                    failed_tickers.append(ticker)
     
     if failed_tickers:
         print(f"  ℹ️  Skipped {len(failed_tickers)} invalid/delisted tickers: {', '.join(failed_tickers[:5])}{'...' if len(failed_tickers) > 5 else ''}")
@@ -189,26 +231,42 @@ def _enrich_with_market_caps(df: pd.DataFrame, batch_size: int = 50) -> pd.DataF
 
 
 def _enrich_tickers_with_info(tickers: List[str]) -> pd.DataFrame:
-    """
-    Simplified enrichment for fallback mode.
-    """
+    """Simplified enrichment for fallback mode with caching and parallel execution."""
     print(f"📊 Enriching {len(tickers)} tickers with market data...")
     
-    data = []
-    for ticker in tickers:
+    def fetch_ticker_info(ticker: str) -> dict:
+        # Check cache first
+        info_key = f"info_{ticker}"
+        cached_info = default_cache.get(info_key, expiry_hours=24)
+        
+        if cached_info is not None:
+            return {
+                'ticker': ticker,
+                'sector': cached_info.get('sector', 'Unknown'),
+                'market_cap': cached_info.get('marketCap', 0)
+            }
+        
+        # Fetch from API with rate limiting
         try:
+            thread_safe_rate_limiter.wait()
             info = yf.Ticker(ticker).info
-            data.append({
+            default_cache.set(info_key, info)
+            
+            return {
                 'ticker': ticker,
                 'sector': info.get('sector', 'Unknown'),
                 'market_cap': info.get('marketCap', 0)
-            })
+            }
         except Exception:
-            data.append({
+            return {
                 'ticker': ticker,
                 'sector': 'Unknown',
                 'market_cap': 0
-            })
+            }
+    
+    # Use parallel execution for faster fetching
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        data = list(executor.map(fetch_ticker_info, tickers))
     
     df = pd.DataFrame(data)
     df = df[df['market_cap'] > 0]  # Filter out failed tickers

@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import time
+import threading
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -39,6 +40,35 @@ class RateLimiter:
         if elapsed < self.min_interval:
             time.sleep(self.min_interval - elapsed)
         self.last_call = time.time()
+
+
+class ThreadSafeRateLimiter:
+    """Thread-safe rate limiter for parallel API calls.
+    
+    Allows multiple threads to make API calls while respecting global rate limits.
+    Essential for parallel data fetching with yfinance.
+    """
+    
+    def __init__(self, calls_per_minute: int = 60):
+        self.min_interval = 60 / calls_per_minute
+        self.last_call = 0.0
+        self.lock = threading.Lock()
+    
+    def wait(self) -> None:
+        """Thread-safe rate limit wait."""
+        with self.lock:
+            elapsed = time.time() - self.last_call
+            if elapsed < self.min_interval:
+                time.sleep(self.min_interval - elapsed)
+            self.last_call = time.time()
+    
+    def __call__(self, func: Callable) -> Callable:
+        """Decorator for rate-limited functions."""
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            self.wait()
+            return func(*args, **kwargs)
+        return wrapper
 
 
 class DataCache:
@@ -207,8 +237,9 @@ def cache_response(expiry_hours: int = 24, cache_dir: str = "data/cache"):
     return decorator
 
 
-# Global shared rate limiter instance
-rate_limiter = RateLimiter(calls_per_minute=60)
+# Global shared rate limiter instances
+rate_limiter = RateLimiter(calls_per_minute=60)  # Legacy, kept for backwards compatibility
+thread_safe_rate_limiter = ThreadSafeRateLimiter(calls_per_minute=60)  # Use for parallel operations
 
 # Global cache instance
 default_cache = DataCache(cache_dir="data/cache", default_expiry_hours=24)

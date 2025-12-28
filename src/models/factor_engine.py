@@ -15,11 +15,12 @@ from typing import List, Dict, Optional
 import warnings
 import sys
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from modules.utils import default_cache, retry_with_backoff
+from modules.utils import default_cache, retry_with_backoff, thread_safe_rate_limiter
 
 # Try to import tqdm for progress bars
 try:
@@ -92,8 +93,11 @@ class FactorEngine:
                 'balance_sheet': cached_balance
             }
         
-        # Cache miss - fetch from API with retry
+        # Cache miss - fetch from API with retry and rate limiting
         def fetch():
+            # Apply thread-safe rate limiting before API call
+            thread_safe_rate_limiter.wait()
+            
             stock = yf.Ticker(ticker)
             
             hist = stock.history(period='2y') if cached_hist is None else cached_hist
@@ -134,7 +138,7 @@ class FactorEngine:
     def fetch_data(self) -> None:
         """
         Fetch all required data for the ticker universe.
-        Uses caching and batch processing for reliability and speed.
+        Uses caching, batch processing, and parallel execution for speed and reliability.
         """
         print(f"📊 Fetching data for {len(self.tickers)} tickers (batch size: {self.batch_size})...")
         
@@ -153,18 +157,33 @@ class FactorEngine:
             if not HAS_TQDM:
                 print(f"  Processing batch {batch_num}/{total_batches} ({len(batch)} tickers)...")
             
-            # Process each ticker in the batch
-            for ticker in batch:
-                data = self._fetch_ticker_data(ticker)
+            # Process batch in parallel with ThreadPoolExecutor
+            # Use max_workers=10 to parallelize while respecting rate limits
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                # Submit all fetch tasks
+                future_to_ticker = {
+                    executor.submit(self._fetch_ticker_data, ticker): ticker 
+                    for ticker in batch
+                }
                 
-                if data:
-                    self.data[ticker] = data
-                    successful += 1
-                else:
-                    self.data[ticker] = None
-                    failed += 1
-                    if not HAS_TQDM:
-                        print(f"    ⚠️  Failed to fetch {ticker}")
+                # Collect results as they complete
+                for future in as_completed(future_to_ticker):
+                    ticker = future_to_ticker[future]
+                    try:
+                        data = future.result()
+                        if data:
+                            self.data[ticker] = data
+                            successful += 1
+                        else:
+                            self.data[ticker] = None
+                            failed += 1
+                            if not HAS_TQDM:
+                                print(f"    ⚠️  Failed to fetch {ticker}")
+                    except Exception as e:
+                        self.data[ticker] = None
+                        failed += 1
+                        if not HAS_TQDM:
+                            print(f"    ⚠️  Error fetching {ticker}: {e}")
         
         print(f"\n✅ Data fetched: {successful} successful, {failed} failed\n")
     
@@ -553,7 +572,9 @@ class FactorEngine:
         print(f"{'Rank':<6} {'Ticker':<8} {'Value Z':<10} {'Quality Z':<12} {'Momentum Z':<12} {'Total Score':<12}")
         print("-" * 80)
         
-        for idx, row in self.factor_scores.iterrows():
+        # Use iloc instead of iterrows for better performance
+        for idx in range(len(self.factor_scores)):
+            row = self.factor_scores.iloc[idx]
             rank = idx + 1
             print(f"{rank:<6} {row['Ticker']:<8} {row['Value_Z']:>9.2f} {row['Quality_Z']:>11.2f} {row['Momentum_Z']:>11.2f} {row['Total_Score']:>11.2f}")
         

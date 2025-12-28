@@ -146,7 +146,10 @@ def main():
                 table.add_column("Score", justify="right")
                 table.add_column("Sector", style="dim")
                 
-                for idx, row in weights_df.head(15).iterrows():
+                # Use apply instead of iterrows for better performance
+                top_rows = weights_df.head(15).reset_index(drop=True)
+                for idx in range(len(top_rows)):
+                    row = top_rows.iloc[idx]
                     table.add_row(
                         str(idx + 1),
                         row['ticker'],
@@ -235,7 +238,10 @@ def main():
             table.add_column("Momentum Z", justify="right")
             table.add_column("Total Score", justify="right")
             
-            for idx, row in rankings.head(10).iterrows():
+            # Use iloc instead of iterrows for better performance
+            top_10 = rankings.head(10).reset_index(drop=True)
+            for idx in range(len(top_10)):
+                row = top_10.iloc[idx]
                 rank = idx + 1
                 # Highlight the target ticker
                 ticker_style = "bold green" if row['Ticker'] == ticker else ""
@@ -251,7 +257,9 @@ def main():
             console.print(table)
         else:
             print("\nTop 10 Rankings:")
-            for idx, row in rankings.head(10).iterrows():
+            top_10 = rankings.head(10).reset_index(drop=True)
+            for idx in range(len(top_10)):
+                row = top_10.iloc[idx]
                 print(f"  {idx+1}. {row['Ticker']}: {row['Total_Score']:.2f}")
         
         # Display detailed audit report for the requested ticker

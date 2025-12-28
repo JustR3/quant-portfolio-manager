@@ -157,43 +157,37 @@ class BlackLittermanOptimizer:
         returns = self.prices.pct_change().dropna()
         mean_volatility = returns.std().mean() * np.sqrt(252)  # Annualized
         
-        for _, row in factor_scores_df.iterrows():
-            ticker = row['Ticker']
-            
-            if ticker not in self.tickers:
-                continue
-            
-            # Extract Z-scores
-            total_z = row['Total_Score']
-            value_z = row['Value_Z']
-            quality_z = row['Quality_Z']
-            momentum_z = row['Momentum_Z']
-            
-            # Convert Z-score to implied excess return
-            # Formula: Implied_Excess_Return = Z_Score * sigma * alpha_scalar
-            implied_return = total_z * mean_volatility * self.factor_alpha_scalar
-            views[ticker] = implied_return
-            
-            # Calculate confidence based on factor agreement
-            # Low std dev of factor Z-scores = high confidence (factors agree)
-            # High std dev = low confidence (factors disagree)
-            factor_zscores = [value_z, quality_z, momentum_z]
-            factor_std = np.std(factor_zscores)
-            
-            # Confidence scoring (inverse of std dev)
-            # Low std dev (< 0.5) → High confidence (~0.8)
-            # Medium std dev (0.5-1.5) → Medium confidence (~0.5)
-            # High std dev (> 1.5) → Low confidence (~0.2)
-            if factor_std < 0.5:
-                confidence = 0.8
-            elif factor_std < 1.0:
-                confidence = 0.6
-            elif factor_std < 1.5:
-                confidence = 0.4
+        # Filter for tickers in our universe (vectorized operation)
+        factor_scores_filtered = factor_scores_df[factor_scores_df['Ticker'].isin(self.tickers)].copy()
+        
+        # Vectorized calculation of implied returns
+        factor_scores_filtered['implied_return'] = (
+            factor_scores_filtered['Total_Score'] * mean_volatility * self.factor_alpha_scalar
+        )
+        
+        # Vectorized confidence calculation
+        # Calculate std dev of factor Z-scores for each ticker
+        factor_scores_filtered['factor_std'] = factor_scores_filtered.apply(
+            lambda row: np.std([row['Value_Z'], row['Quality_Z'], row['Momentum_Z']]),
+            axis=1
+        )
+        
+        # Assign confidence levels based on factor std dev (vectorized)
+        def assign_confidence(std_val):
+            if std_val < 0.5:
+                return 0.8
+            elif std_val < 1.0:
+                return 0.6
+            elif std_val < 1.5:
+                return 0.4
             else:
-                confidence = 0.2
-            
-            confidences[ticker] = confidence
+                return 0.2
+        
+        factor_scores_filtered['confidence'] = factor_scores_filtered['factor_std'].apply(assign_confidence)
+        
+        # Convert to dictionaries
+        views = dict(zip(factor_scores_filtered['Ticker'], factor_scores_filtered['implied_return']))
+        confidences = dict(zip(factor_scores_filtered['Ticker'], factor_scores_filtered['confidence']))
         
         self.views = views
         self.confidences = confidences

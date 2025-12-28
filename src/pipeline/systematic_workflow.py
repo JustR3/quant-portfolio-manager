@@ -197,13 +197,14 @@ def run_systematic_portfolio(
     print(f"💼 Step 4/4: Running Black-Litterman optimization...")
     print("-" * 90)
     
-    # Get market cap weights for priors
+    # Get market cap weights for priors (vectorized)
     selected_universe = universe_df[universe_df['ticker'].isin(selected_tickers)].copy()
     total_market_cap = selected_universe['market_cap'].sum()
-    market_cap_weights = {
-        row['ticker']: row['market_cap'] / total_market_cap
-        for _, row in selected_universe.iterrows()
-    }
+    
+    # Vectorized dictionary creation
+    market_cap_weights = dict(
+        zip(selected_universe['ticker'], selected_universe['market_cap'] / total_market_cap)
+    )
     
     # Determine macro return scalar (CAPE adjustment to equilibrium returns)
     # This is separate from factor confidence - we can believe factors work
@@ -322,7 +323,10 @@ def display_portfolio_summary(results: Dict) -> None:
     print(f"{'Rank':<6} {'Ticker':<8} {'Weight':<10} {'Score':<10} {'Sector':<25}")
     print("-" * 90)
     
-    for idx, row in weights_df.head(10).iterrows():
+    # Use iloc instead of iterrows for better performance
+    top_10 = weights_df.head(10).reset_index(drop=True)
+    for idx in range(len(top_10)):
+        row = top_10.iloc[idx]
         print(f"{idx+1:<6} {row['ticker']:<8} {row['weight']*100:>8.2f}%  "
               f"{row['total_score']:>8.3f}  {row.get('sector', 'N/A'):<25}")
     
