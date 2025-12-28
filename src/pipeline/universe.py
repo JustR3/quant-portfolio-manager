@@ -7,7 +7,8 @@ Uses professionally curated lists with real-time market data from yfinance.
 Supported Universes:
 - S&P 500: Large-cap US stocks (~250 tickers)
 - Russell 2000: Small-cap US stocks (~300 tickers)
-- Combined: S&P 500 + Russell 2000 for full market coverage
+- NASDAQ-100: Tech/growth-focused large-cap stocks (~100 tickers)
+- Combined: S&P 500 + Russell 2000 for full market cap coverage (excludes NASDAQ-100 to avoid duplication)
 
 Features:
 - Market cap enrichment for ranking
@@ -178,6 +179,49 @@ FALLBACK_SP500_TOP50 = [
     "WFC", "DIS", "UPS", "PM", "HON", "QCOM", "IBM", "INTC", "AMD", "AMGN",
 ]
 
+# =============================================================================
+# NASDAQ-100 - Tech & Growth Focused Large-Cap Stocks
+# The 100 largest non-financial companies listed on NASDAQ
+# High overlap with S&P 500 but more tech/innovation weighted
+# =============================================================================
+NASDAQ_100_TICKERS = [
+    # Mega-cap Technology (Top 10)
+    "AAPL", "MSFT", "AMZN", "NVDA", "META", "GOOG", "GOOGL", "TSLA", "AVGO", "COST",
+    
+    # Large-cap Technology & Software
+    "NFLX", "ADBE", "CSCO", "AMD", "INTC", "QCOM", "INTU", "TXN", "AMAT", "ADI",
+    "MU", "LRCX", "KLAC", "SNPS", "CDNS", "MCHP", "NXPI", "MRVL", "FTNT", "WDAY",
+    "CRM", "NOW", "ORCL", "PANW", "ADSK", "TEAM", "DDOG", "CRWD", "ZS", "SNOW",
+    "OKTA", "NET", "MNDY", "DKNG", "RBLX",
+    
+    # E-commerce & Consumer Internet
+    "BKNG", "ABNB", "EBAY", "JD", "PDD", "MELI", "CPNG", "SHOP",
+    
+    # Additional Semiconductors
+    "SWKS", "ON", "MPWR", "ENPH",
+    
+    # Biotechnology & Healthcare
+    "AMGN", "GILD", "REGN", "VRTX", "BIIB", "ILMN", "MRNA", "ALNY", "SGEN", "BMRN",
+    "TECH", "INCY", "EXAS", "NBIX", "UTHR", "IONS", "RARE", "LGND", "FOLD", "ALKS",
+    
+    # Communication Services & Gaming
+    "CMCSA", "TMUS", "CHTR", "EA", "ATVI", "TTWO", "MTCH", "ZM", "DOCU", "PINS", "SNAP",
+    
+    # Consumer & Retail
+    "SBUX", "MCD", "LULU", "ROST", "ORLY", "DLTR", "MAR", "PCAR", "WMT", "HD", 
+    "LOW", "TGT", "TJX", "DG",
+    
+    # Professional Services & Payroll
+    "PAYX", "ADP", "VRSK",
+    
+    # Fintech (Non-bank)
+    "PYPL", "COIN", "HOOD", "AFRM", "SOFI", "UPST",
+    
+    # Other Growth/Innovation
+    "ISRG", "IDXX", "NTES", "WBD", "LCID", "RIVN", "IONQ",
+    "SMCI", "MARA", "RIOT", "PLTR", "U", "PATH",
+]
+
 
 def fetch_sp500_constituents(
     top_n: Optional[int] = None,
@@ -279,11 +323,68 @@ def fetch_russell2000_constituents(
         raise
 
 
+def fetch_nasdaq100_constituents(
+    top_n: Optional[int] = None,
+) -> pd.DataFrame:
+    """
+    Fetch NASDAQ-100 constituents with market cap and sector enrichment.
+    
+    The NASDAQ-100 includes the 100 largest non-financial companies listed on NASDAQ,
+    providing strong exposure to technology and growth stocks.
+    
+    Args:
+        top_n: Return only top N by market cap (default: all)
+    
+    Returns:
+        DataFrame with columns: ticker, sector, market_cap
+    """
+    try:
+        logger.info("Loading NASDAQ-100 universe with market cap enrichment")
+        
+        with Timer("NASDAQ-100 Loading", use_logging=True):
+            # Use curated NASDAQ-100 list
+            tickers_to_fetch = NASDAQ_100_TICKERS
+            
+            # Create base DataFrame
+            df = pd.DataFrame({"ticker": tickers_to_fetch})
+            
+            # Enrich with market cap and sector data
+            df = _enrich_with_market_caps(df)
+            
+            # Remove invalid tickers (no market cap)
+            df = df[df["market_cap"] > 0].copy()
+            
+            # Sort by market cap descending
+            df = df.sort_values("market_cap", ascending=False).reset_index(drop=True)
+            
+            logger.info("Loaded %d valid NASDAQ-100 constituents", len(df))
+            
+            # Filter to top N if requested
+            if top_n:
+                df = df.head(top_n)
+                logger.info("Selected top %d by market cap", top_n)
+        
+        return df
+        
+    except Exception as e:
+        logger.error("Failed to load NASDAQ-100: %s", e)
+        raise
+
+
 def fetch_combined_universe(
     top_n: Optional[int] = None,
 ) -> pd.DataFrame:
     """
     Fetch combined S&P 500 + Russell 2000 universe for full market coverage.
+    
+    This combines large-cap (S&P 500) and small-cap (Russell 2000) for complete
+    market cap spectrum. NASDAQ-100 is intentionally excluded to avoid duplication,
+    as 73 tickers (59% of NASDAQ-100) already exist in S&P 500.
+    
+    Design Rationale:
+    - S&P 500 + Russell 2000 = complementary market cap coverage (minimal 3% overlap)
+    - NASDAQ-100 = style/sector universe (tech/growth focused, high overlap by design)
+    - Users wanting tech exposure should explicitly choose --universe nasdaq100
     
     Args:
         top_n: Return only top N by market cap across both universes
@@ -291,7 +392,7 @@ def fetch_combined_universe(
     Returns:
         DataFrame with columns: ticker, sector, market_cap
     """
-    logger.info("Loading combined S&P 500 + Russell 2000 universe")
+    logger.info("Loading combined S&P 500 + Russell 2000 universe (full market cap coverage)")
     
     try:
         # Fetch both universes (without top_n limit first)
@@ -553,7 +654,7 @@ def get_universe(
     Main entry point for fetching stock universe.
     
     Args:
-        universe_name: Name of universe ('sp500', 'russell2000', 'combined', 'custom')
+        universe_name: Name of universe ('sp500', 'russell2000', 'nasdaq100', 'combined', 'custom')
         top_n: Number of stocks to return (by market cap)
     
     Returns:
@@ -566,8 +667,16 @@ def get_universe(
         # Get top 100 Russell 2000 stocks (small cap)
         df = get_universe("russell2000", top_n=100)
         
-        # Get top 150 from combined universe (full market)
+        # Get top 50 NASDAQ-100 stocks (tech/growth focused)
+        df = get_universe("nasdaq100", top_n=50)
+        
+        # Get top 150 from combined universe (S&P 500 + Russell 2000, full market cap coverage)
         df = get_universe("combined", top_n=150)
+    
+    Note:
+        'combined' includes S&P 500 + Russell 2000 only (not NASDAQ-100) to avoid
+        duplication, as 59% of NASDAQ-100 overlaps with S&P 500. Choose 'nasdaq100'
+        explicitly for tech/growth exposure.
     """
     universe_name_lower = universe_name.lower()
     
@@ -575,6 +684,8 @@ def get_universe(
         return fetch_sp500_constituents(top_n=top_n)
     elif universe_name_lower in ("russell2000", "russell"):
         return fetch_russell2000_constituents(top_n=top_n)
+    elif universe_name_lower in ("nasdaq100", "nasdaq", "ndx"):
+        return fetch_nasdaq100_constituents(top_n=top_n)
     elif universe_name_lower in ("combined", "all", "full"):
         return fetch_combined_universe(top_n=top_n)
     else:

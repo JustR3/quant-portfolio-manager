@@ -16,7 +16,7 @@ Combines real-time macroeconomic data, academic financial research, and multi-fa
 
 The Quant Portfolio Manager implements a systematic approach to quantitative investing through an integrated pipeline:
 
-1. **Universe Selection**: S&P 500 or custom universes with market cap weighting
+1. **Universe Selection**: S&P 500, Russell 2000, NASDAQ-100, or combined universes with market cap weighting
 2. **Data Foundation**: Cache-aware fetching with batch processing and retry logic
 3. **Factor Engine**: Multi-factor stock ranking (Value, Quality, Momentum) with Z-score normalization
 4. **Portfolio Optimization**: Black-Litterman with factor-based views and market-cap-weighted priors
@@ -26,7 +26,7 @@ The Quant Portfolio Manager implements a systematic approach to quantitative inv
 ## ✨ Key Features
 
 ### 🚀 Production-Ready Systematic Workflow
-- **S&P 500 Universe Loader**: Auto-fetches constituents with market caps from Wikipedia
+- **Multi-Universe Support**: S&P 500 (large-cap), Russell 2000 (small-cap), NASDAQ-100 (tech/growth), or combined
 - **Consolidated Cache System**: Single file per ticker with 24-hour expiry (76% more efficient)
 - **Batch Processing**: Handles 50-500 stocks reliably (50 tickers/batch)
 - **Point-in-Time Data Integrity**: Eliminates look-ahead bias in backtesting
@@ -65,6 +65,17 @@ The Quant Portfolio Manager implements a systematic approach to quantitative inv
 - **Z-Score Normalization**: Statistical standardization with winsorization (±3σ)
 - **Composite Scoring**: Weighted combination (40% Value, 40% Quality, 20% Momentum)
 
+### 🌐 Universe Selection
+**Market Cap Universes** (Complementary):
+- **S&P 500**: Large-cap diversified (~250 tickers)
+- **Russell 2000**: Small-cap emerging companies (~300 tickers)
+- **Combined**: S&P 500 + Russell 2000 for full market cap spectrum (~580 tickers, 3% overlap)
+
+**Style Universes** (Sector/Theme):
+- **NASDAQ-100**: Tech/growth focused (~120 tickers, 59% overlap with S&P 500)
+
+**Design Philosophy**: "Combined" includes only market cap universes (sp500+russell2000) to avoid duplication. NASDAQ-100 is kept separate as it overlaps heavily with S&P 500 by design. Choose nasdaq100 explicitly for tech-focused portfolios.
+
 ### 🔍 Glass Box Verification
 - **Audit Reports**: Detailed factor breakdowns showing why each stock ranks high/low
 - **Universe Comparison**: Individual stock metrics vs. universe statistics (mean, std, percentile)
@@ -102,8 +113,17 @@ uv sync
 Build an optimized portfolio using the full factor-based Black-Litterman pipeline:
 
 ```bash
-# Optimize top 50 S&P 500 stocks
+# Optimize top 50 S&P 500 stocks (large-cap)
 uv run ./main.py optimize --universe sp500 --top-n 50 --export portfolio.csv
+
+# Optimize top 100 Russell 2000 stocks (small-cap)
+uv run ./main.py optimize --universe russell2000 --top-n 100
+
+# Optimize top 50 NASDAQ-100 stocks (tech/growth focused)
+uv run ./main.py optimize --universe nasdaq100 --top-n 50
+
+# Combined universe (S&P 500 + Russell 2000 for full market cap coverage)
+uv run ./main.py optimize --universe combined --top-n 150
 
 # Optimize top 100 stocks, use top 50 for portfolio construction
 uv run ./main.py optimize --universe sp500 --top-n 100 --optimize-top 50
@@ -116,11 +136,12 @@ uv run ./main.py optimize --universe sp500 --top-n 50 --use-macro --use-french
 
 # Example with all features enabled
 uv run ./main.py optimize \
-  --universe sp500 \
-  --top-n 100 \
+  --universe nasdaq100 \
+  --top-n 75 \
   --optimize-top 50 \
   --objective max_sharpe \
-  -
+  --use-macro \
+  --use-french
 
 #### Backtesting & Performance Analysis
 
@@ -155,7 +176,7 @@ uv run ./main.py backtest \
 **Pipeline Steps:**
 1. **(Optional) Macro God**: Fetches Shiller CAPE, calculates equity risk scalar
 2. **(Optional) Factor God**: Analyzes Fama-French factor regimes, computes tilts
-3. **Load Universe**: Fetches S&P 500 constituents with market caps from Wikipedia
+3. **Load Universe**: Fetches constituents from selected universe (S&P 500, Russell 2000, NASDAQ-100, or combined)
 4. **Cache-Aware Data Fetch**: Downloads financial data in batches (50 tickers/batch), uses consolidated cache
 5. **Factor Scoring**: Ranks all stocks by Value (40%), Quality (40%), Momentum (20%)
    - If `--use-french` enabled: Applies factor tilts to Z-scores before ranking
