@@ -1,11 +1,15 @@
 """
 Universe Selection for Stock Selection.
 
-Provides S&P 500 constituents with market cap enrichment and survivorship bias control.
-Uses professionally curated list with real-time market data from yfinance.
+Provides multiple stock universes with market cap enrichment and survivorship bias control.
+Uses professionally curated lists with real-time market data from yfinance.
+
+Supported Universes:
+- S&P 500: Large-cap US stocks (~250 tickers)
+- Russell 2000: Small-cap US stocks (~300 tickers)
+- Combined: S&P 500 + Russell 2000 for full market coverage
 
 Features:
-- Current S&P 500 constituents (~500 stocks)
 - Market cap enrichment for ranking
 - Sector classification
 - Survivorship bias control via major delistings
@@ -86,6 +90,80 @@ SP500_TICKERS = [
     "ADP", "PAYX", "TDY", "BR", "FTV", "CTAS", "FAST", "DOV", "ROK", "AME",
 ]
 
+# =============================================================================
+# Russell 2000 - Small Cap US Stocks (curated representative sample)
+# Full Russell 2000 has 2000 stocks - we maintain ~300 most liquid
+# =============================================================================
+RUSSELL_2000_TICKERS = [
+    # Technology - Small Cap
+    "PLTR", "RBLX", "U", "PATH", "CPNG", "RIVN", "LCID", "IONQ", "SMCI", "MARA",
+    "RIOT", "GTLB", "CVNA", "AFRM", "UPST", "SOFI", "HOOD", "OPEN", "BLND", "BROS",
+    "CAVA", "CELH", "MNDY", "GTLB", "S", "BILL", "CFLT", "DDOG", "ZS", "CRWD",
+    
+    # Healthcare - Small Cap
+    "TMDX", "GMED", "KRYS", "RARE", "ALNY", "BMRN", "TECH", "UTHR", "IONS", "INCY",
+    "EXEL", "NBIX", "ALKS", "PTCT", "FOLD", "SAGE", "BLUE", "ONCE", "QURE", "EDIT",
+    "NTLA", "CRSP", "BEAM", "VERV", "CGEM", "CVAC", "MRNA", "BNTX", "NVAX", "VRTX",
+    
+    # Financials - Small Cap
+    "LPLA", "VCTR", "VIRT", "IBKR", "SF", "EWBC", "PACW", "WAL", "GBCI", "WTFC",
+    "CADE", "ZION", "SNV", "UMBF", "UBSI", "FFIN", "ONB", "HOMB", "CATY", "ABCB",
+    
+    # Consumer - Small Cap
+    "WING", "TXRH", "BLMN", "CAKE", "CHUY", "BJRI", "DENN", "PLAY", "RUTH", "DRI",
+    "JACK", "PZZA", "NDLS", "WEN", "SHAK", "PLNT", "PTON", "LULU", "DECK", "CROX",
+    "BIRK", "ONON", "TPG", "KKR", "BX", "APO", "OWL", "ARES",
+    
+    # Industrials - Small Cap
+    "CARR", "GNRC", "AIT", "TTEK", "MSA", "ROAD", "PRIM", "FSS", "AZEK", "TREX",
+    "BLDR", "FND", "LPX", "BCC", "UFPI", "WTS", "BECN", "SKY", "HWM", "MLI",
+    
+    # Energy - Small Cap
+    "RRC", "AR", "MTDR", "SM", "MGY", "VTLE", "CIVI", "CRC", "CRGY", "PDCE",
+    "REI", "PR", "PXD", "FANG", "MRO", "APA", "OVV", "CHRD", "NOG", "CPE",
+    
+    # Materials - Small Cap
+    "MP", "LAD", "PAG", "SAH", "ABG", "KBH", "MTH", "TMHC", "MHO", "BZH",
+    "GRBK", "LGIH", "CCS", "TPH", "CVCO", "SKY", "AZEK", "TREX", "UFPI", "BCC",
+    
+    # Real Estate - Small Cap (REITs)
+    "CUBE", "ELS", "CPT", "UDR", "AIV", "EGP", "FR", "KRG", "BXP", "HIW",
+    "PDM", "DEI", "JBGS", "SLG", "VNO", "PGRE", "CLI", "BDN", "EQC", "CLPR",
+    
+    # Healthcare Services - Small Cap
+    "ENSG", "CHE", "BKD", "USPH", "THC", "UHS", "SEM", "ACHC", "AHC",
+    "GH", "EHC", "DVA", "OPCH", "NHC", "CLOV", "OSCR", "ACCD", "MOH", "CNC",
+    
+    # Biotechnology - Small Cap
+    "DAWN", "KRTX", "SNDX", "APLS", "ARVN", "SAVA", "PRTA", "XNCR", "IMVT", "RLAY",
+    "KYMR", "SANA", "LYEL", "FATE", "DRMA", "VKTX", "NRIX", "ACLX", "STRO", "RCKT",
+    
+    # Software - Small Cap
+    "FRSH", "DOCN", "NCNO", "ASAN", "HUBS", "TEAM", "WDAY", "PANW", "FTNT", "ZS",
+    "CRWD", "OKTA", "NET", "DDOG", "SNOW", "MDB", "ESTC", "CFLT", "BILL", "S",
+    
+    # Cybersecurity - Small Cap
+    "TENB", "RPD", "VRNS", "QLYS", "MIME", "CHKP", "CYBR", "FFIV", "AKAM", "CACI",
+    
+    # Semiconductor Equipment - Small Cap
+    "COHR", "FORM", "MKSI", "UCTT", "ONTO", "ACLS", "PLAB", "NVMI", "ICHR", "CAMT",
+    
+    # Retail - Small Cap
+    "FIVE", "OLLI", "BIG", "DLTR", "DG", "GES", "ANF", "URBN", "AEO", "EXPR",
+    "HIBB", "DKS", "FL", "ASO", "GOOS", "PLCE", "CHS", "TLYS", "PRGS",
+    
+    # Transportation - Small Cap  
+    "JBHT", "ODFL", "SAIA", "ARCB", "XPO", "GXO", "RXO", "WERN", "KNX", "JBLU",
+    "ALK", "SAVE", "HA", "SKYW", "MESA", "RYAAY", "UAL", "DAL", "AAL", "LUV",
+    
+    # Clean Energy - Small Cap
+    "ENPH", "SEDG", "RUN", "NOVA", "ARRY", "SHLS", "MAXN", "CSIQ", "JKS", "DQ",
+    "SPWR", "FSLR", "PLUG", "BE", "BLDP", "NEL", "QS", "BLNK",
+    
+    # Emerging Growth
+    "HOOD", "AFRM", "UPST", "SOFI", "OPEN", "DOMA", "COMP", "LPRO", "OWN", "UWMC",
+]
+
 # Minimal fallback for testing/quick runs
 FALLBACK_SP500_TOP50 = [
     "AAPL", "MSFT", "AMZN", "NVDA", "META", "TSLA", "BRK-B", "UNH", "XOM",
@@ -149,6 +227,91 @@ def fetch_sp500_constituents(
         
         tickers = FALLBACK_SP500_TOP50[:top_n] if top_n else FALLBACK_SP500_TOP50
         return _enrich_tickers_with_info(tickers)
+
+
+def fetch_russell2000_constituents(
+    top_n: Optional[int] = None,
+) -> pd.DataFrame:
+    """
+    Fetch Russell 2000 (small-cap) constituents with market cap and sector enrichment.
+    
+    Args:
+        top_n: Return only top N by market cap (default: all)
+    
+    Returns:
+        DataFrame with columns: ticker, sector, market_cap
+    """
+    try:
+        logger.info("Loading Russell 2000 universe with market cap enrichment")
+        
+        with Timer("Russell 2000 Loading", use_logging=True):
+            # Use curated Russell 2000 list
+            tickers_to_fetch = RUSSELL_2000_TICKERS
+            
+            # Create base DataFrame
+            df = pd.DataFrame({"ticker": tickers_to_fetch})
+            
+            # Enrich with market cap and sector data
+            df = _enrich_with_market_caps(df)
+            
+            # Remove invalid tickers (no market cap)
+            df = df[df["market_cap"] > 0].copy()
+            
+            # Sort by market cap descending
+            df = df.sort_values("market_cap", ascending=False).reset_index(drop=True)
+            
+            logger.info("Loaded %d valid Russell 2000 constituents", len(df))
+            
+            # Filter to top N if requested
+            if top_n:
+                df = df.head(top_n)
+                logger.info("Selected top %d by market cap", top_n)
+        
+        return df
+        
+    except Exception as e:
+        logger.error("Failed to load Russell 2000: %s", e)
+        raise
+
+
+def fetch_combined_universe(
+    top_n: Optional[int] = None,
+) -> pd.DataFrame:
+    """
+    Fetch combined S&P 500 + Russell 2000 universe for full market coverage.
+    
+    Args:
+        top_n: Return only top N by market cap across both universes
+    
+    Returns:
+        DataFrame with columns: ticker, sector, market_cap
+    """
+    logger.info("Loading combined S&P 500 + Russell 2000 universe")
+    
+    try:
+        # Fetch both universes (without top_n limit first)
+        sp500_df = fetch_sp500_constituents(top_n=None)
+        russell_df = fetch_russell2000_constituents(top_n=None)
+        
+        # Combine and deduplicate (prefer S&P 500 if overlap)
+        combined_df = pd.concat([sp500_df, russell_df], ignore_index=True)
+        combined_df = combined_df.drop_duplicates(subset=["ticker"], keep="first")
+        
+        # Sort by market cap
+        combined_df = combined_df.sort_values("market_cap", ascending=False).reset_index(drop=True)
+        
+        logger.info("Combined universe: %d unique stocks", len(combined_df))
+        
+        # Apply top_n filter if requested
+        if top_n:
+            combined_df = combined_df.head(top_n)
+            logger.info("Selected top %d by market cap", top_n)
+        
+        return combined_df
+        
+    except Exception as e:
+        logger.error("Failed to load combined universe: %s", e)
+        raise
 
 
 def _enrich_with_market_caps(
@@ -385,23 +548,32 @@ def get_universe(
     Main entry point for fetching stock universe.
     
     Args:
-        universe_name: Name of universe ('sp500', 'custom')
+        universe_name: Name of universe ('sp500', 'russell2000', 'combined', 'custom')
         top_n: Number of stocks to return (by market cap)
     
     Returns:
         DataFrame with columns: ticker, sector, market_cap
         
-    Example:
-        # Get top 50 S&P 500 stocks
+    Examples:
+        # Get top 50 S&P 500 stocks (large cap)
         df = get_universe("sp500", top_n=50)
         
-        # Use in factor engine
-        tickers = df["ticker"].tolist()
+        # Get top 100 Russell 2000 stocks (small cap)
+        df = get_universe("russell2000", top_n=100)
+        
+        # Get top 150 from combined universe (full market)
+        df = get_universe("combined", top_n=150)
     """
-    if universe_name.lower() == "sp500":
+    universe_name_lower = universe_name.lower()
+    
+    if universe_name_lower == "sp500":
         return fetch_sp500_constituents(top_n=top_n)
+    elif universe_name_lower in ("russell2000", "russell"):
+        return fetch_russell2000_constituents(top_n=top_n)
+    elif universe_name_lower in ("combined", "all", "full"):
+        return fetch_combined_universe(top_n=top_n)
     else:
-        logger.warning("Unknown universe '%s', using fallback", universe_name)
+        logger.warning("Unknown universe '%s', defaulting to S&P 500", universe_name)
         return fetch_sp500_constituents(top_n=top_n, use_fallback=True)
 
 
