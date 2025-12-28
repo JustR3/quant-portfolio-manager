@@ -8,17 +8,13 @@ Usage:
 """
 
 import argparse
-import sys
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
+
 import pandas as pd
 from tqdm import tqdm
 
-# Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
-from modules.portfolio.regime import RegimeDetector, MarketRegime
+from src.models.regime import RegimeDetector, MarketRegime
 
 
 def build_regime_history(

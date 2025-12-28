@@ -6,15 +6,25 @@ Converts factor scores (Value, Quality, Momentum) into portfolio allocation
 using Black-Litterman framework with market equilibrium priors.
 """
 
+from dataclasses import dataclass
+from typing import Dict, Optional, Tuple
+
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from typing import Dict, Optional, Tuple
-from dataclasses import dataclass
 from pypfopt import BlackLittermanModel, risk_models, expected_returns
 from pypfopt.efficient_frontier import EfficientFrontier
 from pypfopt.discrete_allocation import DiscreteAllocation
-import time
+
+from src.logging_config import get_logger
+from src.constants import (
+    DEFAULT_RISK_FREE_RATE,
+    DEFAULT_FACTOR_ALPHA_SCALAR,
+    BL_TAU,
+    TRADING_DAYS_PER_YEAR,
+)
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -48,10 +58,10 @@ class BlackLittermanOptimizer:
     def __init__(
         self,
         tickers: list,
-        risk_free_rate: float = 0.04,
-        factor_alpha_scalar: float = 0.02,
+        risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
+        factor_alpha_scalar: float = DEFAULT_FACTOR_ALPHA_SCALAR,
         market_cap_weights: Optional[Dict[str, float]] = None,
-        macro_return_scalar: float = 1.0
+        macro_return_scalar: float = 1.0,
     ):
         """
         Initialize the optimizer.

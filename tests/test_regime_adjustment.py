@@ -1,17 +1,16 @@
 """Unit tests for regime adjustment functionality."""
 
-import sys
-from pathlib import Path
 import pytest
 import pandas as pd
 from datetime import datetime
 
-# Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
 from src.utils.regime_adjustment import RegimePortfolioAdjuster, apply_regime_adjustment
-from modules.portfolio.regime import MarketRegime
+from src.models.regime import MarketRegime
+from src.constants import (
+    REGIME_RISK_OFF_EXPOSURE,
+    REGIME_CAUTION_EXPOSURE,
+    REGIME_RISK_ON_EXPOSURE,
+)
 
 
 class TestRegimePortfolioAdjuster:
@@ -21,9 +20,9 @@ class TestRegimePortfolioAdjuster:
         """Test default initialization."""
         adjuster = RegimePortfolioAdjuster()
         
-        assert adjuster.risk_off_exposure == 0.50
-        assert adjuster.caution_exposure == 0.75
-        assert adjuster.risk_on_exposure == 1.00
+        assert adjuster.risk_off_exposure == REGIME_RISK_OFF_EXPOSURE
+        assert adjuster.caution_exposure == REGIME_CAUTION_EXPOSURE
+        assert adjuster.risk_on_exposure == REGIME_RISK_ON_EXPOSURE
         assert adjuster.method == "combined"
     
     def test_initialization_custom(self):
@@ -42,7 +41,7 @@ class TestRegimePortfolioAdjuster:
     def test_weight_scaling_risk_off(self):
         """Test weight scaling in RISK_OFF regime."""
         weights_df = pd.DataFrame({
-            'ticker': ['AAPL', 'MSFT', 'GOOGL'],
+            'ticker': ['AAPL', 'MSFT', 'GOOG'],
             'weight': [0.30, 0.40, 0.30]
         })
         
@@ -88,7 +87,7 @@ class TestRegimePortfolioAdjuster:
     def test_cash_calculation(self):
         """Test cash allocation calculation."""
         weights_df = pd.DataFrame({
-            'ticker': ['AAPL', 'MSFT', 'GOOGL'],
+            'ticker': ['AAPL', 'MSFT', 'GOOG'],
             'weight': [0.20, 0.15, 0.15]  # 50% equity
         })
         
@@ -115,7 +114,7 @@ class TestRegimePortfolioAdjuster:
     def test_zero_weights(self):
         """Test handling of zero weights."""
         weights_df = pd.DataFrame({
-            'ticker': ['AAPL', 'MSFT', 'GOOGL'],
+            'ticker': ['AAPL', 'MSFT', 'GOOG'],
             'weight': [0.0, 0.0, 0.0]
         })
         

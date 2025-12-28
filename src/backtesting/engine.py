@@ -3,22 +3,25 @@ Backtesting Engine
 Walk-forward validation of systematic factor strategies.
 """
 
+import warnings
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
-import warnings
-import sys
-from pathlib import Path
 from dateutil.relativedelta import relativedelta
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
+from src.logging_config import get_logger
+from src.constants import (
+    DEFAULT_RISK_FREE_RATE,
+    DEFAULT_FACTOR_ALPHA_SCALAR,
+    DEFAULT_TOP_N_STOCKS,
+    MAX_POSITION_SIZE,
+)
 from src.models.factor_engine import FactorEngine
 from src.models.optimizer import BlackLittermanOptimizer
-from src.pipeline.universe_loader import get_universe
+from src.pipeline.universe import get_universe
 from src.backtesting.performance import PerformanceMetrics
 from src.backtesting.results import BacktestResult
 
@@ -30,6 +33,7 @@ except ImportError:
     HAS_TQDM = False
 
 warnings.filterwarnings('ignore')
+logger = get_logger(__name__)
 
 
 class BacktestEngine:

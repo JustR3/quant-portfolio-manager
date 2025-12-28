@@ -4,41 +4,50 @@ Unified pipeline: Universe → Factor Engine → Black-Litterman → Weights
 Optional: Macro adjustments (Shiller CAPE), Factor tilts (Fama-French)
 """
 
-import pandas as pd
-import numpy as np
 import time
 from typing import Dict, Optional, Tuple
-import sys
-from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+import pandas as pd
+import numpy as np
 
+from src.logging_config import get_logger
+from src.config import Config
+from src.constants import (
+    DEFAULT_RISK_FREE_RATE,
+    DEFAULT_FACTOR_ALPHA_SCALAR,
+    DEFAULT_TOP_N_STOCKS,
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_CACHE_EXPIRY_HOURS,
+    MAX_POSITION_SIZE,
+    REGIME_RISK_OFF_EXPOSURE,
+    REGIME_CAUTION_EXPOSURE,
+)
 from src.models.factor_engine import FactorEngine
 from src.models.optimizer import BlackLittermanOptimizer
-from src.pipeline.universe_loader import get_universe
-from src.pipeline.shiller_loader import get_equity_risk_scalar, display_cape_summary
-from src.pipeline.french_loader import get_factor_regime, get_factor_tilts, display_factor_summary
+from src.pipeline.universe import get_universe
+from src.pipeline.external.shiller import get_equity_risk_scalar
+from src.pipeline.external.french import get_factor_regime, get_factor_tilts
 from src.utils.regime_adjustment import apply_regime_adjustment
-from config import AppConfig
+
+logger = get_logger(__name__)
 
 
 def run_systematic_portfolio(
     universe_name: str = "sp500",
-    top_n: int = 50,
+    top_n: int = DEFAULT_TOP_N_STOCKS,
     top_n_for_optimization: Optional[int] = None,
-    risk_free_rate: float = 0.04,
-    factor_alpha_scalar: float = 0.05,  # Updated from 0.02 to 0.05
+    risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
+    factor_alpha_scalar: float = DEFAULT_FACTOR_ALPHA_SCALAR,
     objective: str = 'max_sharpe',
-    weight_bounds: Tuple[float, float] = (0.0, 0.30),
-    batch_size: int = 50,
-    cache_expiry_hours: int = 24,
+    weight_bounds: Tuple[float, float] = (0.0, MAX_POSITION_SIZE),
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    cache_expiry_hours: int = DEFAULT_CACHE_EXPIRY_HOURS,
     use_macro_adjustment: bool = False,
     use_factor_regimes: bool = False,
     use_regime_adjustment: bool = False,
     regime_method: str = "combined",
-    regime_risk_off_exposure: float = 0.50,
-    regime_caution_exposure: float = 0.75
+    regime_risk_off_exposure: float = REGIME_RISK_OFF_EXPOSURE,
+    regime_caution_exposure: float = REGIME_CAUTION_EXPOSURE,
 ) -> Dict:
     """
     Run the complete systematic portfolio workflow.

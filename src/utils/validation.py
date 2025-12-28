@@ -10,10 +10,13 @@ Validates yfinance data against Alpha Vantage to detect:
 Philosophy: Trust but Verify. Never trade on unvalidated data.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-import logging
+
+import yfinance as yf
+
+from src.logging_config import get_logger
 
 try:
     from alpha_vantage.timeseries import TimeSeries
@@ -22,9 +25,7 @@ except ImportError:
     TimeSeries = None
     FundamentalData = None
 
-import yfinance as yf
-
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

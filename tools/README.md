@@ -23,7 +23,7 @@ python tools/download_historical_data.py
 python tools/download_historical_data.py --start 2010-01-01 --end 2024-12-31
 
 # Specific tickers only
-python tools/download_historical_data.py --tickers AAPL MSFT GOOGL --start 2000-01-01
+python tools/download_historical_data.py --tickers AAPL MSFT GOOG --start 2000-01-01
 
 # Run with data validation
 python tools/download_historical_data.py --validate
@@ -47,7 +47,7 @@ python tools/update_daily_data.py
 python tools/update_daily_data.py --check-stale
 
 # Update specific tickers
-python tools/update_daily_data.py --tickers AAPL MSFT GOOGL
+python tools/update_daily_data.py --tickers AAPL MSFT GOOG
 ```
 
 **Expected output:**

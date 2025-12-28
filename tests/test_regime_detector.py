@@ -1,15 +1,9 @@
 """Unit tests for RegimeDetector functionality."""
 
-import sys
-from pathlib import Path
 import pytest
 from datetime import datetime, timedelta
 
-# Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
-from modules.portfolio.regime import RegimeDetector, MarketRegime, RegimeResult
+from src.models.regime import RegimeDetector, MarketRegime, RegimeResult
 
 
 class TestRegimeDetectorInitialization:

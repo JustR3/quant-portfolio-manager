@@ -6,21 +6,11 @@ Combines real-time macroeconomic data, academic financial research, and multi-fa
 
 ## 📦 Architecture
 
-This repository contains **two independent toolkits**:
-
-### 1. **Systematic Factor-Based Workflow** *(Main/Production)*
-- **CLI**: `main.py` (optimize, verify commands)
+### **Systematic Factor-Based Workflow**
+- **CLI**: `main.py` (optimize, verify, backtest commands)
 - **Location**: `src/` directory
 - **Approach**: Pure quantitative multi-factor ranking + Black-Litterman optimization
 - **Data**: Systematic signals (Value/Quality/Momentum), macro adjustments, factor regimes
-
-### 2. **Legacy DCF Fundamental Analysis** *(Isolated)*
-- **CLI**: `dcf_cli.py` (valuation, portfolio commands)
-- **Location**: `legacy/` directory  
-- **Approach**: Fundamental bottom-up DCF valuation with conviction-based filtering
-- **Data**: Company financials, growth projections, Monte Carlo simulation
-
-**Key Difference**: Systematic workflow uses factor-based quantitative signals across the universe. DCF uses company-specific fundamental analysis. Both use Black-Litterman optimization but with different view generation methods.
 
 ## 🎯 Overview - Systematic Workflow
 
@@ -88,14 +78,6 @@ The Quant Portfolio Manager implements a systematic approach to quantitative inv
 - **Performance Metrics**: Sharpe, Sortino, alpha/beta, win rate, profit factor, max drawdown
 - **No Look-Ahead Bias**: Verified point-in-time data integrity throughout backtesting
 
-### 💼 Legacy DCF System
-- **DCF Valuation**: Fundamental analysis with Monte Carlo simulation
-- **Conviction Scoring**: HIGH/MODERATE/SPECULATIVE ratings based on confidence
-- **Portfolio Integration**: DCF-aware Black-Litterman with conviction weighting
-- **Risk Metrics**: VaR, CVaR, Sortino Ratio, Calmar Ratio, Max Drawdown
-- **Market Regime Detection**: Adaptive allocation based on market conditions
-- **Access**: Use `uv run python dcf_cli.py` for DCF analysis (see `legacy/README.md`)
-
 ## 🚀 Quick Start
 
 ### Installation
@@ -145,7 +127,7 @@ uv run ./main.py backtest --start 2023-01-01 --end 2024-12-31 --top-n 50
 uv run ./main.py backtest --start 2020-01-01 --end 2024-12-31 --top-n 30 --frequency quarterly
 
 # Custom universe backtest
-uv run ./main.py backtest --start 2023-01-01 --end 2023-12-31 --tickers AAPL MSFT NVDA GOOGL
+uv run ./main.py backtest --start 2023-01-01 --end 2023-12-31 --tickers AAPL MSFT NVDA GOOG
 
 # Comprehensive backtest with benchmarking
 uv run ./main.py backtest \
@@ -190,21 +172,6 @@ uv run ./main.py verify NVDA
 
 # Compare against custom universe
 uv run ./main.py verify TSLA --universe NVDA XOM JPM PFE TSLA
-```
-
-#### Legacy DCF Analysis
-
-```bash
-# DCF valuation with detailed scenarios
-uv run python dcf_cli.py valuation AAPL --detailed
-
-# Build DCF-based portfolio (conviction-weighted)
-uv run python dcf_cli.py portfolio --tickers AAPL MSFT GOOG NVDA
-
-# Interactive DCF portfolio builder
-uv run python dcf_cli.py portfolio --interactive
-
-# See legacy/README.md for complete DCF documentation
 ```
 
 ## 📖 Factor Methodology
@@ -480,13 +447,7 @@ quant-portfolio-manager/
 │   │   └── french_loader.py         # Factor God: Fama-French tilts
 │   └── utils/
 │       └── validation.py            # Data quality checks
-├── modules/                         # Legacy v1.0 system (DCF/Monte Carlo)
-│   ├── valuation/
-│   │   └── dcf.py                   # DCF valuation engine
-│   ├── portfolio/
-│   │   ├── optimizer.py             # Legacy optimizer
-│   ���   └── regime.py                # Market regime detection
-│   └── utils.py                     # Caching and utilities
+
 ├── tests/
 │   └── test_phase1_integration.py   # Integration tests
 └── data/
@@ -499,7 +460,7 @@ quant-portfolio-manager/
 - **Python 3.12+**: Modern type hints, dataclasses
 - **yfinance**: Yahoo Finance API for market data
 - **pandas/numpy**: Data manipulation and statistical analysis
-- **PyPortfolioOpt**: Black-Litterman optimization (Legacy)
+- **pypfopt**: Black-Litterman optimization
 - **Rich**: Terminal UI with formatted tables
 
 ### Data Pipeline
@@ -576,11 +537,6 @@ Confidence = f(std_dev(Value_Z, Quality_Z, Momentum_Z))
 - Automated verification script for data integrity
 - Equity curve generation and export
 - Full pipeline integration (Factor Engine → Optimizer)
-
-### 💼 Legacy Systems (Operational)
-- DCF valuation with Monte Carlo simulation
-- Market regime detection
-- Comprehensive risk metrics (VaR, CVaR, Sortino, Calmar)
 
 ## 📚 Academic Foundation
 
