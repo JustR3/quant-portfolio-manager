@@ -65,7 +65,8 @@ class BacktestEngine:
         use_regime: bool = False,
         regime_method: str = "combined",
         regime_risk_off_exposure: float = 0.50,
-        regime_caution_exposure: float = 0.75
+        regime_caution_exposure: float = 0.75,
+        custom_tickers: Optional[List[str]] = None
     ):
         """
         Initialize backtest engine.
@@ -88,6 +89,7 @@ class BacktestEngine:
             regime_method: Regime detection method ('sma', 'vix', 'combined')
             regime_risk_off_exposure: Equity exposure in RISK_OFF (default: 0.50)
             regime_caution_exposure: Equity exposure in CAUTION (default: 0.75)
+            custom_tickers: Custom ticker list (for universe='custom')
         """
         self.start_date = pd.to_datetime(start_date)
         self.end_date = pd.to_datetime(end_date)
@@ -106,6 +108,7 @@ class BacktestEngine:
         self.regime_method = regime_method
         self.regime_risk_off_exposure = regime_risk_off_exposure
         self.regime_caution_exposure = regime_caution_exposure
+        self.custom_tickers = custom_tickers
         
         # State tracking
         self.rebalance_dates = []
@@ -301,7 +304,7 @@ class BacktestEngine:
                     print(f"📅 Rebalance {i+1}/{len(rebalance_dates)}: {rebalance_date.strftime('%Y-%m-%d')}")
                 
                 # 1. Load universe (as of this date)
-                universe_df = get_universe(self.universe, top_n=self.top_n)
+                universe_df = get_universe(self.universe, top_n=self.top_n, custom_tickers=self.custom_tickers)
                 tickers = universe_df['ticker'].tolist()
                 
                 if verbose and not HAS_TQDM:

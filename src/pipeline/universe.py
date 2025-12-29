@@ -734,6 +734,7 @@ def get_hybrid_universe() -> List[str]:
 def get_universe(
     universe_name: str = "sp500",
     top_n: int = DEFAULT_TOP_N_STOCKS,
+    custom_tickers: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """
     Main entry point for fetching stock universe.
@@ -741,6 +742,7 @@ def get_universe(
     Args:
         universe_name: Name of universe ('sp500', 'russell2000', 'nasdaq100', 'combined', 'custom')
         top_n: Number of stocks to return (by market cap)
+        custom_tickers: List of tickers for custom universe (required if universe_name='custom')
     
     Returns:
         DataFrame with columns: ticker, sector, market_cap
@@ -773,6 +775,11 @@ def get_universe(
         return fetch_nasdaq100_constituents(top_n=top_n)
     elif universe_name_lower in ("combined", "all", "full"):
         return fetch_combined_universe(top_n=top_n)
+    elif universe_name_lower == "custom":
+        if not custom_tickers:
+            raise ValueError("Custom universe requires --tickers argument. Example: --universe custom --tickers AAPL MSFT NVDA")
+        logger.info("Using custom ticker list: %s", custom_tickers)
+        return _enrich_tickers_with_info(custom_tickers)
     else:
         logger.warning("Unknown universe '%s', defaulting to S&P 500", universe_name)
         return fetch_sp500_constituents(top_n=top_n, use_fallback=True)
