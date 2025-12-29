@@ -55,6 +55,7 @@ class FactorEngine:
         batch_size: int = DEFAULT_BATCH_SIZE,
         cache_expiry_hours: int = DEFAULT_CACHE_EXPIRY_HOURS,
         as_of_date: Optional[str] = None,
+        verbose: bool = True,
     ):
         """
         Initialize the Factor Engine.
@@ -64,11 +65,13 @@ class FactorEngine:
             batch_size: Number of tickers to process per batch (default: 50)
             cache_expiry_hours: Cache freshness threshold in hours (default: 24)
             as_of_date: Point-in-time date for backtesting (YYYY-MM-DD). Only data before this date will be used.
+            verbose: Whether to print progress messages (default: True)
         """
         self.tickers = tickers
         self.batch_size = batch_size
         self.cache_expiry_hours = cache_expiry_hours
         self.as_of_date = pd.to_datetime(as_of_date) if as_of_date else None
+        self.verbose = verbose
         self.data = {}
         self.factor_scores = None
         self.universe_stats = {}  # Store mean/std for each factor
@@ -227,7 +230,8 @@ class FactorEngine:
         Uses caching, batch processing, and parallel execution for speed and reliability.
         """
         overall_timer_start = time.time()
-        print(f"📊 Fetching data for {len(self.tickers)} tickers (batch size: {self.batch_size})...")
+        if self.verbose:
+            print(f"📊 Fetching data for {len(self.tickers)} tickers (batch size: {self.batch_size})...")
         
         # Process in batches
         batches = [self.tickers[i:i + self.batch_size] 
@@ -241,7 +245,7 @@ class FactorEngine:
         batch_iterator = tqdm(enumerate(batches, 1), total=total_batches, desc="Batches") if HAS_TQDM else enumerate(batches, 1)
         
         for batch_num, batch in batch_iterator:
-            if not HAS_TQDM:
+            if not HAS_TQDM and self.verbose:
                 print(f"  Processing batch {batch_num}/{total_batches} ({len(batch)} tickers)...")
             
             # Process batch in parallel with ThreadPoolExecutor
@@ -273,8 +277,9 @@ class FactorEngine:
                             print(f"    ⚠️  Error fetching {ticker}: {e}")
         
         overall_elapsed = time.time() - overall_timer_start
-        print(f"\n✅ Data fetched: {successful} successful, {failed} failed")
-        print(f"⏱️  Data Fetching - Total: {overall_elapsed:.2f}s\n")
+        if self.verbose:
+            print(f"\n✅ Data fetched: {successful} successful, {failed} failed")
+            print(f"⏱️  Data Fetching - Total: {overall_elapsed:.2f}s\n")
     
     def calculate_value_factor(self, ticker: str) -> float:
         """
@@ -460,7 +465,8 @@ class FactorEngine:
             self.fetch_data()
         
         calc_start = time.time()
-        print("🔬 Calculating factor scores...")
+        if self.verbose:
+            print("🔬 Calculating factor scores...")
         
         # Calculate raw factor values for all tickers
         results = []
@@ -504,8 +510,9 @@ class FactorEngine:
         output_df = df[['Ticker', 'Value_Z', 'Quality_Z', 'Momentum_Z', 'Total_Score']].copy()
         
         calc_elapsed = time.time() - calc_start
-        print(f"✅ Factor ranking complete!")
-        print(f"⏱️  Factor Calculation - Total: {calc_elapsed:.2f}s\n")
+        if self.verbose:
+            print(f"✅ Factor ranking complete!")
+            print(f"⏱️  Factor Calculation - Total: {calc_elapsed:.2f}s\n")
         return output_df
     
     def generate_audit_report(self, ticker: str) -> Dict:

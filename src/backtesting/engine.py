@@ -318,7 +318,8 @@ class BacktestEngine:
                     tickers=tickers,
                     batch_size=50,
                     cache_expiry_hours=24,
-                    as_of_date=as_of_date  # Critical: only use historical data
+                    as_of_date=as_of_date,  # Critical: only use historical data
+                    verbose=False  # Suppress prints during backtest iterations
                 )
                 
                 factor_scores = factor_engine.rank_universe()
@@ -333,7 +334,8 @@ class BacktestEngine:
                 optimizer = BlackLittermanOptimizer(
                     tickers=top_stocks,
                     risk_free_rate=self.risk_free_rate,
-                    factor_alpha_scalar=self.factor_alpha_scalar
+                    factor_alpha_scalar=self.factor_alpha_scalar,
+                    verbose=False  # Suppress prints during backtest iterations
                 )
                 
                 # Fetch price data for optimization using ONLY historical data
