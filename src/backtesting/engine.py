@@ -285,10 +285,9 @@ class BacktestEngine:
         else:
             spy_prices = spy_data['Adj Close']
         
-        # Suppress all logs except CRITICAL during backtest iterations (cleaner progress bar)
+        # Suppress all logs except CRITICAL during backtest iterations (cleaner output)
         original_log_level = logging.getLogger().level
-        if HAS_TQDM and verbose:
-            logging.getLogger().setLevel(logging.CRITICAL)
+        logging.getLogger().setLevel(logging.CRITICAL)
         
         # Progress bar
         iterator = tqdm(rebalance_dates, desc="Backtesting") if HAS_TQDM and verbose else rebalance_dates
