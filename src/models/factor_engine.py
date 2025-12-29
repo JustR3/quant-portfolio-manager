@@ -226,7 +226,14 @@ class FactorEngine:
                 fetch()
             except Exception as e:
                 error_msg = str(e).lower()
-                if any(kw in error_msg for kw in ['429', 'rate limit', 'too many requests']):\n                    thread_safe_rate_limiter.trigger_circuit_breaker(duration_seconds=120.0)\n        \n        if result:\n            # Save to consolidated cache (Phase 2 optimization)\n            default_cache.set_consolidated(consolidated_key, result)\n        \n        return result
+                if any(kw in error_msg for kw in ['429', 'rate limit', 'too many requests']):
+                    thread_safe_rate_limiter.trigger_circuit_breaker(duration_seconds=120.0)
+        
+        if result:
+            # Save to consolidated cache (Phase 2 optimization)
+            default_cache.set_consolidated(consolidated_key, result)
+        
+        return result
         
     def fetch_data(self) -> None:
         """
