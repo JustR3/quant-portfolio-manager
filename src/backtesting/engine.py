@@ -267,7 +267,9 @@ class BacktestEngine:
         equity_curve = []
         equity_dates = []
         
-        # Download benchmark data (SPY) - suppress output
+        # Download benchmark data (SPY) - suppress all output
+        original_log_level = logging.getLogger().level
+        logging.disable(logging.CRITICAL)  # Disable ALL logging temporarily
         
         import warnings as warn
         with warn.catch_warnings():
@@ -279,6 +281,8 @@ class BacktestEngine:
                 progress=False,
                 auto_adjust=False  # Keep Adj Close column
             )
+        
+        logging.disable(logging.NOTSET)  # Re-enable logging
         # Handle both single-column and multi-column DataFrames
         if isinstance(spy_data.columns, pd.MultiIndex):
             spy_prices = spy_data[('Adj Close', 'SPY')]
@@ -286,8 +290,7 @@ class BacktestEngine:
             spy_prices = spy_data['Adj Close']
         
         # Suppress all logs except CRITICAL during backtest iterations (cleaner output)
-        original_log_level = logging.getLogger().level
-        logging.getLogger().setLevel(logging.CRITICAL)
+        logging.disable(logging.CRITICAL)
         
         # Progress bar
         iterator = tqdm(rebalance_dates, desc="Backtesting") if HAS_TQDM and verbose else rebalance_dates
@@ -444,9 +447,8 @@ class BacktestEngine:
                     traceback.print_exc()
                 continue
         
-        # Restore original log level
-        if HAS_TQDM and verbose:
-            logging.getLogger().setLevel(original_log_level)
+        # Restore logging
+        logging.disable(logging.NOTSET)
         
         # === CALCULATE PERFORMANCE METRICS ===
         
