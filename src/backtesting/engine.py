@@ -4,6 +4,7 @@ Walk-forward validation of systematic factor strategies.
 """
 
 import warnings
+import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
@@ -292,6 +293,11 @@ class BacktestEngine:
         else:
             spy_prices = spy_data['Adj Close']
         
+        # Suppress INFO logs during backtest iterations (cleaner progress bar)
+        original_log_level = logging.getLogger().level
+        if HAS_TQDM and verbose:
+            logging.getLogger().setLevel(logging.WARNING)
+        
         # Progress bar
         iterator = tqdm(rebalance_dates, desc="Backtesting") if HAS_TQDM and verbose else rebalance_dates
         
@@ -440,6 +446,10 @@ class BacktestEngine:
                     import traceback
                     traceback.print_exc()
                 continue
+        
+        # Restore original log level
+        if HAS_TQDM and verbose:
+            logging.getLogger().setLevel(original_log_level)
         
         # === CALCULATE PERFORMANCE METRICS ===
         
