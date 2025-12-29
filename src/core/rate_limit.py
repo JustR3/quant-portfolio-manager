@@ -61,9 +61,10 @@ class RateLimiter:
 
 class ThreadSafeRateLimiter:
     """
-    Thread-safe rate limiter for parallel API calls.
+    Thread-safe rate limiter for parallel API calls with circuit breaker.
     
     Allows multiple threads to make API calls while respecting global rate limits.
+    Includes circuit breaker to pause all requests when rate limit is detected.
     Essential for parallel data fetching with yfinance.
     
     Example:
@@ -88,10 +89,31 @@ class ThreadSafeRateLimiter:
         self.min_interval = 60.0 / calls_per_minute
         self.last_call = 0.0
         self.lock = threading.Lock()
+        self.circuit_breaker_until = 0.0  # Timestamp when circuit breaker lifts
+        self.circuit_breaker_active = False
+    
+    def trigger_circuit_breaker(self, duration_seconds: float = 60.0) -> None:
+        """Activate circuit breaker to pause all requests."""
+        with self.lock:
+            self.circuit_breaker_until = time.time() + duration_seconds
+            self.circuit_breaker_active = True
+            logger.warning(
+                "Rate limit circuit breaker activated for %.0f seconds",
+                duration_seconds
+            )
     
     def wait(self) -> None:
         """Thread-safe wait until rate limit allows next call."""
         with self.lock:
+            # Check circuit breaker first
+            if self.circuit_breaker_active:
+                remaining = self.circuit_breaker_until - time.time()
+                if remaining > 0:
+                    logger.info("Circuit breaker active, waiting %.0fs...", remaining)
+                    time.sleep(remaining)
+                self.circuit_breaker_active = False
+            
+            # Normal rate limiting
             elapsed = time.time() - self.last_call
             if elapsed < self.min_interval:
                 sleep_time = self.min_interval - elapsed

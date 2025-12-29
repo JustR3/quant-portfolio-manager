@@ -31,6 +31,8 @@ def retry_with_backoff(
     """
     Retry a function with exponential backoff.
     
+    Detects Yahoo Finance rate limiting and applies aggressive backoff (60s+).
+    
     Args:
         func: Function to retry (should take no arguments - use lambda for params)
         max_attempts: Maximum number of attempts (default: 3)
@@ -59,22 +61,46 @@ def retry_with_backoff(
         try:
             return func()
         except exceptions as e:
-            if attempt == max_attempts:
+            error_msg = str(e).lower()
+            
+            # Detect Yahoo Finance rate limiting
+            is_rate_limit = any(keyword in error_msg for keyword in [
+                '429',
+                'rate limit',
+                'too many requests',
+                'service unavailable',
+                'temporarily unavailable'
+            ])
+            
+            if is_rate_limit:
+                # Yahoo Finance rate limit hit - use aggressive backoff
+                rate_limit_delay = 60.0 * attempt  # 60s, 120s, 180s
                 logger.warning(
-                    "All %d retry attempts failed: %s",
+                    "Yahoo Finance rate limit detected (attempt %d/%d). "
+                    "Waiting %d seconds before retry...",
+                    attempt,
+                    max_attempts,
+                    int(rate_limit_delay)
+                )
+                time.sleep(rate_limit_delay)
+                delay = rate_limit_delay  # Use longer delay for subsequent attempts
+            else:
+                if attempt == max_attempts:
+                    logger.warning(
+                        "All %d retry attempts failed: %s",
+                        max_attempts,
+                        str(e),
+                    )
+                    return None
+                
+                logger.debug(
+                    "Attempt %d/%d failed: %s. Retrying in %.1fs...",
+                    attempt,
                     max_attempts,
                     str(e),
+                    delay,
                 )
-                return None
-            
-            logger.debug(
-                "Attempt %d/%d failed: %s. Retrying in %.1fs...",
-                attempt,
-                max_attempts,
-                str(e),
-                delay,
-            )
-            time.sleep(delay)
-            delay *= backoff_factor
+                time.sleep(delay)
+                delay *= backoff_factor
     
     return None

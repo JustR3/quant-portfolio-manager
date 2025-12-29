@@ -110,25 +110,33 @@ class BlackLittermanOptimizer:
         Returns:
             DataFrame with adjusted close prices
         """
-        if start_date and end_date:
-            if self.verbose:
-                print(f"📊 Fetching price data for {len(self.tickers)} tickers ({start_date} to {end_date})...")
-            data = yf.download(
-                self.tickers,
-                start=start_date,
-                end=end_date,
-                progress=False,
-                auto_adjust=True
-            )
-        else:
-            if self.verbose:
-                print(f"📊 Fetching price data for {len(self.tickers)} tickers ({period})...")
-            data = yf.download(
-                self.tickers,
-                period=period,
-                progress=False,
-                auto_adjust=True
-            )
+        # Wrap yfinance calls to handle rate limiting
+        try:
+            if start_date and end_date:
+                if self.verbose:
+                    print(f"📊 Fetching price data for {len(self.tickers)} tickers ({start_date} to {end_date})...")
+                data = yf.download(
+                    self.tickers,
+                    start=start_date,
+                    end=end_date,
+                    progress=False,
+                    auto_adjust=True
+                )
+            else:
+                if self.verbose:
+                    print(f"📊 Fetching price data for {len(self.tickers)} tickers ({period})...")
+                data = yf.download(
+                    self.tickers,
+                    period=period,
+                    progress=False,
+                    auto_adjust=True
+                )
+        except Exception as e:
+            error_msg = str(e).lower()
+            if any(kw in error_msg for kw in ['429', 'rate limit', 'too many requests']):
+                logger.error("Yahoo Finance rate limit hit during price fetch. Please wait 60+ seconds and retry.")
+                raise RuntimeError(f"Yahoo Finance rate limit exceeded: {str(e)}")
+            raise
         
         # Extract close prices
         if len(self.tickers) == 1:
