@@ -5,7 +5,7 @@ Optional: Macro adjustments (Shiller CAPE), Factor tilts (Fama-French)
 """
 
 import time
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 
 import pandas as pd
 import numpy as np
@@ -65,6 +65,7 @@ def run_systematic_portfolio(
     regime_method: str = "combined",
     regime_risk_off_exposure: float = REGIME_RISK_OFF_EXPOSURE,
     regime_caution_exposure: float = REGIME_CAUTION_EXPOSURE,
+    custom_tickers: Optional[List[str]] = None,
 ) -> Dict:
     """
     Run the complete systematic portfolio workflow.
@@ -78,6 +79,14 @@ def run_systematic_portfolio(
         objective: Optimization objective ('max_sharpe', 'min_volatility', 'max_quadratic_utility')
         weight_bounds: Min/max weight per asset (default: 0-30%)
         batch_size: Batch size for data fetching
+        cache_expiry_hours: Cache freshness threshold
+        use_macro_adjustment: Apply Shiller CAPE-based equity risk adjustment
+        use_factor_regimes: Apply Fama-French factor regime tilts
+        use_regime_adjustment: Apply regime-based exposure adjustment
+        regime_method: Regime detection method ('sma', 'vix', 'combined')
+        regime_risk_off_exposure: Equity exposure in RISK_OFF regime (default: 50%)
+        regime_caution_exposure: Equity exposure in CAUTION regime (default: 75%)
+        custom_tickers: Custom ticker list (for universe='custom')
         cache_expiry_hours: Cache freshness threshold
         use_macro_adjustment: Apply Shiller CAPE-based equity risk adjustment
         use_factor_regimes: Apply Fama-French factor regime tilts
@@ -177,7 +186,7 @@ def run_systematic_portfolio(
     print(f"📋 Step 1/4: Loading {universe_name.upper()} universe (top {top_n} by market cap)...")
     print("-" * 90)
     
-    universe_df = get_universe(universe_name, top_n=top_n)
+    universe_df = get_universe(universe_name, top_n=top_n, custom_tickers=custom_tickers)
     
     if universe_df.empty:
         raise ValueError("Failed to load universe")

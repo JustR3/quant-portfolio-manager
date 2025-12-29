@@ -87,6 +87,8 @@ Examples:
     opt.add_argument("--universe", type=str, default="sp500", 
                      choices=["sp500", "russell2000", "nasdaq100", "combined", "custom"],
                      help="Stock universe: sp500 (large-cap), russell2000 (small-cap), nasdaq100 (tech/growth), combined (sp500+russell2000), custom (default: sp500)")
+    opt.add_argument("--tickers", type=str, nargs="+", metavar="TICKER",
+                     help="Custom ticker list (requires --universe custom). Example: --universe custom --tickers AAPL MSFT NVDA")
     opt.add_argument("--top-n", type=int, default=50, metavar="N",
                      help="Number of top stocks by market cap to analyze (default: 50)")
     opt.add_argument("--optimize-top", type=int, default=None, metavar="N",
@@ -139,6 +141,8 @@ Examples:
     backtest.add_argument("--universe", type=str, default="sp500",
                          choices=["sp500", "russell2000", "nasdaq100", "combined", "custom"],
                          help="Stock universe: sp500 (large-cap), russell2000 (small-cap), nasdaq100 (tech/growth), combined (sp500+russell2000)")
+    backtest.add_argument("--tickers", type=str, nargs="+", metavar="TICKER",
+                         help="Custom ticker list (requires --universe custom). Example: --universe custom --tickers AAPL MSFT NVDA")
     backtest.add_argument("--top-n", type=int, default=50, metavar="N",
                          help="Number of top stocks by market cap (default: 50)")
     backtest.add_argument("--optimize-top", type=int, default=None, metavar="N",
@@ -195,7 +199,8 @@ def main():
                 use_regime_adjustment=args.use_regime,
                 regime_method=args.regime_method,
                 regime_risk_off_exposure=args.regime_risk_off,
-                regime_caution_exposure=args.regime_caution
+                regime_caution_exposure=args.regime_caution,
+                custom_tickers=args.tickers
             )
             
             # Display results
@@ -367,6 +372,7 @@ def main():
                 regime_method=args.regime_method,
                 regime_risk_off_exposure=args.regime_risk_off,
                 regime_caution_exposure=args.regime_caution,
+                custom_tickers=args.tickers
             )
             
             # Run backtest
