@@ -356,12 +356,18 @@ class BacktestEngine:
                 
                 # Generate views and optimize
                 optimizer.generate_views_from_scores(factor_scores)
-                opt_result = optimizer.optimize(
-                    objective=self.objective,
-                    weight_bounds=self.weight_bounds
-                )
                 
-                new_weights = opt_result.weights
+                try:
+                    opt_result = optimizer.optimize(
+                        objective=self.objective,
+                        weight_bounds=self.weight_bounds
+                    )
+                    new_weights = opt_result.weights
+                except (ValueError, Exception) as opt_error:
+                    # Fallback to equal-weight if optimization fails
+                    if verbose and not HAS_TQDM:
+                        print(f"   ⚠️  Optimization failed ({str(opt_error)}), using equal-weight")
+                    new_weights = {ticker: 1.0 / len(top_stocks) for ticker in top_stocks}
                 
                 # Apply regime adjustment if enabled
                 if self.use_regime:

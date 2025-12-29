@@ -223,6 +223,13 @@ class BlackLittermanOptimizer:
         views = dict(zip(factor_scores_filtered['Ticker'], factor_scores_filtered['implied_return']))
         confidences = dict(zip(factor_scores_filtered['Ticker'], factor_scores_filtered['confidence']))
         
+        # Check for degenerate case (all views zero or very small)
+        if len(views) == 0 or max(abs(v) for v in views.values()) < 0.0001:
+            logger.warning("All factor views are near zero - factor scores may be degenerate")
+            # Set minimal non-zero views to allow optimization
+            views = {ticker: 0.001 * (i - len(views)/2) / len(views) 
+                    for i, ticker in enumerate(views.keys())}
+        
         self.views = views
         self.confidences = confidences
         
