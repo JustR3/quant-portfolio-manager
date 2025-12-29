@@ -252,21 +252,12 @@ class BacktestEngine:
         Returns:
             BacktestResult with comprehensive metrics
         """
-        if verbose:
-            print("\n" + "=" * 80)
-            print("🚀 STARTING BACKTEST")
-            print("=" * 80)
-            print(f"Period: {self.start_date.strftime('%Y-%m-%d')} to {self.end_date.strftime('%Y-%m-%d')}")
-            print(f"Universe: {self.universe} (top {self.top_n})")
-            print(f"Rebalance: {self.rebalance_frequency}")
-            print(f"Initial Capital: ${self.initial_capital:,.0f}")
-            print("=" * 80 + "\n")
-        
         # Generate rebalance dates
         rebalance_dates = self._generate_rebalance_dates()
         
         if verbose:
-            print(f"📅 Generated {len(rebalance_dates)} rebalance dates\n")
+            print(f"\n🚀 Backtesting {self.universe} ({self.start_date.strftime('%Y-%m-%d')} → {self.end_date.strftime('%Y-%m-%d')})")
+            print(f"   {len(rebalance_dates)} rebalances | Top {self.top_n} stocks | ${self.initial_capital:,.0f} capital\n")
         
         # Initialize portfolio
         current_portfolio_value = self.initial_capital
@@ -276,27 +267,28 @@ class BacktestEngine:
         equity_curve = []
         equity_dates = []
         
-        # Download benchmark data (SPY)
-        if verbose:
-            print("📊 Downloading benchmark data (SPY)...")
+        # Download benchmark data (SPY) - suppress output
         
-        spy_data = yf.download(
-            'SPY',
-            start=self.start_date,
-            end=self.end_date,
-            progress=False,
-            auto_adjust=False  # Keep Adj Close column
-        )
+        import warnings as warn
+        with warn.catch_warnings():
+            warn.simplefilter("ignore")
+            spy_data = yf.download(
+                'SPY',
+                start=self.start_date,
+                end=self.end_date,
+                progress=False,
+                auto_adjust=False  # Keep Adj Close column
+            )
         # Handle both single-column and multi-column DataFrames
         if isinstance(spy_data.columns, pd.MultiIndex):
             spy_prices = spy_data[('Adj Close', 'SPY')]
         else:
             spy_prices = spy_data['Adj Close']
         
-        # Suppress INFO logs during backtest iterations (cleaner progress bar)
+        # Suppress all logs except CRITICAL during backtest iterations (cleaner progress bar)
         original_log_level = logging.getLogger().level
         if HAS_TQDM and verbose:
-            logging.getLogger().setLevel(logging.WARNING)
+            logging.getLogger().setLevel(logging.CRITICAL)
         
         # Progress bar
         iterator = tqdm(rebalance_dates, desc="Backtesting") if HAS_TQDM and verbose else rebalance_dates

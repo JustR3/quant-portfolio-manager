@@ -252,8 +252,8 @@ class FactorEngine:
         successful = 0
         failed = 0
         
-        # Use tqdm if available
-        batch_iterator = tqdm(enumerate(batches, 1), total=total_batches, desc="Batches") if HAS_TQDM else enumerate(batches, 1)
+        # Use tqdm only if verbose is True
+        batch_iterator = tqdm(enumerate(batches, 1), total=total_batches, desc="Batches", leave=False, disable=not self.verbose) if HAS_TQDM else enumerate(batches, 1)
         
         for batch_num, batch in batch_iterator:
             if not HAS_TQDM and self.verbose:
