@@ -64,6 +64,7 @@ class BlackLittermanOptimizer:
         market_cap_weights: Optional[Dict[str, float]] = None,
         macro_return_scalar: float = 1.0,
         sector_map: Optional[Dict[str, str]] = None,
+        verbose: bool = True,
     ):
         """
         Initialize the optimizer.
@@ -76,6 +77,7 @@ class BlackLittermanOptimizer:
             market_cap_weights: Prior market cap weights (if None, uses equal weight)
             macro_return_scalar: Macro adjustment to equilibrium returns (e.g., 0.7 for expensive markets)
             sector_map: Dict mapping tickers to sectors for sector constraints
+            verbose: Whether to print progress messages (default: True)
         """
         self.tickers = tickers
         self.risk_free_rate = risk_free_rate
@@ -83,6 +85,7 @@ class BlackLittermanOptimizer:
         self.market_cap_weights = market_cap_weights or self._get_equal_weights()
         self.macro_return_scalar = macro_return_scalar
         self.sector_map = sector_map or {}
+        self.verbose = verbose
         
         # Data containers
         self.prices = None
@@ -108,7 +111,8 @@ class BlackLittermanOptimizer:
             DataFrame with adjusted close prices
         """
         if start_date and end_date:
-            print(f"📊 Fetching price data for {len(self.tickers)} tickers ({start_date} to {end_date})...")
+            if self.verbose:
+                print(f"📊 Fetching price data for {len(self.tickers)} tickers ({start_date} to {end_date})...")
             data = yf.download(
                 self.tickers,
                 start=start_date,
@@ -117,7 +121,8 @@ class BlackLittermanOptimizer:
                 auto_adjust=True
             )
         else:
-            print(f"📊 Fetching price data for {len(self.tickers)} tickers ({period})...")
+            if self.verbose:
+                print(f"📊 Fetching price data for {len(self.tickers)} tickers ({period})...")
             data = yf.download(
                 self.tickers,
                 period=period,
@@ -144,11 +149,13 @@ class BlackLittermanOptimizer:
         
         if len(valid_tickers) < len(self.tickers):
             dropped = set(self.tickers) - set(valid_tickers)
-            print(f"  ⚠️  Dropped {len(dropped)} tickers with no price data: {dropped}")
+            if self.verbose:
+                print(f"  ⚠️  Dropped {len(dropped)} tickers with no price data: {dropped}")
             self.tickers = valid_tickers
         
         self.prices = prices
-        print(f"✅ Price data loaded: {len(prices)} days, {len(valid_tickers)} tickers\n")
+        if self.verbose:
+            print(f"✅ Price data loaded: {len(prices)} days, {len(valid_tickers)} tickers\n")
         
         return prices
     
@@ -168,7 +175,8 @@ class BlackLittermanOptimizer:
             - views: Implied excess return for each ticker
             - confidences: Confidence level based on factor agreement
         """
-        print("🔬 Generating Black-Litterman views from factor scores...")
+        if self.verbose:
+            print("🔬 Generating Black-Litterman views from factor scores...")
         
         # Store factor scores
         self.factor_scores = factor_scores_df
@@ -219,10 +227,11 @@ class BlackLittermanOptimizer:
         self.confidences = confidences
         
         # Display summary
-        print(f"  ✓ Generated views for {len(views)} tickers")
-        print(f"  ✓ Mean view: {np.mean(list(views.values()))*100:.2f}%")
-        print(f"  ✓ View range: [{min(views.values())*100:.2f}%, {max(views.values())*100:.2f}%]")
-        print(f"  ✓ Mean confidence: {np.mean(list(confidences.values())):.2f}\n")
+        if self.verbose:
+            print(f"  ✓ Generated views for {len(views)} tickers")
+            print(f"  ✓ Mean view: {np.mean(list(views.values()))*100:.2f}%")
+            print(f"  ✓ View range: [{min(views.values())*100:.2f}%, {max(views.values())*100:.2f}%]")
+            print(f"  ✓ Mean confidence: {np.mean(list(confidences.values())):.2f}\n")
         
         return views, confidences
     
@@ -250,7 +259,8 @@ class BlackLittermanOptimizer:
             raise ValueError("Must generate views first")
         
         opt_start = time.time()
-        print(f"🎯 Optimizing portfolio ({objective})...")
+        if self.verbose:
+            print(f"🎯 Optimizing portfolio ({objective})...")
         
         # Calculate sample covariance matrix
         S = risk_models.CovarianceShrinkage(self.prices).ledoit_wolf()
@@ -261,7 +271,7 @@ class BlackLittermanOptimizer:
         
         # Apply macro adjustment to equilibrium returns (not to factor confidence)
         # This separates "market is expensive" from "factors don't work"
-        if self.macro_return_scalar != 1.0:
+        if self.macro_return_scalar != 1.0 and self.verbose:
             print(f"  📉 Applying macro adjustment: {self.macro_return_scalar:.2f}x to equilibrium returns")
             market_returns = market_returns * self.macro_return_scalar
         
@@ -321,11 +331,12 @@ class BlackLittermanOptimizer:
         )
         
         opt_elapsed = time.time() - opt_start
-        print(f"✅ Optimization complete!")
-        print(f"  Expected Return: {result.expected_return*100:.2f}%")
-        print(f"  Volatility: {result.volatility*100:.2f}%")
-        print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}")
-        print(f"⏱️  Portfolio Optimization - Total: {opt_elapsed:.2f}s\n")
+        if self.verbose:
+            print(f"✅ Optimization complete!")
+            print(f"  Expected Return: {result.expected_return*100:.2f}%")
+            print(f"  Volatility: {result.volatility*100:.2f}%")
+            print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}")
+            print(f"⏱️  Portfolio Optimization - Total: {opt_elapsed:.2f}s\n")
         
         return result
     
@@ -363,7 +374,8 @@ class BlackLittermanOptimizer:
                 logger.debug(f"Applied sector constraint: {sector} ≤ {max_weight*100:.0f}%")
         
         if constraints_applied > 0:
-            print(f"  📊 Applied {constraints_applied} sector concentration constraints")
+            if self.verbose:
+                print(f"  📊 Applied {constraints_applied} sector concentration constraints")
     
     def get_discrete_allocation(
         self,
