@@ -30,6 +30,7 @@ from src.constants import (
     MAX_POSITION_SIZE,
     MIN_POSITION_SIZE,
     DEFAULT_TOP_N_STOCKS,
+    DEFAULT_CAPITAL,
     # CAPE
     CAPE_THRESHOLD_LOW,
     CAPE_THRESHOLD_HIGH,
@@ -110,6 +111,7 @@ class Config:
     # Portfolio Optimization
     # =========================================================================
     default_risk_free_rate: float = DEFAULT_RISK_FREE_RATE
+    default_capital: float = DEFAULT_CAPITAL
     max_position_size: float = MAX_POSITION_SIZE
     min_position_size: float = MIN_POSITION_SIZE
     default_top_n: int = DEFAULT_TOP_N_STOCKS

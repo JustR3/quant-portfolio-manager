@@ -439,7 +439,7 @@ uv run ./main.py backtest \
 Configuration:
 ├─ Universe: sp500 (top 50 by market cap)
 ├─ Rebalance: monthly
-├─ Initial Capital: $100,000
+├─ Initial Capital: $10,000
 ├─ Objective: max_sharpe
 └─ Benchmark: SPY
 

@@ -56,7 +56,7 @@ class BacktestEngine:
         top_n: int = 50,
         top_n_for_optimization: Optional[int] = None,
         rebalance_frequency: str = 'monthly',
-        initial_capital: float = 100000.0,
+        initial_capital: float = 10000.0,
         risk_free_rate: float = 0.04,
         factor_alpha_scalar: float = 0.05,
         objective: str = 'max_sharpe',
@@ -79,7 +79,7 @@ class BacktestEngine:
             top_n: Number of top stocks to select
             top_n_for_optimization: Number of top-ranked stocks for optimization (default: same as top_n)
             rebalance_frequency: 'monthly' or 'quarterly'
-            initial_capital: Starting portfolio value
+            initial_capital: Starting portfolio value (default: $10,000)
             risk_free_rate: Risk-free rate for Sharpe calculation
             factor_alpha_scalar: Factor Z-score to return conversion
             objective: Optimization objective ('max_sharpe', etc.)

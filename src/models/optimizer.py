@@ -36,6 +36,7 @@ class OptimizationResult:
     volatility: float
     sharpe_ratio: float
     performance: Dict[str, float]
+    forecast_horizon: str = "1 year (annualized)"  # Explicit time horizon
     
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
@@ -44,7 +45,8 @@ class OptimizationResult:
             'expected_return': self.expected_return,
             'volatility': self.volatility,
             'sharpe_ratio': self.sharpe_ratio,
-            'performance': self.performance
+            'performance': self.performance,
+            'forecast_horizon': self.forecast_horizon
         }
 
 
@@ -342,7 +344,8 @@ class BlackLittermanOptimizer:
                 'expected_annual_return': performance[0] * 100,
                 'annual_volatility': performance[1] * 100,
                 'sharpe_ratio': performance[2]
-            }
+            },
+            forecast_horizon="1 year (annualized)"
         )
         
         opt_elapsed = time.time() - opt_start
@@ -515,10 +518,10 @@ if __name__ == "__main__":
     
     # Discrete allocation example
     print("\n" + "=" * 80)
-    print("💰 DISCRETE ALLOCATION ($50,000 Portfolio)")
+    print("💰 DISCRETE ALLOCATION ($10,000 Portfolio)")
     print("=" * 80 + "\n")
     
-    allocation = optimizer.get_discrete_allocation(result.weights, 50000)
+    allocation = optimizer.get_discrete_allocation(result.weights, 10000)
     
     if allocation['allocation']:
         print(f"{'Ticker':<8} {'Shares':<10} {'Value':<12}")

@@ -69,6 +69,8 @@ DEFAULT_RISK_FREE_RATE: Final[float] = 0.04  # 4%
 MAX_POSITION_SIZE: Final[float] = 0.30  # 30%
 MIN_POSITION_SIZE: Final[float] = 0.00  # Allow zero weight
 DEFAULT_TOP_N_STOCKS: Final[int] = 50
+DEFAULT_CAPITAL: Final[float] = 10000.0  # $10,000 standard portfolio size
+DEFAULT_FORECAST_HORIZON: Final[str] = "1 year (annualized)"  # Expected return time horizon
 
 # Minimum weight threshold (below this, treat as zero)
 MIN_WEIGHT_THRESHOLD: Final[float] = 0.001  # 0.1%
