@@ -202,6 +202,69 @@ uv run ./main.py verify NVDA
 uv run ./main.py verify TSLA --universe NVDA XOM JPM PFE TSLA
 ```
 
+#### Portfolio Snapshot & Forward Testing
+
+**NEW**: Create snapshots of optimized portfolios and validate their forward performance:
+
+```bash
+# Build portfolio and create snapshot (both JSON and CSV)
+uv run ./main.py optimize --universe sp500 --top-n 50 --export my_portfolio
+# → Creates: data/portfolios/my_portfolio_YYYYMMDD_HHMMSS.json (full context)
+# → Creates: data/portfolios/my_portfolio_YYYYMMDD_HHMMSS.csv (positions only)
+
+# List all portfolio snapshots
+uv run ./main.py portfolio list
+
+# Validate forward performance (compare expected vs realized)
+uv run ./main.py portfolio validate data/portfolios/my_portfolio_20260106_120000.json
+```
+
+**What's captured in snapshots:**
+- Current prices and shares for each position
+- Complete factor breakdowns (Value/Quality/Momentum Z-scores)
+- Expected portfolio metrics (return, volatility, Sharpe ratio)
+- Configuration (universe, factor weights, optimization objective)
+- Benchmark price (for alpha calculation)
+- Time horizon (1 year annualized)
+- Standard capital ($10,000)
+
+**Validation output includes:**
+- Realized returns vs expected returns
+- Alpha/beta vs benchmark (S&P 500)
+- Individual position performance (top/bottom performers)
+- Handles delisted tickers gracefully
+- Time period analysis (days since creation)
+
+**Example validation output:**
+```
+📊 PORTFOLIO VALIDATION REPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📅 Created: 2025-01-06 12:00:00
+⏱️  Time Period: 365 days
+💰 Capital: $10,000.00
+🎯 Forecast Horizon: 1 year (annualized)
+
+📈 EXPECTED METRICS (at creation)
+   Expected Return: 18.45%
+   Expected Volatility: 22.30%
+   Expected Sharpe: 0.73
+
+💵 REALIZED PERFORMANCE
+   Realized Return: 21.32% ✅ (+2.87% beat)
+   Benchmark Return: 15.20%
+   Alpha: +6.12% (outperformance)
+   Beta: 1.15
+
+🔝 TOP PERFORMERS
+   NVDA: +45.2% (Tech)
+   AMD: +38.7% (Tech)
+   AVGO: +32.1% (Tech)
+
+📉 BOTTOM PERFORMERS
+   XYZ: -12.3% (delisted)
+   ABC: -8.5% (Materials)
+```
+
 ## 📖 Factor Methodology
 
 ### Value Factor
@@ -485,7 +548,7 @@ print(f"Tech sector ERP: {priors.expected_return}")
 
 ```
 quant-portfolio-manager/
-├── main.py                          # CLI entry point with verify command
+├── main.py                          # CLI entry point (optimize, verify, backtest, portfolio)
 ├── config.py                        # Configuration and API keys
 ├── pyproject.toml                   # Dependencies (uv package manager)
 ├── src/
@@ -499,13 +562,16 @@ quant-portfolio-manager/
 │   │   ├── systematic_workflow.py   # Unified factor→BL pipeline
 │   │   ├── shiller_loader.py        # Macro God: CAPE risk adjustment
 │   │   └── french_loader.py         # Factor God: Fama-French tilts
+│   ├── portfolio_snapshot.py        # Portfolio snapshot creation (JSON/CSV)
+│   ├── forward_testing/
+│   │   └── validator.py             # Forward performance validation
 │   └── utils/
 │       └── validation.py            # Data quality checks
-
 ├── tests/
 │   └── test_phase1_integration.py   # Integration tests
 └── data/
-    └── cache/                       # Data cache (gitignored)
+    ├── cache/                       # Data cache (gitignored)
+    └── portfolios/                  # Portfolio snapshots (gitignored)
 ```
 
 ## 🛠️ Technical Details
@@ -591,6 +657,18 @@ Confidence = f(std_dev(Value_Z, Quality_Z, Momentum_Z))
 - Automated verification script for data integrity
 - Equity curve generation and export
 - Full pipeline integration (Factor Engine → Optimizer)
+
+### ✅ Phase 5: Portfolio Snapshots & Forward Testing (Complete)
+- Snapshot creation system with complete portfolio context capture
+- JSON format with full metadata (prices, shares, factors, config, metrics)
+- CSV export for position tracking (flattened format)
+- Standard capital ($10,000) for consistent comparison
+- Explicit time horizon (1 year annualized)
+- Portfolio validation system comparing expected vs realized performance
+- Benchmark alpha calculation (vs S&P 500)
+- Handles delisted tickers gracefully
+- CLI commands: `portfolio list`, `portfolio validate <snapshot.json>`
+- Integration with `--export` flag in optimize command
 
 ## 📚 Academic Foundation
 
