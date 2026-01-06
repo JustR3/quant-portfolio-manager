@@ -147,8 +147,8 @@ Examples:
                          help="Number of top stocks by market cap (default: 50)")
     backtest.add_argument("--optimize-top", type=int, default=None, metavar="N",
                          help="Number of top-ranked stocks for optimization (default: same as --top-n)")
-    backtest.add_argument("--capital", type=float, default=100000.0, metavar="AMOUNT",
-                         help="Initial capital for backtest (default: 100000)")
+    backtest.add_argument("--capital", type=float, default=10000.0, metavar="AMOUNT",
+                         help="Initial capital for backtest (default: 10000)")
     backtest.add_argument("--use-macro", action="store_true",
                          help="Apply Shiller CAPE-based equity risk adjustment")
     backtest.add_argument("--use-french", action="store_true",
@@ -165,6 +165,29 @@ Examples:
     backtest.add_argument("--export", type=str, metavar="DIR",
                          help="Export results to directory (default: data/backtests/)")
     
+    # Portfolio command - snapshot validation
+    portfolio = sub.add_parser(
+        "portfolio",
+        help="Manage and validate portfolio snapshots",
+        description="Validate forward performance of portfolio snapshots"
+    )
+    portfolio_sub = portfolio.add_subparsers(dest="portfolio_action", required=True)
+    
+    # portfolio validate subcommand
+    validate_cmd = portfolio_sub.add_parser(
+        "validate",
+        help="Validate a portfolio snapshot against current prices",
+        description="Compare expected vs realized returns for a portfolio snapshot"
+    )
+    validate_cmd.add_argument("snapshot", help="Path to portfolio snapshot JSON file")
+    
+    # portfolio list subcommand
+    list_cmd = portfolio_sub.add_parser(
+        "list",
+        help="List all available portfolio snapshots",
+        description="Show all portfolio snapshots in data/portfolios/"
+    )
+    
     return parser.parse_args()
 
 
@@ -178,6 +201,7 @@ def main():
         print("  qpm optimize    - Build systematic factor-based portfolio")
         print("  qpm verify TICK - Verify stock factor ranking")
         print("  qpm backtest    - Test strategy on historical data")
+        print("  qpm portfolio   - Manage and validate portfolio snapshots")
         print("\nFor DCF analysis: uv run python dcf_cli.py")
         print("\nUse 'qpm COMMAND -h' for detailed help\n")
         return
@@ -261,8 +285,25 @@ def main():
             
             # Export if requested
             if args.export:
-                results['weights_df'].to_csv(args.export, index=False)
-                print_msg(f"Portfolio weights exported to {args.export}", "success")
+                from src.portfolio_snapshot import create_and_save_snapshot
+                from src.constants import DEFAULT_CAPITAL
+                
+                # Create comprehensive snapshot
+                json_path, csv_path = create_and_save_snapshot(
+                    optimization_result=results['optimization_result'],
+                    factor_scores=results['factor_scores'],
+                    universe_data=results['universe'],
+                    engine_data=results['factor_engine'].data,
+                    config=results['config'],
+                    export_path=args.export,
+                    capital=DEFAULT_CAPITAL
+                )
+                
+                print_msg(f"Portfolio snapshot saved:", "success")
+                print(f"  📄 CSV:  {csv_path}")
+                print(f"  📸 JSON: {json_path}")
+                print(f"  💰 Capital: ${DEFAULT_CAPITAL:,.2f}")
+                print()
         
         except Exception as e:
             print_msg(f"Error: {e}", "error")
@@ -396,6 +437,83 @@ def main():
             import traceback
             traceback.print_exc()
             sys.exit(1)
+        
+        return
+    
+    # Portfolio command
+    if args.module == "portfolio":
+        if args.portfolio_action == "validate":
+            print_header("Portfolio Snapshot Validation")
+            
+            try:
+                from src.forward_testing.validator import validate_snapshot
+                
+                # Run validation
+                results = validate_snapshot(args.snapshot)
+                
+            except FileNotFoundError as e:
+                print_msg(f"Error: {e}", "error")
+                sys.exit(1)
+            except Exception as e:
+                print_msg(f"Error: {e}", "error")
+                import traceback
+                traceback.print_exc()
+                sys.exit(1)
+        
+        elif args.portfolio_action == "list":
+            print_header("Portfolio Snapshots")
+            
+            from pathlib import Path
+            
+            snapshots_dir = Path("data/portfolios")
+            
+            if not snapshots_dir.exists():
+                print_msg("No snapshots directory found", "error")
+                return
+            
+            # Find all JSON snapshots
+            json_files = sorted(snapshots_dir.glob("*.json"), reverse=True)
+            
+            if not json_files:
+                print_msg("No portfolio snapshots found", "info")
+                print(f"Create one with: qpm optimize --export my_portfolio")
+                return
+            
+            print(f"\nFound {len(json_files)} snapshot(s):\n")
+            
+            if HAS_RICH and console:
+                from rich.table import Table
+                table = Table(title="Portfolio Snapshots", box=box.ROUNDED)
+                table.add_column("File", style="cyan")
+                table.add_column("Created", style="dim")
+                table.add_column("Positions", justify="right")
+                table.add_column("Capital", justify="right")
+                
+                for snapshot_file in json_files:
+                    try:
+                        import json
+                        with open(snapshot_file, 'r') as f:
+                            snapshot = json.load(f)
+                        
+                        created = snapshot['metadata']['snapshot_date'].split('T')[0]
+                        positions = len(snapshot['positions'])
+                        capital = snapshot['metadata']['capital']
+                        
+                        table.add_row(
+                            snapshot_file.name,
+                            created,
+                            str(positions),
+                            f"${capital:,.0f}"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Could not read {snapshot_file.name}: {e}")
+                
+                console.print(table)
+            else:
+                for snapshot_file in json_files:
+                    print(f"  - {snapshot_file.name}")
+            
+            print(f"\nValidate with: qpm portfolio validate <filename>\n")
         
         return
 
