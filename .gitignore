@@ -32,7 +32,12 @@ config/secrets.env
 *.log
 
 # Cache directory (exclude from git, generated dynamically)
-data/cache/
-
+/data
+/data/cache/
+/data/historical/
 # Backtest results
 data/backtests/
+
+# GitHub instructions
+/.github
+/.github/copilot-instructions.md
