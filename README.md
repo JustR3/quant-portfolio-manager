@@ -1,5 +1,10 @@
 # Quant Portfolio Manager
 
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Status](https://img.shields.io/badge/status-Active%20Development-brightgreen)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
+
 > **Production-ready systematic quantitative finance platform for data-driven portfolio construction.**
 
 Combines real-time macroeconomic data, academic financial research, and multi-factor stock ranking with Black-Litterman optimization for institutional-grade portfolio management.
