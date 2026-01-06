@@ -456,9 +456,22 @@ def run_systematic_portfolio(
         'optimization_result': optimization_result,
         'weights_df': weights_df,
         'optimizer': optimizer,
+        'factor_engine': factor_engine,  # Add engine for snapshot creation
         'macro_adjustment': macro_adjustment,
         'factor_tilts': factor_tilts,
-        'regime_metadata': regime_metadata
+        'regime_metadata': regime_metadata,
+        'config': {  # Add config for snapshot
+            'universe': universe_name,
+            'top_n': top_n,
+            'top_n_for_optimization': top_n_for_optimization or top_n,
+            'objective': objective,
+            'use_macro': use_macro_adjustment,
+            'use_french': use_factor_regimes,
+            'use_regime': use_regime_adjustment,
+            'regime_method': regime_method,
+            'factor_alpha_scalar': factor_alpha_scalar,
+            'risk_free_rate': risk_free_rate
+        }
     }
 
 
