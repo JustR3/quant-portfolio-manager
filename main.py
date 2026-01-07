@@ -482,7 +482,6 @@ def main():
             print(f"\nFound {len(json_files)} snapshot(s):\n")
             
             if HAS_RICH and console:
-                from rich.table import Table
                 table = Table(title="Portfolio Snapshots", box=box.ROUNDED)
                 table.add_column("File", style="cyan")
                 table.add_column("Created", style="dim")
