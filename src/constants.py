@@ -18,7 +18,7 @@ TRADING_DAYS_PER_WEEK: Final[int] = 5
 # DATA FETCHING
 # =============================================================================
 DEFAULT_BATCH_SIZE: Final[int] = 50
-MAX_PARALLEL_WORKERS: Final[int] = 10
+MAX_PARALLEL_WORKERS: Final[int] = 20  # Increased for faster parallel fetching
 API_CALLS_PER_MINUTE: Final[int] = 60
 API_TIMEOUT_SECONDS: Final[int] = 30
 

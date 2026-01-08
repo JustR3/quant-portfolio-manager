@@ -135,9 +135,9 @@ RUSSELL_2000_TICKERS = [
     "PDM", "DEI", "JBGS", "SLG", "VNO", "PGRE", "CLI", "BDN", "EQC", "CLPR",
     
     # Healthcare Services - Small Cap
-    "ENSG", "CHE", "AMED", "BKD", "USPH", "THC", "UHS", "SEM", "ACHC", "AHC",
+    "ENSG", "CHE", "BKD", "USPH", "THC", "UHS", "SEM", "ACHC", "AHC",
     "GH", "EHC", "DVA", "OPCH", "NHC", "CLOV", "OSCR", "ACCD", "MOH", "CNC",
-    # Note: AMED = Amedisys, Inc. (home healthcare services)
+    # Note: AMED (Amedisys) removed - delisted/acquired
     
     # Biotechnology - Small Cap
     "DAWN", "KRTX", "SNDX", "APLS", "ARVN", "SAVA", "PRTA", "XNCR", "IMVT", "RLAY",

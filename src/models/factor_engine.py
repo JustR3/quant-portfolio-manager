@@ -216,7 +216,17 @@ class FactorEngine:
                 'balance_sheet': balance_sheet
             }
         
-        result = retry_with_backoff(fetch, max_attempts=3)
+        # Try to fetch with retry logic, but don't retry on 404s (delisted tickers)
+        try:
+            result = retry_with_backoff(fetch, max_attempts=3)
+        except Exception as e:
+            error_msg = str(e).lower()
+            # Don't retry 404 errors - ticker is likely delisted or invalid
+            if '404' in error_msg or 'not found' in error_msg:
+                logger.debug(f"Ticker {ticker} not found (404) - likely delisted or invalid")
+                return None
+            # For other errors, let retry_with_backoff handle it
+            result = None
         
         # If fetch failed due to rate limiting, trigger circuit breaker
         if result is None:
@@ -260,8 +270,8 @@ class FactorEngine:
                 print(f"  Processing batch {batch_num}/{total_batches} ({len(batch)} tickers)...")
             
             # Process batch in parallel with ThreadPoolExecutor
-            # Use max_workers=10 to parallelize while respecting rate limits
-            with ThreadPoolExecutor(max_workers=10) as executor:
+            # Use MAX_PARALLEL_WORKERS to parallelize while respecting rate limits
+            with ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as executor:
                 # Submit all fetch tasks
                 future_to_ticker = {
                     executor.submit(self._fetch_ticker_data, ticker): ticker 
