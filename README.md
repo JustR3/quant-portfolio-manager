@@ -532,7 +532,7 @@ The following features are implemented but not yet integrated into the main work
 - **Description**: Downloads sector-level statistics from Aswath Damodaran's NYU Stern datasets
   - Sector betas, equity risk premiums, industry margins
   - Academic "ground truth" for sector-level priors
-  - Cached for 30 days (Damodaran updates ~quarterly)
+  - Cached for 90 days (Damodaran updates ~quarterly)
 - **Current State**: Loader fully functional with caching and proper parsing
 - **Integration Plan**: Could be used for sector-aware portfolio construction or sector-level expected returns
 - **Why Not Integrated**: Current workflow uses market-cap-weighted priors from yfinance; Damodaran data would add sector tilts
