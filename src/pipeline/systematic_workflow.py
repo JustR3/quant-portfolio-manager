@@ -19,6 +19,7 @@ from src.constants import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_CACHE_EXPIRY_HOURS,
     MAX_POSITION_SIZE,
+    MIN_TARGET_SHARPE,
     REGIME_RISK_OFF_EXPOSURE,
     REGIME_CAUTION_EXPOSURE,
 )
@@ -66,6 +67,7 @@ def run_systematic_portfolio(
     regime_risk_off_exposure: float = REGIME_RISK_OFF_EXPOSURE,
     regime_caution_exposure: float = REGIME_CAUTION_EXPOSURE,
     custom_tickers: Optional[List[str]] = None,
+    min_target_sharpe: Optional[float] = None,
 ) -> Dict:
     """
     Run the complete systematic portfolio workflow.
@@ -87,13 +89,7 @@ def run_systematic_portfolio(
         regime_risk_off_exposure: Equity exposure in RISK_OFF regime (default: 50%)
         regime_caution_exposure: Equity exposure in CAUTION regime (default: 75%)
         custom_tickers: Custom ticker list (for universe='custom')
-        cache_expiry_hours: Cache freshness threshold
-        use_macro_adjustment: Apply Shiller CAPE-based equity risk adjustment
-        use_factor_regimes: Apply Fama-French factor regime tilts
-        use_regime_adjustment: Apply regime-based exposure adjustment
-        regime_method: Regime detection method ('sma', 'vix', 'combined')
-        regime_risk_off_exposure: Equity exposure in RISK_OFF regime (default: 50%)
-        regime_caution_exposure: Equity exposure in CAUTION regime (default: 75%)
+        min_target_sharpe: Minimum target Sharpe ratio (e.g., 1.5 for 1.5:1 return-to-volatility)
     
     Returns:
         Dictionary containing:
@@ -297,7 +293,8 @@ def run_systematic_portfolio(
         factor_alpha_scalar=factor_alpha_scalar,  # Keep factor confidence unchanged
         market_cap_weights=market_cap_weights,
         macro_return_scalar=macro_return_scalar,   # Apply macro view to priors
-        sector_map=sector_map  # Enable sector constraints
+        sector_map=sector_map,  # Enable sector constraints
+        min_target_sharpe=min_target_sharpe if min_target_sharpe is not None else MIN_TARGET_SHARPE
     )
     
     # Fetch price data (will use cache if available)
