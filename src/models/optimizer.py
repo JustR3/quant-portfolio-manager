@@ -68,6 +68,9 @@ class BlackLittermanOptimizer:
         macro_return_scalar: float = 1.0,
         sector_map: Optional[Dict[str, str]] = None,
         min_target_sharpe: float = MIN_TARGET_SHARPE,
+        long_short_mode: bool = False,
+        long_exposure: float = 1.3,
+        short_exposure: float = 0.3,
         verbose: bool = True,
     ):
         """
@@ -82,6 +85,9 @@ class BlackLittermanOptimizer:
             macro_return_scalar: Macro adjustment to equilibrium returns (e.g., 0.7 for expensive markets)
             sector_map: Dict mapping tickers to sectors for sector constraints
             min_target_sharpe: Minimum target Sharpe ratio (e.g., 1.5 = 1.5:1 return-to-volatility)
+            long_short_mode: Enable long/short optimization (allows negative weights)
+            long_exposure: Target long exposure (e.g., 1.3 for 130%)
+            short_exposure: Target short exposure (e.g., 0.3 for 30%)
             verbose: Whether to print progress messages (default: True)
         """
         self.tickers = tickers
@@ -91,6 +97,9 @@ class BlackLittermanOptimizer:
         self.macro_return_scalar = macro_return_scalar
         self.sector_map = sector_map or {}
         self.min_target_sharpe = min_target_sharpe
+        self.long_short_mode = long_short_mode
+        self.long_exposure = long_exposure
+        self.short_exposure = short_exposure
         self.verbose = verbose
         
         # Data containers
@@ -281,7 +290,8 @@ class BlackLittermanOptimizer:
         
         opt_start = time.time()
         if self.verbose:
-            print(f"🎯 Optimizing portfolio ({objective})...")
+            mode_str = f"{int(self.long_exposure*100)}/{int(self.short_exposure*100)}" if self.long_short_mode else "long-only"
+            print(f"🎯 Optimizing portfolio ({objective}, {mode_str})...")
         
         # Calculate sample covariance matrix
         S = risk_models.CovarianceShrinkage(self.prices).ledoit_wolf()
@@ -316,6 +326,16 @@ class BlackLittermanOptimizer:
         
         # Posterior expected returns
         ret_bl = bl.bl_returns()
+        
+        # Handle long/short mode
+        if self.long_short_mode:
+            return self._optimize_long_short(
+                ret_bl=ret_bl,
+                S=S,
+                weight_bounds=weight_bounds,
+                sector_constraints=sector_constraints,
+                objective=objective
+            )
         
         # Optimize with minimum Sharpe constraint
         ef = EfficientFrontier(ret_bl, S, weight_bounds=weight_bounds)
@@ -405,6 +425,106 @@ class BlackLittermanOptimizer:
             print(f"  Volatility: {result.volatility*100:.2f}%")
             print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}")
             print(f"⏱️  Portfolio Optimization - Total: {opt_elapsed:.2f}s\n")
+        
+        return result
+    
+    def _optimize_long_short(
+        self,
+        ret_bl: pd.Series,
+        S: pd.DataFrame,
+        weight_bounds: Tuple[float, float],
+        sector_constraints: Optional[Dict[str, float]],
+        objective: str
+    ) -> OptimizationResult:
+        """
+        Optimize long/short portfolio with specified exposures.
+        
+        Separates stocks into long candidates (positive views) and short candidates
+        (negative views), optimizes each separately, then combines.
+        """
+        if self.verbose:
+            print(f"  📊 Long/Short Mode: {int(self.long_exposure*100)}% long, {int(self.short_exposure*100)}% short")
+            print(f"     Net exposure: {int((self.long_exposure - self.short_exposure)*100)}%")
+        
+        # Separate stocks by views (positive = long, negative = short)
+        long_candidates = [t for t in self.tickers if self.views.get(t, 0) > 0]
+        short_candidates = [t for t in self.tickers if self.views.get(t, 0) < 0]
+        
+        if self.verbose:
+            print(f"  ✓ Long candidates: {len(long_candidates)} (positive factor scores)")
+            print(f"  ✓ Short candidates: {len(short_candidates)} (negative factor scores)")
+        
+        # Optimize longs
+        weights_long = {}
+        if len(long_candidates) > 0:
+            ret_long = ret_bl[ret_bl.index.isin(long_candidates)]
+            S_long = S.loc[long_candidates, long_candidates]
+            
+            ef_long = EfficientFrontier(ret_long, S_long, weight_bounds=(0, weight_bounds[1]))
+            ef_long.max_sharpe(risk_free_rate=self.risk_free_rate)
+            weights_long = ef_long.clean_weights(cutoff=0.005)  # Keep smaller positions
+            
+            # Scale to target long exposure
+            total_long = sum(weights_long.values())
+            if total_long > 0:
+                weights_long = {k: v * self.long_exposure / total_long for k, v in weights_long.items()}
+        
+        # Optimize shorts
+        weights_short = {}
+        if len(short_candidates) > 0:
+            ret_short = ret_bl[ret_bl.index.isin(short_candidates)]
+            S_short = S.loc[short_candidates, short_candidates]
+            
+            # Invert returns for shorts (we want lowest expected returns)
+            ret_short_inverted = -ret_short
+            
+            ef_short = EfficientFrontier(ret_short_inverted, S_short, weight_bounds=(0, weight_bounds[1]))
+            ef_short.max_sharpe(risk_free_rate=self.risk_free_rate)
+            weights_short = ef_short.clean_weights(cutoff=0.005)  # Keep smaller positions for shorts
+            
+            # Scale to target short exposure and make negative
+            total_short = sum(weights_short.values())
+            if total_short > 0:
+                weights_short = {k: -v * self.short_exposure / total_short for k, v in weights_short.items()}
+        
+        # Combine long and short weights
+        combined_weights = {**weights_long, **weights_short}
+        weights_series = pd.Series({t: combined_weights.get(t, 0) for t in self.tickers})
+        
+        # Calculate portfolio metrics
+        port_return = (weights_series * ret_bl).sum()
+        port_variance = np.dot(weights_series.values, np.dot(S.values, weights_series.values))
+        port_volatility = np.sqrt(port_variance)
+        sharpe = (port_return - self.risk_free_rate) / port_volatility
+        
+        # Calculate exposures
+        gross_long = sum(w for w in combined_weights.values() if w > 0)
+        gross_short = abs(sum(w for w in combined_weights.values() if w < 0))
+        net_exposure = gross_long - gross_short
+        
+        result = OptimizationResult(
+            weights=combined_weights,
+            expected_return=port_return,
+            volatility=port_volatility,
+            sharpe_ratio=sharpe,
+            performance={
+                'expected_annual_return': port_return * 100,
+                'annual_volatility': port_volatility * 100,
+                'sharpe_ratio': sharpe,
+                'gross_long': gross_long * 100,
+                'gross_short': gross_short * 100,
+                'net_exposure': net_exposure * 100,
+            },
+            forecast_horizon="1 year (annualized)"
+        )
+        
+        if self.verbose:
+            print(f"✅ Optimization complete!")
+            print(f"  Expected Return: {result.expected_return*100:.2f}%")
+            print(f"  Volatility: {result.volatility*100:.2f}%")
+            print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}")
+            print(f"  Gross Long: {gross_long*100:.2f}%, Gross Short: {gross_short*100:.2f}%")
+            print(f"  Net Exposure: {net_exposure*100:.2f}%")
         
         return result
     

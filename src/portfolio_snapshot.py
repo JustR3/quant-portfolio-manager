@@ -72,7 +72,7 @@ class PortfolioSnapshot:
         total_allocated = 0.0
         
         for ticker, weight in optimization_result.weights.items():
-            if weight < 0.001:  # Skip negligible positions
+            if abs(weight) < 0.001:  # Skip negligible positions (check absolute value for shorts)
                 continue
                 
             # Get most recent price from engine data

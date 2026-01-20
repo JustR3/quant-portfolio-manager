@@ -115,6 +115,12 @@ Examples:
                      help="Batch size for data fetching (default: 50)")
     opt.add_argument("--min-sharpe", type=float, default=None, metavar="RATIO",
                      help="Minimum target Sharpe ratio (e.g., 1.5 for 1.5:1 return-to-volatility). Default: 1.5")
+    opt.add_argument("--long-short", action="store_true",
+                     help="Enable long/short strategy (130/30 by default)")
+    opt.add_argument("--long-exposure", type=float, default=1.3, metavar="PCT",
+                     help="Long exposure as decimal (default: 1.3 for 130%%)")
+    opt.add_argument("--short-exposure", type=float, default=0.3, metavar="PCT",
+                     help="Short exposure as decimal (default: 0.3 for 30%%)")
     
     # Verify command
     verify = sub.add_parser(
@@ -229,7 +235,10 @@ def main():
                 regime_risk_off_exposure=args.regime_risk_off,
                 regime_caution_exposure=args.regime_caution,
                 custom_tickers=args.tickers,
-                min_target_sharpe=args.min_sharpe
+                min_target_sharpe=args.min_sharpe,
+                long_short_mode=args.long_short,
+                long_exposure=args.long_exposure,
+                short_exposure=args.short_exposure
             )
             
             # Display results
@@ -237,27 +246,57 @@ def main():
                 # Use rich table for better display
                 weights_df = results['weights_df']
                 
-                table = Table(title="Portfolio Weights", box=box.ROUNDED, show_lines=True)
-                table.add_column("Rank", justify="center", style="cyan")
-                table.add_column("Ticker", style="bold")
-                table.add_column("Weight", justify="right", style="green")
-                table.add_column("Score", justify="right")
-                table.add_column("Sector", style="dim")
+                # Separate long and short positions
+                long_positions = weights_df[weights_df['weight'] > 0].copy()
+                short_positions = weights_df[weights_df['weight'] < 0].copy()
                 
-                # Use apply instead of iterrows for better performance
-                top_rows = weights_df.head(15).reset_index(drop=True)
-                for idx in range(len(top_rows)):
-                    row = top_rows.iloc[idx]
-                    table.add_row(
-                        str(idx + 1),
-                        row['ticker'],
-                        f"{row['weight']*100:.2f}%",
-                        f"{row['total_score']:.3f}",
-                        row.get('sector', 'N/A')
-                    )
+                # Long positions table
+                if len(long_positions) > 0:
+                    table_long = Table(title="Portfolio Weights (Long Positions)", box=box.ROUNDED, show_lines=True)
+                    table_long.add_column("Rank", justify="center", style="cyan")
+                    table_long.add_column("Ticker", style="bold")
+                    table_long.add_column("Weight", justify="right", style="green")
+                    table_long.add_column("Score", justify="right")
+                    table_long.add_column("Sector", style="dim")
+                    
+                    top_long = long_positions.head(15).reset_index(drop=True)
+                    for idx in range(len(top_long)):
+                        row = top_long.iloc[idx]
+                        table_long.add_row(
+                            str(idx + 1),
+                            row['ticker'],
+                            f"{row['weight']*100:.2f}%",
+                            f"{row['total_score']:.3f}",
+                            row.get('sector', 'N/A')
+                        )
+                    
+                    console.print("\n")
+                    console.print(table_long)
                 
-                console.print("\n")
-                console.print(table)
+                # Short positions table
+                if len(short_positions) > 0:
+                    table_short = Table(title="Portfolio Weights (Short Positions)", box=box.ROUNDED, show_lines=True)
+                    table_short.add_column("Rank", justify="center", style="cyan")
+                    table_short.add_column("Ticker", style="bold")
+                    table_short.add_column("Weight", justify="right", style="red")
+                    table_short.add_column("Score", justify="right")
+                    table_short.add_column("Sector", style="dim")
+                    
+                    # Sort by absolute weight
+                    short_sorted = short_positions.reindex(short_positions['weight'].abs().sort_values(ascending=False).index)
+                    top_short = short_sorted.head(15).reset_index(drop=True)
+                    for idx in range(len(top_short)):
+                        row = top_short.iloc[idx]
+                        table_short.add_row(
+                            str(idx + 1),
+                            row['ticker'],
+                            f"{row['weight']*100:.2f}%",
+                            f"{row['total_score']:.3f}",
+                            row.get('sector', 'N/A')
+                        )
+                    
+                    console.print("\n")
+                    console.print(table_short)
                 
                 # Performance metrics panel
                 opt_result = results['optimization_result']
@@ -267,6 +306,15 @@ def main():
                     f"[cyan]Sharpe Ratio:[/cyan] {opt_result.sharpe_ratio:.2f}\n"
                     f"[dim]Positions:[/dim] {len(weights_df)}"
                 )
+                
+                # Add long/short exposure metrics if applicable
+                if 'gross_long' in opt_result.performance:
+                    metrics_text += (
+                        f"\n\n[bold cyan]Exposure:[/bold cyan]\n"
+                        f"  Gross Long: {opt_result.performance['gross_long']:.2f}%\n"
+                        f"  Gross Short: {opt_result.performance['gross_short']:.2f}%\n"
+                        f"  Net: {opt_result.performance['net_exposure']:.2f}%"
+                    )
                 
                 # Add macro/factor adjustments if enabled
                 if results.get('macro_adjustment'):

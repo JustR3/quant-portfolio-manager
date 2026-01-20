@@ -68,6 +68,9 @@ def run_systematic_portfolio(
     regime_caution_exposure: float = REGIME_CAUTION_EXPOSURE,
     custom_tickers: Optional[List[str]] = None,
     min_target_sharpe: Optional[float] = None,
+    long_short_mode: bool = False,
+    long_exposure: float = 1.3,
+    short_exposure: float = 0.3,
 ) -> Dict:
     """
     Run the complete systematic portfolio workflow.
@@ -294,7 +297,10 @@ def run_systematic_portfolio(
         market_cap_weights=market_cap_weights,
         macro_return_scalar=macro_return_scalar,   # Apply macro view to priors
         sector_map=sector_map,  # Enable sector constraints
-        min_target_sharpe=min_target_sharpe if min_target_sharpe is not None else MIN_TARGET_SHARPE
+        min_target_sharpe=min_target_sharpe if min_target_sharpe is not None else MIN_TARGET_SHARPE,
+        long_short_mode=long_short_mode,
+        long_exposure=long_exposure,
+        short_exposure=short_exposure
     )
     
     # Fetch price data (will use cache if available)
@@ -337,7 +343,7 @@ def run_systematic_portfolio(
     weights_data = []
     
     for ticker, weight in optimization_result.weights.items():
-        if weight > 0.001:  # Only include non-zero weights
+        if abs(weight) > 0.001:  # Include both long and short positions (non-zero by magnitude)
             # Get factor scores
             score_row = factor_scores_full[factor_scores_full['Ticker'] == ticker]
             
@@ -355,7 +361,9 @@ def run_systematic_portfolio(
                 })
     
     weights_df = pd.DataFrame(weights_data)
-    weights_df = weights_df.sort_values('weight', ascending=False).reset_index(drop=True)
+    # Sort by absolute weight descending, keeping sign for display
+    weights_df['abs_weight'] = weights_df['weight'].abs()
+    weights_df = weights_df.sort_values('abs_weight', ascending=False).drop('abs_weight', axis=1).reset_index(drop=True)
     
     # =========================================================================
     # Optional: Regime-Based Adjustment
@@ -507,19 +515,37 @@ def display_portfolio_summary(results: Dict) -> None:
             print(f"   {sector:<30} {weight*100:>6.2f}%")
         print()
     
-    # Top 10 holdings
-    print("🔝 Top 10 Holdings:")
-    print(f"{'Rank':<6} {'Ticker':<8} {'Weight':<10} {'Score':<10} {'Sector':<25}")
-    print("-" * 90)
+    # Separate long and short positions
+    long_positions = weights_df[weights_df['weight'] > 0].copy()
+    short_positions = weights_df[weights_df['weight'] < 0].copy()
     
-    # Use iloc instead of iterrows for better performance
-    top_10 = weights_df.head(10).reset_index(drop=True)
-    for idx in range(len(top_10)):
-        row = top_10.iloc[idx]
-        print(f"{idx+1:<6} {row['ticker']:<8} {row['weight']*100:>8.2f}%  "
-              f"{row['total_score']:>8.3f}  {row.get('sector', 'N/A'):<25}")
+    if len(long_positions) > 0:
+        print("🔝 Long Positions (Top 10):")
+        print(f"{'Rank':<6} {'Ticker':<8} {'Weight':<10} {'Score':<10} {'Sector':<25}")
+        print("-" * 90)
+        
+        top_10_long = long_positions.head(10).reset_index(drop=True)
+        for idx in range(len(top_10_long)):
+            row = top_10_long.iloc[idx]
+            print(f"{idx+1:<6} {row['ticker']:<8} {row['weight']*100:>8.2f}%  "
+                  f"{row['total_score']:>8.3f}  {row.get('sector', 'N/A'):<25}")
+        print()
     
-    print("\n" + "=" * 90 + "\n")
+    if len(short_positions) > 0:
+        print("🔻 Short Positions (Top 10 by magnitude):")
+        print(f"{'Rank':<6} {'Ticker':<8} {'Weight':<10} {'Score':<10} {'Sector':<25}")
+        print("-" * 90)
+        
+        # Sort by absolute weight for shorts
+        short_positions_sorted = short_positions.reindex(short_positions['weight'].abs().sort_values(ascending=False).index)
+        top_10_short = short_positions_sorted.head(10).reset_index(drop=True)
+        for idx in range(len(top_10_short)):
+            row = top_10_short.iloc[idx]
+            print(f"{idx+1:<6} {row['ticker']:<8} {row['weight']*100:>8.2f}%  "
+                  f"{row['total_score']:>8.3f}  {row.get('sector', 'N/A'):<25}")
+        print()
+    
+    print("=" * 90 + "\n")
 
 
 if __name__ == "__main__":
