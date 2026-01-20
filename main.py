@@ -113,6 +113,8 @@ Examples:
                      help="Export portfolio weights to CSV")
     opt.add_argument("--batch-size", type=int, default=50,
                      help="Batch size for data fetching (default: 50)")
+    opt.add_argument("--min-sharpe", type=float, default=None, metavar="RATIO",
+                     help="Minimum target Sharpe ratio (e.g., 1.5 for 1.5:1 return-to-volatility). Default: 1.5")
     
     # Verify command
     verify = sub.add_parser(
@@ -164,6 +166,8 @@ Examples:
                          help="Equity exposure in CAUTION regime (default: 0.75)")
     backtest.add_argument("--export", type=str, metavar="DIR",
                          help="Export results to directory (default: data/backtests/)")
+    backtest.add_argument("--min-sharpe", type=float, default=None, metavar="RATIO",
+                         help="Minimum target Sharpe ratio (e.g., 1.5 for 1.5:1 return-to-volatility). Default: 1.5")
     
     # Portfolio command - snapshot validation
     portfolio = sub.add_parser(
@@ -224,7 +228,8 @@ def main():
                 regime_method=args.regime_method,
                 regime_risk_off_exposure=args.regime_risk_off,
                 regime_caution_exposure=args.regime_caution,
-                custom_tickers=args.tickers
+                custom_tickers=args.tickers,
+                min_target_sharpe=args.min_sharpe
             )
             
             # Display results

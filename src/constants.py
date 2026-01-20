@@ -72,6 +72,10 @@ DEFAULT_TOP_N_STOCKS: Final[int] = 50
 DEFAULT_CAPITAL: Final[float] = 10000.0  # $10,000 standard portfolio size
 DEFAULT_FORECAST_HORIZON: Final[str] = "1 year (annualized)"  # Expected return time horizon
 
+# Minimum target Sharpe ratio (return-to-volatility ratio)
+# E.g., 1.5 means expected return should be at least 1.5x the volatility
+MIN_TARGET_SHARPE: Final[float] = 1.5  # Target: 1.5:1 return-to-volatility
+
 # Minimum weight threshold (below this, treat as zero)
 MIN_WEIGHT_THRESHOLD: Final[float] = 0.001  # 0.1%
 
