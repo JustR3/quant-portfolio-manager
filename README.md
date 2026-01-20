@@ -32,6 +32,8 @@ The Quant Portfolio Manager implements a systematic approach to quantitative inv
 
 ### 🚀 Production-Ready Systematic Workflow
 - **Multi-Universe Support**: S&P 500 (large-cap), Russell 2000 (small-cap), NASDAQ-100 (tech/growth), or combined
+- **Long/Short Strategies**: 130/30 long/short achieving **1.87 Sharpe ratio** (24.7% improvement over long-only)
+- **Minimum Sharpe Constraint**: Enforce 1.5:1 return-to-volatility targets with automatic validation
 - **Consolidated Cache System**: Single file per ticker with 24-hour expiry (76% more efficient)
 - **Batch Processing**: Handles 50-500 stocks reliably (50 tickers/batch)
 - **Point-in-Time Data Integrity**: Eliminates look-ahead bias in backtesting
@@ -139,14 +141,26 @@ uv run ./main.py optimize --universe sp500 --objective min_volatility
 # Enable "The Gods" - Macro CAPE adjustment + Fama-French tilts
 uv run ./main.py optimize --universe sp500 --top-n 50 --use-macro --use-french
 
+# 130/30 Long/Short strategy (1.87 Sharpe ratio, 44.6% expected return)
+uv run ./main.py optimize --universe sp500 --top-n 50 --long-short
+
+# 130/30 with Factor God for optimal performance
+uv run ./main.py optimize --universe sp500 --top-n 50 --long-short --use-french
+
+# Custom long/short exposures (e.g., 120/20 for more conservative)
+uv run ./main.py optimize --universe sp500 --long-short --long-exposure 1.2 --short-exposure 0.2
+
+# Enforce minimum Sharpe ratio (1.5:1 return-to-volatility)
+uv run ./main.py optimize --universe sp500 --top-n 50 --min-sharpe 1.5
+
 # Example with all features enabled
 uv run ./main.py optimize \
-  --universe nasdaq100 \
-  --top-n 75 \
-  --optimize-top 50 \
-  --objective max_sharpe \
-  --use-macro \
-  --use-french
+  --universe sp500 \
+  --top-n 50 \
+  --long-short \
+  --use-french \
+  --min-sharpe 1.5 \
+  --export my_portfolio
 
 #### Backtesting & Performance Analysis
 
@@ -169,6 +183,22 @@ uv run ./main.py backtest \
   --top-n 50 \
   --frequency monthly \
   --benchmark SPY
+
+# Backtest 130/30 long/short strategy
+uv run ./main.py backtest \
+  --start 2020-01-01 \
+  --end 2024-12-31 \
+  --universe sp500 \
+  --top-n 50 \
+  --long-short \
+  --use-french
+
+# Backtest with minimum Sharpe constraint
+uv run ./main.py backtest \
+  --start 2020-01-01 \
+  --end 2024-12-31 \
+  --top-n 50 \
+  --min-sharpe 1.5
 ```
 
 **Results Include:**
@@ -269,6 +299,70 @@ uv run ./main.py portfolio validate data/portfolios/my_portfolio_20260106_120000
    XYZ: -12.3% (delisted)
    ABC: -8.5% (Materials)
 ```
+
+## 🎯 Long/Short 130/30 Strategy
+
+Achieve **1.87 Sharpe ratio** (24.7% improvement over long-only) by combining long positions in high-factor-score stocks with short positions in low-factor-score stocks.
+
+### Performance Results (SP500 Top 50)
+
+| Metric | Long-Only | 130/30 Long/Short | Improvement |
+|--------|-----------|-------------------|-------------|
+| Expected Return | 31.47% | **44.60%** | **+41.8%** |
+| Volatility | 18.25% | 21.59% | +18.3% |
+| **Sharpe Ratio** | 1.50 | **1.87** | **+24.7%** |
+| Net Exposure | 100% | 100% | Same |
+
+### How It Works
+
+1. **Separate Candidates**: Stocks with positive factor scores → long, negative scores → short
+2. **Optimize Independently**: Max Sharpe for longs, inverted returns for shorts
+3. **Scale Exposures**: 130% long + 30% short = 100% net exposure
+4. **Preserve Constraints**: 30% max position, 35% sector limits still apply
+
+### Strategy Variants
+
+```bash
+# Standard 130/30 (recommended)
+uv run main.py optimize --universe sp500 --long-short
+
+# Conservative 120/20
+uv run main.py optimize --universe sp500 --long-short --long-exposure 1.2 --short-exposure 0.2
+
+# Aggressive 150/50
+uv run main.py optimize --universe sp500 --long-short --long-exposure 1.5 --short-exposure 0.5
+
+# Defensive 100/50 (best Sharpe: 2.22, lower absolute return)
+uv run main.py optimize --universe sp500 --long-short --long-exposure 1.0 --short-exposure 0.5
+```
+
+**Comprehensive Guide**: See [docs/LONG_SHORT_130_30.md](docs/LONG_SHORT_130_30.md) for strategy comparison, short borrowing costs, risk considerations, and best practices.
+
+---
+
+## 🎯 Minimum Sharpe Ratio Constraint
+
+Enforce a minimum 1.5:1 return-to-volatility target to ensure risk-adjusted returns meet your requirements:
+
+```bash
+# Default minimum Sharpe of 1.5
+uv run main.py optimize --universe sp500 --top-n 50 --min-sharpe 1.5
+
+# Custom target (e.g., 2.0 for aggressive targets)
+uv run main.py optimize --universe sp500 --min-sharpe 2.0
+
+# Combine with 130/30 for best results
+uv run main.py optimize --universe sp500 --long-short --min-sharpe 1.5
+```
+
+**Behavior**:
+- If max achievable Sharpe ≥ target: Portfolio optimized to target
+- If max achievable Sharpe < target: Warning issued, falls back to best achievable
+- Validates with 5% tolerance for numerical stability
+
+**Documentation**: See [docs/MINIMUM_SHARPE_CONSTRAINT.md](docs/MINIMUM_SHARPE_CONSTRAINT.md) for examples and troubleshooting.
+
+---
 
 ## 📖 Factor Methodology
 
@@ -417,6 +511,70 @@ uv run ./main.py optimize \
 - If data is unavailable, they default to neutral (1.0x) and continue
 - Caching ensures reliability (weekly refresh)
 
+## 🎯 Long/Short 130/30 Strategy
+
+Achieve **1.87 Sharpe ratio** (24.7% improvement over long-only) by combining long positions in high-factor-score stocks with short positions in low-factor-score stocks.
+
+### Performance Results (SP500 Top 50)
+
+| Metric | Long-Only | 130/30 Long/Short | Improvement |
+|--------|-----------|-------------------|-------------|
+| Expected Return | 31.47% | **44.60%** | **+41.8%** |
+| Volatility | 18.25% | 21.59% | +18.3% |
+| **Sharpe Ratio** | 1.50 | **1.87** | **+24.7%** |
+| Net Exposure | 100% | 100% | Same |
+
+### How It Works
+
+1. **Separate Candidates**: Stocks with positive factor scores → long, negative scores → short
+2. **Optimize Independently**: Max Sharpe for longs, inverted returns for shorts
+3. **Scale Exposures**: 130% long + 30% short = 100% net exposure
+4. **Preserve Constraints**: 30% max position, 35% sector limits still apply
+
+### Strategy Variants
+
+```bash
+# Standard 130/30 (recommended)
+uv run main.py optimize --universe sp500 --long-short
+
+# Conservative 120/20
+uv run main.py optimize --universe sp500 --long-short --long-exposure 1.2 --short-exposure 0.2
+
+# Aggressive 150/50
+uv run main.py optimize --universe sp500 --long-short --long-exposure 1.5 --short-exposure 0.5
+
+# Defensive 100/50 (best Sharpe: 2.22, lower absolute return)
+uv run main.py optimize --universe sp500 --long-short --long-exposure 1.0 --short-exposure 0.5
+```
+
+**Comprehensive Guide**: See [docs/LONG_SHORT_130_30.md](docs/LONG_SHORT_130_30.md) for strategy comparison, short borrowing costs, risk considerations, and best practices.
+
+---
+
+## 🎯 Minimum Sharpe Ratio Constraint
+
+Enforce a minimum 1.5:1 return-to-volatility target to ensure risk-adjusted returns meet your requirements:
+
+```bash
+# Default minimum Sharpe of 1.5
+uv run main.py optimize --universe sp500 --top-n 50 --min-sharpe 1.5
+
+# Custom target (e.g., 2.0 for aggressive targets)
+uv run main.py optimize --universe sp500 --min-sharpe 2.0
+
+# Combine with 130/30 for best results
+uv run main.py optimize --universe sp500 --long-short --min-sharpe 1.5
+```
+
+**Behavior**:
+- If max achievable Sharpe ≥ target: Portfolio optimized to target
+- If max achievable Sharpe < target: Warning issued, falls back to best achievable
+- Validates with 5% tolerance for numerical stability
+
+**Documentation**: See [docs/MINIMUM_SHARPE_CONSTRAINT.md](docs/MINIMUM_SHARPE_CONSTRAINT.md) for examples and troubleshooting.
+
+---
+
 ## 🎯 Portfolio Optimization
 
 The Black-Litterman optimizer converts factor scores into systematic portfolio allocation:
@@ -523,60 +681,82 @@ For detailed documentation on all features including:
 
 ---
 
-## � Future Enhancements
+## 📚 Documentation
 
-The following features are implemented but not yet integrated into the main workflow:
+**Core Guides**:
+- [REPOSITORY_OVERVIEW.md](docs/REPOSITORY_OVERVIEW.md) - Architecture, data flow, and development guide
+- [LONG_SHORT_130_30.md](docs/LONG_SHORT_130_30.md) - 130/30 strategy, performance analysis, best practices
+- [MINIMUM_SHARPE_CONSTRAINT.md](docs/MINIMUM_SHARPE_CONSTRAINT.md) - Sharpe ratio targets and validation
+- [REGIME_AND_GODS_GUIDE.md](docs/REGIME_AND_GODS_GUIDE.md) - Market regime detection, Macro God (CAPE), Factor God (Fama-French)
+- [CACHING_STRATEGY.md](docs/CACHING_STRATEGY.md) - 3-tier caching system details
 
-### Damodaran Sector Priors *(Implemented, Not Integrated)*
-- **Status**: Code exists in [src/pipeline/external/damodaran.py](src/pipeline/external/damodaran.py)
-- **Description**: Downloads sector-level statistics from Aswath Damodaran's NYU Stern datasets
-  - Sector betas, equity risk premiums, industry margins
-  - Academic "ground truth" for sector-level priors
-  - Cached for 90 days (Damodaran updates ~quarterly)
-- **Current State**: Loader fully functional with caching and proper parsing
-- **Integration Plan**: Could be used for sector-aware portfolio construction or sector-level expected returns
-- **Why Not Integrated**: Current workflow uses market-cap-weighted priors from yfinance; Damodaran data would add sector tilts
+**Technical Notes**:
+- [NASDAQ_INTEGRATION.md](docs/NASDAQ_INTEGRATION.md) - NASDAQ-100 universe integration
+- [DAMODARAN_UPDATE_JAN2026.md](docs/DAMODARAN_UPDATE_JAN2026.md) - Damodaran data loader (implemented, not integrated)
 
-**To explore this feature:**
-```python
-from src.pipeline.external.damodaran import get_damodaran_loader
-
-loader = get_damodaran_loader()
-priors = loader.get_sector_priors("Technology")
-print(f"Tech sector beta: {priors.beta}")
-print(f"Tech sector ERP: {priors.expected_return}")
-```
+**For Contributors**: See [.github/copilot-instructions.md](.github/copilot-instructions.md) for development conventions and common pitfalls.
 
 ---
 
-## �📁 Project Structure
+## 📁 Project Structure
 
 ```
 quant-portfolio-manager/
 ├── main.py                          # CLI entry point (optimize, verify, backtest, portfolio)
-├── config.py                        # Configuration and API keys
 ├── pyproject.toml                   # Dependencies (uv package manager)
 ├── src/
+│   ├── config.py                    # Runtime configuration (frozen dataclass)
+│   ├── constants.py                 # All configurable parameters
+│   ├── env_loader.py                # Auto-loads API keys from config/secrets.env
 │   ├── models/
 │   │   ├── factor_engine.py         # Multi-factor stock ranking engine
-│   │   └── optimizer.py             # Factor-based Black-Litterman optimizer
+│   │   ├── optimizer.py             # Black-Litterman with long/short support
+│   │   └── regime.py                # Market regime detection (SMA + VIX)
 │   ├── pipeline/
-│   │   ├── fred_connector.py        # FRED API integration
-│   │   ├── damodaran_loader.py      # NYU Stern data loader
-│   │   ├── universe_loader.py       # S&P 500 constituent loader
-│   │   ├── systematic_workflow.py   # Unified factor→BL pipeline
-│   │   ├── shiller_loader.py        # Macro God: CAPE risk adjustment
-│   │   └── french_loader.py         # Factor God: Fama-French tilts
+│   │   ├── systematic_workflow.py   # Main orchestration (5-stage pipeline)
+│   │   ├── universe.py              # Universe loading (SP500/Russell/NASDAQ)
+│   │   └── external/
+│   │       ├── fred.py              # FRED API (risk-free rate, inflation)
+│   │       ├── shiller.py           # Macro God: CAPE risk adjustment
+│   │       ├── french.py            # Factor God: Fama-French tilts
+│   │       └── damodaran.py         # NYU Stern sector priors (not integrated)
+│   ├── backtesting/
+│   │   ├── engine.py                # Walk-forward validation
+│   │   ├── performance.py           # Performance metrics calculation
+│   │   └── results.py               # Results aggregation and export
 │   ├── portfolio_snapshot.py        # Portfolio snapshot creation (JSON/CSV)
 │   ├── forward_testing/
 │   │   └── validator.py             # Forward performance validation
+│   ├── core/
+│   │   ├── cache.py                 # 3-tier caching system
+│   │   ├── retry.py                 # Exponential backoff retry logic
+│   │   └── rate_limit.py            # Thread-safe rate limiting
 │   └── utils/
-│       └── validation.py            # Data quality checks
+│       └── regime_adjustment.py     # Regime-based exposure adjustment
 ├── tests/
-│   └── test_phase1_integration.py   # Integration tests
+│   ├── test_phase1_integration.py   # Integration tests
+│   ├── test_no_lookahead.py         # Point-in-time data integrity
+│   ├── test_regime_detector.py      # Regime detection validation
+│   └── test_regime_adjustment.py    # Regime adjustment tests
+├── tools/
+│   ├── download_historical_data.py  # Initial bulk download (2000-present)
+│   ├── update_daily_data.py         # Daily incremental updates
+│   ├── analyze_efficient_frontier.py# Constraint impact analysis
+│   ├── analyze_long_short.py        # Long/short strategy comparison
+│   └── archive_old_backtests.py     # Cleanup old backtest results
+├── docs/
+│   ├── REPOSITORY_OVERVIEW.md       # Architecture and data flow
+│   ├── LONG_SHORT_130_30.md         # 130/30 strategy guide
+│   ├── MINIMUM_SHARPE_CONSTRAINT.md # Sharpe constraint documentation
+│   ├── REGIME_AND_GODS_GUIDE.md     # Advanced features guide
+│   └── CACHING_STRATEGY.md          # Cache system details
+├── config/
+│   └── secrets.env                  # API keys (FRED_API_KEY)
 └── data/
-    ├── cache/                       # Data cache (gitignored)
-    └── portfolios/                  # Portfolio snapshots (gitignored)
+    ├── cache/                       # Ticker data (24h expiry)
+    ├── historical/                  # Historical price archives
+    ├── portfolios/                  # Portfolio snapshots
+    └── backtests/                   # Backtest results
 ```
 
 ## 🛠️ Technical Details
