@@ -40,3 +40,21 @@ def test_price_asof_is_strictly_before(fixture_dir):
 
 def test_price_asof_missing_ticker_returns_none(fixture_dir):
     assert hs.price_asof("NOPE", pd.Timestamp("2020-06-15"), base_dir=fixture_dir) is None
+
+
+def test_load_prices_refuses_mislabeled_file(tmp_path):
+    # File named WRONG.parquet but its Close column belongs to OTHER -> must refuse.
+    idx = pd.date_range("2020-01-01", "2020-03-01", freq="B", name="Date")
+    df = pd.DataFrame(
+        {("Close", "OTHER"): range(len(idx)), ("ticker", ""): ["WRONG"] * len(idx)},
+        index=idx,
+    )
+    d = tmp_path / "prices"
+    d.mkdir()
+    df.to_parquet(d / "WRONG.parquet")
+    assert hs.load_prices("WRONG", base_dir=tmp_path) is None
+
+
+def test_price_asof_handles_tz_aware_input(fixture_dir):
+    px = hs.price_asof("TEST", pd.Timestamp("2020-06-15", tz="UTC"), base_dir=fixture_dir)
+    assert px is not None
