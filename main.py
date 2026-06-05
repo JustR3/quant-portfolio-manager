@@ -515,9 +515,7 @@ def main():
         
         elif args.portfolio_action == "list":
             print_header("Portfolio Snapshots")
-            
-            from pathlib import Path
-            
+
             snapshots_dir = Path("data/portfolios")
             
             if not snapshots_dir.exists():
