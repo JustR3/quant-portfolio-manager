@@ -12,6 +12,14 @@
 
 **Known fidelity caveats (documented, not fixed here):** annual cadence; ~3-yr usable window; yfinance returns latest-reported (possibly restated) figures, not strictly as-originally-reported — a minor residual look-ahead, noted in output.
 
+## Revision 2026-06-05a — corrupt price store discovered mid-implementation
+
+While code-reviewing Task 1, we confirmed a **severe data-integrity bug**: **501 of 502** files in `data/historical/prices/` contain the **wrong ticker's** price data (e.g. `AAPL.parquet` holds ABBV's series; `MSFT.parquet` holds EQIX-like data at 763.30 vs MSFT's ~$480). The `('ticker','')` label column was set correctly, but the OHLCV columns came from a different stock (a misaligned batch→filename save in an older download path). **Every prior backtest — including the 29 saved runs in `data/backtests/` — used wrong prices and is invalid; those will be cleared in Task 1b.**
+
+Two changes, approved by the user (2026-06-05):
+1. **Task 1 gains a ticker-identity guard** — `load_prices` must refuse (return `None` + warn) when a MultiIndex file lacks the `(field, requested_ticker)` column, rather than ever returning mislabeled data. Until Task 1b regenerates the store, this makes the corruption *loud* (price lookups refuse) instead of silently wrong.
+2. **New Task 1b** — fix the download path to verify ticker identity before writing, regenerate the store, and validate.
+
 ---
 
 ## File Structure
@@ -158,6 +166,34 @@ Expected: PASS (3 passed).
 ```bash
 git add src/pipeline/historical_store.py tests/test_historical_store.py tests/fixtures/
 git commit -m "feat: historical_store — normalize MultiIndex price parquets with strict as-of lookup"
+```
+
+---
+
+## Task 1b: Data integrity — fix downloader, regenerate price store, validate
+
+**Why:** the existing store is corrupt (see Revision 2026-06-05a). Blocking for the integration smoke test (Task 9) and any real backtest; independent of the synthetic-fixture unit tasks (2–8), so it can run any time before Task 9.
+
+**Files:**
+- Modify: `tools/download_historical_data.py` (identity assertion + verifiable schema)
+- Modify: `tools/update_daily_data.py` (stop blind-concat; normalize schema; identity check)
+- Create: `tools/verify_price_store.py` (integrity checker)
+- Test: `tests/test_price_store_integrity.py`
+
+**Acceptance criteria:**
+- **Identity at write time:** the downloader fetches each ticker individually and, before saving, asserts the returned data actually belongs to that ticker (yfinance single-ticker downloads expose the ticker in the MultiIndex level-1; assert it equals the requested ticker). On mismatch, **skip + log error**, never write.
+- **Verifiable schema:** saved files keep a `(field, ticker)` MultiIndex with the **correct** ticker (so `historical_store.load_prices`'s guard can verify identity). Document the schema in the module docstring.
+- **Regenerate** all universe tickers into `data/historical/prices/` (network op; `uv run python tools/download_historical_data.py --start 2015-01-01 --validate`). Note: store stays git-ignored / will be purged from history in Plan 3 — do **not** commit the parquet files.
+- **Integrity checker** `verify_price_store.py`: for every file, assert the `(field, ticker)` column ticker == filename, monotonic dates, no zero/negative closes, and spot-check ≥10 random tickers' last close against a fresh single-ticker `yf.download` (±1%). Exit non-zero on any failure. `tests/test_price_store_integrity.py` unit-tests the checker on a tiny good and a tiny bad in-memory file.
+- **Clear invalid artifacts:** delete the 29 stale runs in `data/backtests/` (they used corrupt prices). 
+- **Post-regen:** `historical_store.price_asof("AAPL", <date>)` returns a real AAPL price (guard passes); `load_prices` on a deliberately-mislabeled file returns `None`.
+
+**Commit:** code + checker + tests only (not the regenerated parquet data):
+```
+git add tools/download_historical_data.py tools/update_daily_data.py tools/verify_price_store.py tests/test_price_store_integrity.py
+git commit -m "fix(data): verify ticker identity on download; regenerate corrupt price store; add integrity checker
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 
 ---
