@@ -1,7 +1,7 @@
 # Backtest Integrity & Repo Remediation — Design Spec
 
 - **Date:** 2026-06-05
-- **Status:** Approved (brainstorm complete) → ready for implementation plan
+- **Status:** Approved (brainstorm complete). WS0 feasibility spike run 2026-06-05 → **GO** (see `docs/research/2026-06-05-pit-fundamentals-feasibility.md`). Ready for implementation plan.
 - **Scope decision:** **Fixes only.** The continuous "living strategy" (daily data refresh + scheduled rebalancing, algo-fund operation) is **explicitly deferred** to its own later brainstorm→spec→plan→execute cycle. A roadmap pointer to it lives in `CLAUDE.md`.
 
 ## 1. Context
@@ -21,7 +21,8 @@ Already fixed this session (committed `c7bfbb2`): `qpm backtest` crashed on ever
 
 ## 2. Decisions locked (from brainstorm Q&A)
 
-- **PIT fundamentals source:** pragmatic — yfinance's dated **annual** statements (~4 fiscal periods) applied with a reporting lag; PIT market cap = shares × historical price. Accepts ~4-year reliable-backtest window and annual granularity, documented.
+- **PIT fundamentals source:** pragmatic — yfinance's dated **annual** statements (4–5 fiscal periods) applied with a reporting lag; PIT market cap = shares × historical price. **WS0 finding:** fundamentals reach only ~2021–2022, so the usable backtest window is **~3 years** (broad coverage from ~mid-2023), annual cadence — the backtest is an **integrity/sanity check, not a strong statistical validation**. Documented.
+- **Missing required fields (e.g. financials/banks):** detect per-ticker; **exclude** the ticker from ranking/optimization with a **recorded, counted reason** surfaced in output (live + backtest). Never silently score z=0. Applies to the live engine too, not just backtest. (WS0 found JPM missing EBIT/Gross Profit/Current Liabilities.)
 - **Survivorship:** fix the cheap high-impact half (PIT market-cap **ranking**); keep current constituent **membership** but document the residual limitation loudly. Not sourcing historical constituents (data-foundation work, deferred).
 - **No silent fallback:** when PIT fundamentals are unavailable at a rebalance, the engine **raises** or, only under an explicit `--momentum-only` flag, falls back with a **loud per-rebalance warning recorded in results.** Never `NaN→0` silently.
 - **Transaction costs:** configurable, default **10 bps/side (~20 bps round-trip)** on turnover.
@@ -37,6 +38,7 @@ Throwaway branch. Confirm yfinance returns dated annual statements + shares-outs
 ### WS1 — Point-in-time data foundation *(the spine)*
 - New `src/pipeline/fundamentals.py`: fetch + cache yfinance annual statements **with fiscal period-end dates**, plus shares-outstanding history.
 - `FactorEngine` `as_of_date` path: select latest statement with `period_end + lag ≤ as_of_date`; PIT market cap = shares × historical close at as_of_date; Value/Quality from that statement; Momentum from prices.
+- **Missing-field exclusion:** a ticker lacking any required field at the as-of date is dropped from ranking with a recorded reason (counted in results), not scored 0 (see §2).
 - No silent failure (see §2). Backtest-length guard: start predating available fundamentals → refuse with a clear message.
 
 ### WS2 — Universe / survivorship
