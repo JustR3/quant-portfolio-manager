@@ -32,3 +32,9 @@ dev = [
     "pytest-cov>=4.0.0",
     "ruff>=0.1.0",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: hits the live network (yfinance); deselected by default, run with -m integration",
+]
+addopts = "-m 'not integration'"

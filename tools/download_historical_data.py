@@ -287,7 +287,7 @@ def validate_data_quality(output_dir: Path, sample_size: int = 10):
         output_dir: Directory containing parquet files
         sample_size: Number of files to sample for validation
     """
-    logger.info(f"\n🔍 Running data quality checks...")
+    logger.info("\n🔍 Running data quality checks...")
     
     files = list(output_dir.glob("*.parquet"))
     
@@ -394,7 +394,7 @@ def main():
     
     # Run download
     output_dir = Path(args.output)
-    results = bulk_download(
+    bulk_download(
         tickers=tickers,
         start_date=args.start,
         end_date=args.end,

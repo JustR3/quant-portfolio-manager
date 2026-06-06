@@ -18,7 +18,7 @@ from pathlib import Path
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Tuple, Optional
 import argparse
 import logging
@@ -315,7 +315,7 @@ def main():
         check_staleness(data_dir, args.stale_threshold)
     
     # Run update
-    results = daily_update(
+    daily_update(
         tickers=args.tickers,
         max_workers=args.workers,
         data_dir=data_dir

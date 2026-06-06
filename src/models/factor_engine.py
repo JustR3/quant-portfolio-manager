@@ -17,16 +17,11 @@ import numpy as np
 import yfinance as yf
 
 from src.logging_config import get_logger
-from src.core import default_cache, retry_with_backoff, thread_safe_rate_limiter, Timer
+from src.core import default_cache, retry_with_backoff, thread_safe_rate_limiter
 from src.constants import (
-    TRADING_DAYS_PER_YEAR,
     DEFAULT_BATCH_SIZE,
     DEFAULT_CACHE_EXPIRY_HOURS,
     MAX_PARALLEL_WORKERS,
-    VALUE_FACTOR_WEIGHT,
-    QUALITY_FACTOR_WEIGHT,
-    MOMENTUM_FACTOR_WEIGHT,
-    ZSCORE_WINSORIZE_THRESHOLD,
     FUNDAMENTALS_REPORTING_LAG_DAYS,
 )
 from src.pipeline import historical_store as hstore
@@ -343,7 +338,7 @@ class FactorEngine:
             value_score = 0.5 * fcf_yield + 0.5 * earnings_yield
             return value_score if value_score > 0 else np.nan
             
-        except Exception as e:
+        except Exception:
             # print(f"  Value calc failed for {ticker}: {e}")
             return np.nan
     
@@ -392,7 +387,7 @@ class FactorEngine:
             quality_score = 0.5 * roic + 0.5 * gross_margin
             return quality_score if not np.isnan(quality_score) else np.nan
             
-        except Exception as e:
+        except Exception:
             # print(f"  Quality calc failed for {ticker}: {e}")
             return np.nan
     
@@ -425,7 +420,7 @@ class FactorEngine:
             else:
                 return np.nan
                 
-        except Exception as e:
+        except Exception:
             # print(f"  Momentum calc failed for {ticker}: {e}")
             return np.nan
     
@@ -565,7 +560,7 @@ class FactorEngine:
 
         calc_elapsed = time.time() - calc_start
         if self.verbose:
-            print(f"✅ Factor ranking complete!")
+            print("✅ Factor ranking complete!")
             print(f"⏱️  Factor Calculation - Total: {calc_elapsed:.2f}s\n")
         return output_df
     
@@ -694,12 +689,12 @@ class FactorEngine:
         print(f"🔍 FACTOR AUDIT REPORT: {report['ticker']}")
         print("=" * 80)
         
-        print(f"\n📊 OVERALL RANKING")
+        print("\n📊 OVERALL RANKING")
         print(f"   Rank: #{report['rank']} of {report['total_stocks']} stocks")
         print(f"   Percentile: {report['rank_percentile']:.1%}")
         print(f"   Total Score: {report['total_score']:.3f}")
         
-        print(f"\n📈 FACTOR BREAKDOWN\n")
+        print("\n📈 FACTOR BREAKDOWN\n")
         
         for factor_name, factor_data in report['factors'].items():
             print(f"   {factor_name.upper()}:")
@@ -708,7 +703,7 @@ class FactorEngine:
             print(f"      Contribution to Total Score: {factor_data['contribution']:>+.3f}")
             print()
         
-        print(f"💡 SUMMARY")
+        print("💡 SUMMARY")
         print(f"   {report['summary']}")
         
         print("\n" + "=" * 80 + "\n")
