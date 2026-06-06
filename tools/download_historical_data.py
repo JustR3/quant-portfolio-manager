@@ -213,6 +213,72 @@ def bulk_download(
     return df_results
 
 
+def download_batch(
+    tickers: List[str],
+    start_date: str = "2015-01-01",
+    end_date: Optional[str] = None,
+    batch_size: int = 100,
+    output_dir: Optional[Path] = None,
+) -> pd.DataFrame:
+    """Rate-limit-friendly bulk download: few batched requests, saved BY LABEL.
+
+    Each ticker's columns are selected from the batch result by name
+    (``data.loc[:, (slice(None), ticker)]``), never by position, and saved with a
+    (field, ticker) MultiIndex. This makes the 2026-06 misalignment corruption
+    (where per-position assignment smeared each ticker's data across ~3 files)
+    structurally impossible.
+    """
+    if end_date is None:
+        end_date = datetime.now().strftime("%Y-%m-%d")
+    if output_dir is None:
+        output_dir = Path("data/historical/prices")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    required = ["Open", "High", "Low", "Close", "Adj Close", "Volume"]
+    results = []
+    chunks = [tickers[i:i + batch_size] for i in range(0, len(tickers), batch_size)]
+
+    for ci, chunk in enumerate(chunks, 1):
+        logger.info("Batch %d/%d (%d tickers)", ci, len(chunks), len(chunk))
+        try:
+            data = yf.download(chunk, start=start_date, end=end_date, auto_adjust=False,
+                               progress=False, group_by="column", threads=True)
+        except Exception as e:
+            for t in chunk:
+                results.append({"ticker": t, "rows": 0, "error": f"batch failed: {e}"})
+            continue
+
+        if data is None or data.empty:
+            for t in chunk:
+                results.append({"ticker": t, "rows": 0, "error": "empty batch result"})
+            continue
+
+        # Single-ticker chunk can come back flat -> wrap as (field, ticker)
+        if not isinstance(data.columns, pd.MultiIndex):
+            data.columns = pd.MultiIndex.from_product([data.columns, [chunk[0]]])
+
+        present = set(data.columns.get_level_values(-1))
+        for t in chunk:
+            if t not in present:
+                results.append({"ticker": t, "rows": 0, "error": "not in batch result (delisted?)"})
+                continue
+            sub = data.loc[:, (slice(None), t)].dropna(how="all")
+            fields = set(sub.columns.get_level_values(0))
+            missing = [c for c in required if c not in fields]
+            if missing:
+                results.append({"ticker": t, "rows": 0, "error": f"missing columns: {missing}"})
+                continue
+            if sub.empty:
+                results.append({"ticker": t, "rows": 0, "error": "no rows after dropna"})
+                continue
+            sub.to_parquet(output_dir / f"{t}.parquet", compression="snappy", index=True)
+            results.append({"ticker": t, "rows": len(sub), "error": None})
+
+        time.sleep(1.0)  # gentle pause between batches
+
+    return pd.DataFrame(results)
+
+
 def validate_data_quality(output_dir: Path, sample_size: int = 10):
     """
     Run basic data quality checks on downloaded files.
