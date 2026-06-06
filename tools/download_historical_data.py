@@ -73,23 +73,27 @@ def download_ticker_history(
         
         if data.empty:
             return ticker, 0, "No data returned from Yahoo Finance"
-        
-        # Handle MultiIndex columns (single ticker can still have MultiIndex)
+
+        # Normalize to a (field, ticker) MultiIndex carrying the CORRECT ticker, and
+        # ASSERT identity. A prior batched downloader smeared each ticker's data across
+        # ~3 files (501/502 corrupt); never write data that doesn't belong to `ticker`.
         if isinstance(data.columns, pd.MultiIndex):
-            # Flatten MultiIndex columns - take first level (price type)
-            data.columns = data.columns.get_level_values(0)
-        
-        # Ensure we have expected columns
+            got = set(data.columns.get_level_values(-1))
+            if got != {ticker}:
+                return ticker, 0, f"Identity mismatch: requested {ticker}, got {sorted(got)}"
+        else:
+            # Flat single-ticker frame -> wrap as (field, ticker) so reads can verify identity
+            data.columns = pd.MultiIndex.from_product([data.columns, [ticker]])
+
+        # Ensure we have expected price fields (field is column level 0)
+        fields = set(data.columns.get_level_values(0))
         required_cols = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
-        missing_cols = [col for col in required_cols if col not in data.columns]
-        
+        missing_cols = [col for col in required_cols if col not in fields]
+
         if missing_cols:
             return ticker, 0, f"Missing columns: {missing_cols}"
-        
-        # Add ticker column for reference
-        data['ticker'] = ticker
-        
-        # Save to parquet with compression
+
+        # Save to parquet with compression (schema: (field, ticker) MultiIndex columns)
         output_file = output_dir / f"{ticker}.parquet"
         data.to_parquet(output_file, compression='snappy', index=True)
         

@@ -87,10 +87,15 @@ def update_ticker(ticker: str, data_dir: Path, lookback_days: int = 7) -> Tuple[
         
         if df_new.empty:
             return ticker, 0, "No new dates after filtering"
-        
-        # Add metadata
-        df_new['ticker'] = ticker
-        
+
+        # Identity guard: never append another ticker's data (see 2026-06 corruption).
+        if isinstance(df_new.columns, pd.MultiIndex):
+            got = set(df_new.columns.get_level_values(-1))
+            if got != {ticker}:
+                return ticker, 0, f"Identity mismatch: requested {ticker}, got {sorted(got)}"
+        else:
+            df_new.columns = pd.MultiIndex.from_product([df_new.columns, [ticker]])
+
         # Merge with existing data
         df_combined = pd.concat([df_existing, df_new])
         
