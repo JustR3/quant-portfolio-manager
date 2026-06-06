@@ -731,10 +731,54 @@ def get_hybrid_universe() -> List[str]:
     return universe
 
 
+def _pit_market_cap(ticker: str, as_of) -> Optional[float]:
+    """Point-in-time market cap = PIT shares outstanding x historical close."""
+    from src.pipeline import historical_store, fundamentals
+    price = historical_store.price_asof(ticker, as_of)
+    shares = fundamentals.get_shares(ticker)
+    return fundamentals.pit_market_cap_from(shares, price, as_of)
+
+
+def rank_by_pit_market_cap(tickers: List[str], as_of_date, top_n: int) -> pd.DataFrame:
+    """Rank tickers by point-in-time market cap, returning the top_n members.
+
+    Returns a DataFrame with columns [ticker, sector, market_cap]. Sector is
+    'Unknown' in point-in-time mode (current sector labels would be a look-ahead).
+    Tickers without a PIT market cap (no shares/price at the date) are dropped.
+    """
+    as_of = pd.to_datetime(as_of_date)
+    rows = []
+    for ticker in tickers:
+        mc = _pit_market_cap(ticker, as_of)
+        if mc is not None and mc > 0:
+            rows.append({"ticker": ticker, "sector": "Unknown", "market_cap": mc})
+    df = pd.DataFrame(rows, columns=["ticker", "sector", "market_cap"])
+    if df.empty:
+        return df
+    df = df.sort_values("market_cap", ascending=False).reset_index(drop=True)
+    return df.head(top_n).reset_index(drop=True)
+
+
+def _resolve_constituents(universe_name: str, custom_tickers: Optional[List[str]]) -> List[str]:
+    """Return the full constituent ticker list for a universe (membership only)."""
+    name = universe_name.lower()
+    if name == "custom":
+        if not custom_tickers:
+            raise ValueError("Custom universe requires a ticker list")
+        return [t.upper().strip() for t in custom_tickers]
+    if name == "sp500":
+        return list(SP500_TICKERS)
+    # Other universes: list members via the current-cap path (membership only;
+    # the caller re-ranks by point-in-time market cap).
+    members = get_universe(universe_name, top_n=100_000)
+    return members["ticker"].tolist()
+
+
 def get_universe(
     universe_name: str = "sp500",
     top_n: int = DEFAULT_TOP_N_STOCKS,
     custom_tickers: Optional[List[str]] = None,
+    as_of_date: Optional[str] = None,
 ) -> pd.DataFrame:
     """
     Main entry point for fetching stock universe.
@@ -764,7 +808,15 @@ def get_universe(
         'combined' includes S&P 500 + Russell 2000 only (not NASDAQ-100) to avoid
         duplication, as 59% of NASDAQ-100 overlaps with S&P 500. Choose 'nasdaq100'
         explicitly for tech/growth exposure.
+
+        as_of_date: if set, rank constituents by POINT-IN-TIME market cap
+        (shares x historical price) instead of current market cap. Membership
+        stays the current constituent list (documented survivorship limitation).
     """
+    if as_of_date is not None:
+        tickers = _resolve_constituents(universe_name, custom_tickers)
+        return rank_by_pit_market_cap(tickers, as_of_date, top_n)
+
     universe_name_lower = universe_name.lower()
     
     if universe_name_lower == "sp500":

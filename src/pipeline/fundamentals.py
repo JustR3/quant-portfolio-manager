@@ -8,19 +8,36 @@ in output; revisit if a paid PIT source is adopted later.
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
+import pickle
+import time
+from pathlib import Path
 import pandas as pd
 import yfinance as yf
 from src.logging_config import get_logger
-from src.core import default_cache, retry_with_backoff, thread_safe_rate_limiter
+from src.core import retry_with_backoff, thread_safe_rate_limiter
 
 logger = get_logger(__name__)
+
+
+def _to_naive(obj):
+    """Strip timezone from a Timestamp/DatetimeIndex for safe comparison.
+
+    Real yfinance data is mixed: get_shares_full returns a tz-aware index
+    (America/New_York) while statement columns are tz-naive. Normalize both
+    sides before any date comparison.
+    """
+    obj = pd.to_datetime(obj)
+    if getattr(obj, "tz", None) is not None:
+        obj = obj.tz_localize(None)
+    return obj
 
 
 def pit_shares_from_series(shares: pd.Series, as_of: pd.Timestamp) -> Optional[float]:
     """Latest shares-outstanding value dated on/before as_of, else None."""
     if shares is None or len(shares) == 0:
         return None
-    s = shares[pd.to_datetime(shares.index) <= pd.to_datetime(as_of)]
+    idx = _to_naive(pd.to_datetime(shares.index))
+    s = shares[idx <= _to_naive(as_of)]
     if s.empty:
         return None
     return float(s.iloc[-1])
@@ -39,9 +56,9 @@ def select_pit_statement(statement: pd.DataFrame, as_of: pd.Timestamp,
     """Return the latest period-end column whose period_end + lag <= as_of, else None."""
     if statement is None or statement.empty:
         return None
-    as_of = pd.to_datetime(as_of)
-    eligible = [pd.to_datetime(c) for c in statement.columns
-                if pd.to_datetime(c) + pd.Timedelta(days=lag_days) < as_of]
+    as_of = _to_naive(as_of)
+    eligible = [_to_naive(c) for c in statement.columns
+                if _to_naive(c) + pd.Timedelta(days=lag_days) < as_of]
     return max(eligible) if eligible else None
 
 
@@ -109,14 +126,39 @@ def compute_pit_factors(income, balance, cashflow, market_cap,
 
 
 # --- network layer (cached) -------------------------------------------------
-# Thin wrappers around yfinance, mirroring the caching pattern in
-# factor_engine._fetch_ticker_data. Not unit-tested (covered by the opt-in
-# integration test); kept side-effect-light so callers can monkeypatch them.
+# Thin wrappers around yfinance. These return pandas Series / dict-of-DataFrames,
+# which the shared default_cache mangles (it only round-trips a single DataFrame
+# via parquet and stringifies everything else through json). So we use a small
+# dedicated pickle cache that round-trips these structures correctly. Kept
+# side-effect-light so callers can monkeypatch them in tests.
+
+_FUND_CACHE = Path("data/cache/fundamentals")
+_FUND_CACHE_MAX_AGE_S = 7 * 24 * 3600
+
+
+def _cache_get(key: str):
+    p = _FUND_CACHE / f"{key}.pkl"
+    if p.exists() and (time.time() - p.stat().st_mtime) < _FUND_CACHE_MAX_AGE_S:
+        try:
+            with open(p, "rb") as f:
+                return pickle.load(f)
+        except Exception as e:
+            logger.debug("fundamentals cache read failed for %s: %s", key, e)
+    return None
+
+
+def _cache_set(key: str, obj) -> None:
+    try:
+        _FUND_CACHE.mkdir(parents=True, exist_ok=True)
+        with open(_FUND_CACHE / f"{key}.pkl", "wb") as f:
+            pickle.dump(obj, f)
+    except Exception as e:
+        logger.debug("fundamentals cache write failed for %s: %s", key, e)
+
 
 def get_statements(ticker: str) -> dict:
     """Fetch + cache annual income/balance/cashflow statements (dated columns)."""
-    key = f"statements_{ticker}"
-    cached = default_cache.get(key, expiry_hours=24 * 7)
+    cached = _cache_get(f"statements_{ticker}")
     if cached is not None:
         return cached
 
@@ -130,14 +172,13 @@ def get_statements(ticker: str) -> dict:
     except Exception as e:
         logger.debug("statements fetch failed for %s: %s", ticker, e)
         return {"income": None, "balance": None, "cashflow": None}
-    default_cache.set(key, data)
+    _cache_set(f"statements_{ticker}", data)
     return data
 
 
 def get_shares(ticker: str, start: str = "2015-01-01") -> Optional[pd.Series]:
     """Fetch + cache shares-outstanding history (for point-in-time market cap)."""
-    key = f"shares_{ticker}"
-    cached = default_cache.get(key, expiry_hours=24 * 7)
+    cached = _cache_get(f"shares_{ticker}")
     if cached is not None:
         return cached
 
@@ -151,5 +192,5 @@ def get_shares(ticker: str, start: str = "2015-01-01") -> Optional[pd.Series]:
         logger.debug("shares fetch failed for %s: %s", ticker, e)
         return None
     if shares is not None and len(shares) > 0:
-        default_cache.set(key, shares)
+        _cache_set(f"shares_{ticker}", shares)
     return shares
