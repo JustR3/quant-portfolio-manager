@@ -18,7 +18,6 @@ from src.pipeline.external import (
     get_factor_regime,
     get_factor_tilts,
 )
-from src.pipeline.systematic_workflow import run_systematic_portfolio
 
 __all__ = [
     # Universe
@@ -40,3 +39,13 @@ __all__ = [
     # Workflow
     "run_systematic_portfolio",
 ]
+
+
+def __getattr__(name):
+    # Lazy re-export to avoid an import cycle:
+    # factor_engine -> src.pipeline -> systematic_workflow -> factor_engine.
+    # systematic_workflow is only loaded when run_systematic_portfolio is first accessed.
+    if name == "run_systematic_portfolio":
+        from src.pipeline.systematic_workflow import run_systematic_portfolio
+        return run_systematic_portfolio
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

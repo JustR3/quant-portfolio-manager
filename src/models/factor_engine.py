@@ -9,7 +9,6 @@ Ranks stocks based on:
 """
 
 import time
-import warnings
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -28,7 +27,10 @@ from src.constants import (
     QUALITY_FACTOR_WEIGHT,
     MOMENTUM_FACTOR_WEIGHT,
     ZSCORE_WINSORIZE_THRESHOLD,
+    FUNDAMENTALS_REPORTING_LAG_DAYS,
 )
+from src.pipeline import historical_store as hstore
+from src.pipeline import fundamentals as fnd
 
 # Try to import tqdm for progress bars
 try:
@@ -37,7 +39,6 @@ try:
 except ImportError:
     HAS_TQDM = False
 
-warnings.filterwarnings('ignore')
 logger = get_logger(__name__)
 
 
@@ -76,6 +77,7 @@ class FactorEngine:
         self.factor_scores = None
         self.universe_stats = {}  # Store mean/std for each factor
         self.raw_factors = None  # Store raw factor values for auditing
+        self.excluded = {}  # ticker -> exclusion reason (point-in-time path)
         
     def _fetch_ticker_data(self, ticker: str) -> Optional[Dict]:
         """Fetch data for a single ticker with caching and retry.
@@ -474,62 +476,93 @@ class FactorEngine:
         
         return z_scores
     
-    def rank_universe(self) -> pd.DataFrame:
-        """
-        Calculate all factors and rank stocks by composite score.
-        
-        Returns:
-            DataFrame with columns: [Ticker, Value_Z, Quality_Z, Momentum_Z, Total_Score]
-            sorted by Total_Score descending
-        """
-        if not self.data:
-            self.fetch_data()
-        
-        calc_start = time.time()
-        if self.verbose:
-            print("🔬 Calculating factor scores...")
-        
-        # Calculate raw factor values for all tickers
-        results = []
-        
-        for ticker in self.tickers:
-            value = self.calculate_value_factor(ticker)
-            quality = self.calculate_quality_factor(ticker)
-            momentum = self.calculate_momentum_factor(ticker)
-            
-            results.append({
-                'Ticker': ticker,
-                'Value_Raw': value,
-                'Quality_Raw': quality,
-                'Momentum_Raw': momentum
-            })
-        
-        df = pd.DataFrame(results)
-        
-        # Store raw factors for auditing
+    def _finalize_scores(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Z-score the raw factors, build the composite, sort. Shared by both paths."""
         self.raw_factors = df.copy()
-        
-        # Calculate Z-scores with universe statistics
         df['Value_Z'] = self.calculate_z_scores(df['Value_Raw'], 'value')
         df['Quality_Z'] = self.calculate_z_scores(df['Quality_Raw'], 'quality')
         df['Momentum_Z'] = self.calculate_z_scores(df['Momentum_Raw'], 'momentum')
-        
         # Composite score: 40% Value, 40% Quality, 20% Momentum
         df['Total_Score'] = (
-            0.4 * df['Value_Z'] +
-            0.4 * df['Quality_Z'] +
-            0.2 * df['Momentum_Z']
+            0.4 * df['Value_Z'] + 0.4 * df['Quality_Z'] + 0.2 * df['Momentum_Z']
         )
-        
-        # Sort by total score descending
         df = df.sort_values('Total_Score', ascending=False).reset_index(drop=True)
-        
-        # Store full dataframe with raw values
         self.factor_scores = df
-        
-        # Return simplified view
-        output_df = df[['Ticker', 'Value_Z', 'Quality_Z', 'Momentum_Z', 'Total_Score']].copy()
-        
+        return df[['Ticker', 'Value_Z', 'Quality_Z', 'Momentum_Z', 'Total_Score']].copy()
+
+    def _pit_momentum(self, ticker: str) -> float:
+        """12-month price return from the local store, strictly before as_of_date."""
+        s = hstore.load_prices(ticker)
+        if s is None:
+            return np.nan
+        s = s[s.index < self.as_of_date]
+        if len(s) < 250:
+            return np.nan
+        lookback = min(252, len(s) - 1)
+        past = s.iloc[-lookback]
+        cur = s.iloc[-1]
+        return (cur / past) - 1 if past > 0 else np.nan
+
+    def _pit_factor_row(self, ticker: str) -> Optional[Dict]:
+        """Point-in-time factor row for one ticker, or None if excluded (reason recorded)."""
+        price = hstore.price_asof(ticker, self.as_of_date)
+        shares = fnd.get_shares(ticker)
+        market_cap = fnd.pit_market_cap_from(shares, price, self.as_of_date)
+        stmts = fnd.get_statements(ticker)
+        pf = fnd.compute_pit_factors(
+            income=stmts.get('income'), balance=stmts.get('balance'),
+            cashflow=stmts.get('cashflow'), market_cap=market_cap,
+            as_of=self.as_of_date, lag_days=FUNDAMENTALS_REPORTING_LAG_DAYS,
+        )
+        if pf.excluded:
+            self.excluded[ticker] = pf.exclusion_reason
+            return None
+        return {
+            'Ticker': ticker,
+            'Value_Raw': pf.value_raw,
+            'Quality_Raw': pf.quality_raw,
+            'Momentum_Raw': self._pit_momentum(ticker),
+        }
+
+    def rank_universe(self) -> pd.DataFrame:
+        """
+        Calculate all factors and rank stocks by composite score.
+
+        Returns:
+            DataFrame with columns: [Ticker, Value_Z, Quality_Z, Momentum_Z, Total_Score]
+            sorted by Total_Score descending
+
+        When ``as_of_date`` is set (backtest), Value/Quality come from point-in-time
+        fundamentals and tickers we cannot measure are EXCLUDED (reason recorded in
+        ``self.excluded``) rather than scored zero. If nothing is measurable we raise
+        rather than silently degrade to a momentum-only ranking.
+        """
+        calc_start = time.time()
+        if self.verbose:
+            print("🔬 Calculating factor scores...")
+
+        if self.as_of_date is not None:
+            self.excluded = {}
+            results = [row for row in (self._pit_factor_row(t) for t in self.tickers)
+                       if row is not None]
+            if not results:
+                raise RuntimeError(
+                    f"No point-in-time fundamentals available at {self.as_of_date.date()}; "
+                    f"refusing to run momentum-only silently "
+                    f"({len(self.excluded)} tickers excluded)."
+                )
+            output_df = self._finalize_scores(pd.DataFrame(results))
+        else:
+            if not self.data:
+                self.fetch_data()
+            results = [{
+                'Ticker': ticker,
+                'Value_Raw': self.calculate_value_factor(ticker),
+                'Quality_Raw': self.calculate_quality_factor(ticker),
+                'Momentum_Raw': self.calculate_momentum_factor(ticker),
+            } for ticker in self.tickers]
+            output_df = self._finalize_scores(pd.DataFrame(results))
+
         calc_elapsed = time.time() - calc_start
         if self.verbose:
             print(f"✅ Factor ranking complete!")
