@@ -9,7 +9,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 import pandas as pd
+import yfinance as yf
 from src.logging_config import get_logger
+from src.core import default_cache, retry_with_backoff, thread_safe_rate_limiter
 
 logger = get_logger(__name__)
 
@@ -104,3 +106,50 @@ def compute_pit_factors(income, balance, cashflow, market_cap,
     value_raw = 0.5 * (fcf / market_cap) + 0.5 * (ebit / market_cap)
     quality_raw = 0.5 * (ebit / invested) + 0.5 * (gp / rev)
     return PITFactors(value_raw=value_raw, quality_raw=quality_raw)
+
+
+# --- network layer (cached) -------------------------------------------------
+# Thin wrappers around yfinance, mirroring the caching pattern in
+# factor_engine._fetch_ticker_data. Not unit-tested (covered by the opt-in
+# integration test); kept side-effect-light so callers can monkeypatch them.
+
+def get_statements(ticker: str) -> dict:
+    """Fetch + cache annual income/balance/cashflow statements (dated columns)."""
+    key = f"statements_{ticker}"
+    cached = default_cache.get(key, expiry_hours=24 * 7)
+    if cached is not None:
+        return cached
+
+    def _fetch():
+        thread_safe_rate_limiter.wait()
+        t = yf.Ticker(ticker)
+        return {"income": t.income_stmt, "balance": t.balance_sheet, "cashflow": t.cashflow}
+
+    try:
+        data = retry_with_backoff(_fetch, max_attempts=3)
+    except Exception as e:
+        logger.debug("statements fetch failed for %s: %s", ticker, e)
+        return {"income": None, "balance": None, "cashflow": None}
+    default_cache.set(key, data)
+    return data
+
+
+def get_shares(ticker: str, start: str = "2015-01-01") -> Optional[pd.Series]:
+    """Fetch + cache shares-outstanding history (for point-in-time market cap)."""
+    key = f"shares_{ticker}"
+    cached = default_cache.get(key, expiry_hours=24 * 7)
+    if cached is not None:
+        return cached
+
+    def _fetch():
+        thread_safe_rate_limiter.wait()
+        return yf.Ticker(ticker).get_shares_full(start=start)
+
+    try:
+        shares = retry_with_backoff(_fetch, max_attempts=3)
+    except Exception as e:
+        logger.debug("shares fetch failed for %s: %s", ticker, e)
+        return None
+    if shares is not None and len(shares) > 0:
+        default_cache.set(key, shares)
+    return shares
