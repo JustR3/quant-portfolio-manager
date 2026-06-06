@@ -1,187 +1,68 @@
-#!/usr/bin/env python3
-"""
-Verification Script: Confirm No Look-Ahead Bias
-Tests that backtesting uses only historical data at each rebalance point.
-"""
+"""No look-ahead bias: fundamentals, prices, and the factor engine are strictly
+point-in-time.
 
-from datetime import datetime, timedelta
-
+This REPLACES the prior version, which hit the live network, only checked price
+timestamps, asserted nothing in its "walk-forward" test, and returned bools
+instead of asserting. These tests are deterministic and offline.
+"""
 import pandas as pd
+import pytest
 
-from src.models.factor_engine import FactorEngine
-from src.models.optimizer import BlackLittermanOptimizer
-
-def test_factor_engine_dates():
-    """Test that FactorEngine respects as_of_date constraint."""
-    print("\n" + "="*80)
-    print("TEST 1: FactorEngine Date Constraint")
-    print("="*80)
-    
-    # Simulate rebalance on 2024-01-01
-    rebalance_date = "2024-01-01"
-    as_of_date = "2023-12-31"  # Day before rebalance
-    
-    print(f"\n📅 Rebalance Date: {rebalance_date}")
-    print(f"📅 Data Cutoff (as_of_date): {as_of_date}")
-    
-    # Create engine with as_of_date
-    engine = FactorEngine(
-        tickers=["AAPL", "MSFT"],
-        batch_size=50,
-        as_of_date=as_of_date
-    )
-    
-    print(f"✅ FactorEngine created with as_of_date = {engine.as_of_date}")
-    
-    # Fetch data
-    engine.fetch_data()
-    
-    # Check if data respects cutoff
-    for ticker in ["AAPL", "MSFT"]:
-        if ticker in engine.data and engine.data[ticker]:
-            hist = engine.data[ticker].get('history')
-            if hist is not None and not hist.empty:
-                latest_date = hist.index.max()
-                print(f"  {ticker}: Latest data date = {latest_date}")
-                
-                # Verify no data after cutoff
-                cutoff = pd.to_datetime(as_of_date)
-                if latest_date < cutoff + timedelta(days=2):  # Allow 1-day buffer
-                    print(f"    ✅ PASS: Data ends before cutoff")
-                else:
-                    print(f"    ❌ FAIL: Data extends beyond cutoff!")
-                    return False
-    
-    print("\n✅ TEST 1 PASSED: FactorEngine respects date constraints\n")
-    return True
+from src.pipeline import fundamentals as f
+from src.pipeline import historical_store as hs
+from src.models import factor_engine as fe
 
 
-def test_optimizer_dates():
-    """Test that Optimizer uses historical date ranges."""
-    print("="*80)
-    print("TEST 2: Optimizer Historical Data Only")
-    print("="*80)
-    
-    # Simulate rebalance on 2024-01-01
-    rebalance_date = datetime(2024, 1, 1)
-    
-    # Historical period: 2 years before rebalance
-    start_date = (rebalance_date - timedelta(days=730)).strftime('%Y-%m-%d')
-    end_date = (rebalance_date - timedelta(days=1)).strftime('%Y-%m-%d')
-    
-    print(f"\n📅 Rebalance Date: {rebalance_date.strftime('%Y-%m-%d')}")
-    print(f"📊 Optimizer Data Range: {start_date} to {end_date}")
-    
-    optimizer = BlackLittermanOptimizer(
-        tickers=["AAPL", "MSFT"],
-        risk_free_rate=0.04,
-        factor_alpha_scalar=0.05
-    )
-    
-    # Fetch with explicit dates
-    prices = optimizer.fetch_price_data(start_date=start_date, end_date=end_date)
-    
-    if not prices.empty:
-        latest_date = prices.index.max()
-        print(f"\n  Latest price date: {latest_date}")
-        
-        # Verify no future data
-        cutoff = pd.to_datetime(end_date)
-        if latest_date <= cutoff + timedelta(days=1):  # Allow 1-day buffer
-            print(f"  ✅ PASS: Prices end at or before {end_date}")
-            print("\n✅ TEST 2 PASSED: Optimizer uses only historical data\n")
-            return True
-        else:
-            print(f"  ❌ FAIL: Prices extend to {latest_date}, beyond {end_date}!")
-            return False
-    else:
-        print("  ⚠️  WARNING: No price data returned")
-        return False
+def test_future_statement_is_not_selected():
+    # A 2024 statement must be invisible at a 2023 as-of (period_end + 90d > as_of).
+    inc = pd.DataFrame({pd.Timestamp("2024-12-31"):
+                        {"EBIT": 999, "Gross Profit": 1, "Total Revenue": 1}})
+    assert f.select_pit_statement(inc, pd.Timestamp("2023-06-01"), lag_days=90) is None
 
 
-def test_walk_forward_concept():
-    """Explain and verify walk-forward validation."""
-    print("="*80)
-    print("TEST 3: Walk-Forward Validation (Train/Test Split for Time Series)")
-    print("="*80)
-    
-    print("""
-Walk-forward validation IS the time-series equivalent of train/test split:
-
-Traditional ML:          Time-Series Backtesting:
-├─ Training Data         ├─ Historical Data (before rebalance)
-├─ Test Data             ├─ Holding Period (after rebalance)
-└─ One-time split        └─ Rolling split at each rebalance
-
-Example for 2024 backtest with monthly rebalancing:
-
-  Rebalance #1 (2024-01-01):
-    Train: Use data from 2020-2023 (historical) ──┐
-    Test:  Measure returns Jan-Feb 2024           ├─ Out-of-sample!
-                                                   │
-  Rebalance #2 (2024-02-01):                      │
-    Train: Use data from 2020-2024 Jan ───────────┤
-    Test:  Measure returns Feb-Mar 2024           ├─ Out-of-sample!
-                                                   │
-  Rebalance #3 (2024-03-01):                      │
-    Train: Use data from 2020-2024 Feb ───────────┤
-    Test:  Measure returns Mar-Apr 2024           └─ Out-of-sample!
-
-Each "test" period is truly out-of-sample - the model never sees that
-data during decision-making.
-
-This is MORE rigorous than traditional train/test because:
-- Tested on 12 different out-of-sample periods (for monthly rebalancing)
-- Each period uses only data available at that point in time
-- No data leakage possible
-""")
-    
-    print("✅ TEST 3: Walk-forward validation is implemented correctly\n")
-    return True
+def test_factors_excluded_when_only_future_fundamentals_exist():
+    res = f.compute_pit_factors(
+        income=pd.DataFrame({pd.Timestamp("2025-12-31"):
+                             {"EBIT": 1, "Gross Profit": 1, "Total Revenue": 1}}),
+        balance=pd.DataFrame({pd.Timestamp("2025-12-31"):
+                              {"Total Assets": 2, "Current Liabilities": 1}}),
+        cashflow=pd.DataFrame({pd.Timestamp("2025-12-31"): {"Free Cash Flow": 1}}),
+        market_cap=100.0, as_of=pd.Timestamp("2023-06-01"), lag_days=90)
+    assert res.excluded is True
 
 
-def main():
-    """Run all verification tests."""
-    print("\n" + "🔬"*40)
-    print("  BACKTESTING INTEGRITY VERIFICATION")
-    print("  Confirming No Look-Ahead Bias")
-    print("🔬"*40 + "\n")
-    
-    tests = [
-        ("FactorEngine Date Constraints", test_factor_engine_dates),
-        ("Optimizer Historical Data Only", test_optimizer_dates),
-        ("Walk-Forward Validation", test_walk_forward_concept),
-    ]
-    
-    results = []
-    for name, test_func in tests:
-        try:
-            passed = test_func()
-            results.append((name, passed))
-        except Exception as e:
-            print(f"\n❌ TEST FAILED: {name}")
-            print(f"   Error: {e}\n")
-            results.append((name, False))
-    
-    # Summary
-    print("\n" + "="*80)
-    print("VERIFICATION SUMMARY")
-    print("="*80)
-    
-    for name, passed in results:
-        status = "✅ PASS" if passed else "❌ FAIL"
-        print(f"  {status}: {name}")
-    
-    all_passed = all(passed for _, passed in results)
-    
-    if all_passed:
-        print("\n🎉 ALL TESTS PASSED - No look-ahead bias detected!")
-        print("   The backtesting engine properly implements walk-forward validation.")
-        return 0
-    else:
-        print("\n⚠️  SOME TESTS FAILED - Review implementation")
-        return 1
+def test_price_asof_excludes_same_day_and_future(tmp_path):
+    idx = pd.date_range("2023-01-02", "2023-03-01", freq="B", name="Date")
+    df = pd.DataFrame({("Close", "AAA"): range(len(idx))}, index=idx)
+    df.columns = pd.MultiIndex.from_tuples([("Close", "AAA")])
+    d = tmp_path / "prices"
+    d.mkdir()
+    df.to_parquet(d / "AAA.parquet")
+
+    asof = pd.Timestamp("2023-02-01")
+    px = hs.price_asof("AAA", asof, base_dir=tmp_path)
+    full = hs.load_prices("AAA", base_dir=tmp_path)
+    assert px == float(full[full.index < asof].iloc[-1])  # strictly before, no leak
 
 
-if __name__ == "__main__":
-    exit(main())
+def test_factor_engine_asof_does_not_leak_future_statement(monkeypatch):
+    # Only a FUTURE statement exists -> ticker must be excluded, and with nothing
+    # measurable the engine refuses rather than silently going momentum-only.
+    future = {
+        "income": pd.DataFrame({pd.Timestamp("2024-12-31"):
+                                {"EBIT": 1, "Gross Profit": 1, "Total Revenue": 1}}),
+        "balance": pd.DataFrame({pd.Timestamp("2024-12-31"):
+                                 {"Total Assets": 2, "Current Liabilities": 1}}),
+        "cashflow": pd.DataFrame({pd.Timestamp("2024-12-31"): {"Free Cash Flow": 1}}),
+    }
+    monkeypatch.setattr(fe.fnd, "get_statements", lambda t: future)
+    monkeypatch.setattr(fe.fnd, "get_shares", lambda t, **k:
+                        pd.Series([100.0], index=pd.to_datetime(["2022-01-01"])))
+    monkeypatch.setattr(fe.hstore, "price_asof", lambda t, d, **k: 50.0)
+    monkeypatch.setattr(fe.hstore, "load_prices", lambda t, **k:
+                        pd.Series(range(400), index=pd.date_range("2022-01-01", periods=400, freq="B")))
+
+    eng = fe.FactorEngine(tickers=["AAA"], as_of_date="2023-06-01", verbose=False)
+    with pytest.raises(RuntimeError, match="No point-in-time fundamentals"):
+        eng.rank_universe()
+    assert "AAA" in eng.excluded

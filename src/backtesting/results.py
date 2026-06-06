@@ -48,7 +48,10 @@ class BacktestResult:
     avg_win: Optional[float] = None
     avg_loss: Optional[float] = None
     profit_factor: Optional[float] = None
-    
+
+    # Data-integrity caveats (survivorship, fundamentals window, exclusions)
+    data_caveats: Optional[str] = None
+
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization."""
         return {
@@ -57,7 +60,8 @@ class BacktestResult:
                 'end_date': self.end_date,
                 'universe': self.universe,
                 'rebalance_frequency': self.rebalance_frequency,
-                'num_rebalances': self.num_rebalances
+                'num_rebalances': self.num_rebalances,
+                'data_caveats': self.data_caveats
             },
             'performance': {
                 'total_return': round(self.total_return, 4),
@@ -156,5 +160,13 @@ TRADE STATISTICS
   Average Loss:          {self.avg_loss:>8.2%}
   Profit Factor:         {self.profit_factor:>8.2f}
 """
-        
+
+        if self.data_caveats:
+            summary += f"""
+{'─'*80}
+DATA CAVEATS
+{'─'*80}
+  {self.data_caveats}
+"""
+
         return summary

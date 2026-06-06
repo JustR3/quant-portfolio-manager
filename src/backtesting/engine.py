@@ -5,21 +5,14 @@ Walk-forward validation of systematic factor strategies.
 
 import warnings
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
-import numpy as np
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
 from src.logging_config import get_logger
-from src.constants import (
-    DEFAULT_RISK_FREE_RATE,
-    DEFAULT_FACTOR_ALPHA_SCALAR,
-    DEFAULT_TOP_N_STOCKS,
-    MAX_POSITION_SIZE,
-)
 from src.models.factor_engine import FactorEngine
 from src.models.optimizer import BlackLittermanOptimizer
 from src.pipeline.universe import get_universe
@@ -116,6 +109,7 @@ class BacktestEngine:
         self.weights_history = []
         self.portfolio_values = []
         self.dates = []
+        self.exclusions_total = 0  # tickers excluded (missing PIT fields) across rebalances
         
         # Benchmark
         self.benchmark_values = []
@@ -303,26 +297,29 @@ class BacktestEngine:
                     print(f"\n{'─' * 80}")
                     print(f"📅 Rebalance {i+1}/{len(rebalance_dates)}: {rebalance_date.strftime('%Y-%m-%d')}")
                 
-                # 1. Load universe (as of this date)
-                universe_df = get_universe(self.universe, top_n=self.top_n, custom_tickers=self.custom_tickers)
+                # Point-in-time as-of date: only data strictly before the rebalance.
+                as_of_date = (rebalance_date - timedelta(days=1)).strftime('%Y-%m-%d')
+
+                # 1. Load universe ranked by POINT-IN-TIME market cap as of this date.
+                universe_df = get_universe(self.universe, top_n=self.top_n,
+                                           custom_tickers=self.custom_tickers,
+                                           as_of_date=as_of_date)
                 tickers = universe_df['ticker'].tolist()
-                
+
                 if verbose and not HAS_TQDM:
                     print(f"   Universe: {len(tickers)} stocks")
-                
-                # 2. Calculate factors using ONLY data available BEFORE rebalance date
-                # This ensures TRUE point-in-time integrity - no look-ahead bias
-                as_of_date = (rebalance_date - timedelta(days=1)).strftime('%Y-%m-%d')
-                
+
+                # 2. Calculate factors using ONLY point-in-time data (no look-ahead).
                 factor_engine = FactorEngine(
                     tickers=tickers,
                     batch_size=50,
                     cache_expiry_hours=24,
-                    as_of_date=as_of_date,  # Critical: only use historical data
-                    verbose=False  # Suppress prints during backtest iterations
+                    as_of_date=as_of_date,
+                    verbose=False,
                 )
-                
+
                 factor_scores = factor_engine.rank_universe()
+                self.exclusions_total += len(factor_engine.excluded)
                 
                 # 3. Select top N stocks by factor score
                 top_stocks = factor_scores.head(self.top_n)['Ticker'].tolist()
@@ -441,6 +438,15 @@ class BacktestEngine:
                 current_weights = new_weights
                 
             except Exception as e:
+                # Hard guard: if nothing is measurable yet (start predates the available
+                # point-in-time fundamentals window), refuse rather than silently skipping.
+                if (isinstance(e, RuntimeError) and "No point-in-time fundamentals" in str(e)
+                        and not equity_curve):
+                    raise ValueError(
+                        f"Backtest start {self.start_date.strftime('%Y-%m-%d')} predates the "
+                        f"available point-in-time fundamentals window (~2023). Use a later "
+                        f"start date. (Underlying: {e})"
+                    )
                 if verbose:
                     print(f"   ✗ Error at {rebalance_date}: {str(e)}")
                     import traceback
@@ -522,6 +528,14 @@ class BacktestEngine:
         else:
             win_rate = avg_win = avg_loss = profit_factor = None
         
+        # Data-integrity caveats surfaced on every result (see spec).
+        data_caveats = (
+            "Point-in-time fundamentals window ~2023-present (annual cadence) — an "
+            "integrity check, not a long statistical sample. Survivorship: index "
+            "membership is the CURRENT constituent list, not point-in-time. "
+            f"Excluded (missing required fields): {self.exclusions_total} ticker-rebalances."
+        )
+
         # Create result
         result = BacktestResult(
             start_date=self.start_date.strftime('%Y-%m-%d'),
@@ -547,7 +561,8 @@ class BacktestEngine:
             win_rate=win_rate,
             avg_win=avg_win,
             avg_loss=avg_loss,
-            profit_factor=profit_factor
+            profit_factor=profit_factor,
+            data_caveats=data_caveats
         )
         
         if verbose:
