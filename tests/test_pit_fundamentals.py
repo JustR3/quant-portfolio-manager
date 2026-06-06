@@ -39,3 +39,26 @@ def test_select_pit_statement_respects_lag():
 def test_select_pit_statement_none_when_too_early():
     inc = _annual_income()
     assert f.select_pit_statement(inc, pd.Timestamp("2021-06-01"), lag_days=90) is None
+
+
+def test_compute_pit_factors_happy_path():
+    inc = _annual_income()
+    bal = pd.DataFrame({pd.Timestamp("2022-12-31"):
+                        {"Total Assets": 5000, "Current Liabilities": 1000}})
+    cf = pd.DataFrame({pd.Timestamp("2022-12-31"): {"Free Cash Flow": 150}})
+    res = f.compute_pit_factors(
+        income=inc, balance=bal, cashflow=cf,
+        market_cap=10000.0, as_of=pd.Timestamp("2024-03-30"), lag_days=90)
+    assert res.excluded is False
+    assert res.value_raw is not None and res.quality_raw is not None
+
+
+def test_compute_pit_factors_excludes_on_missing_field():
+    inc = pd.DataFrame({pd.Timestamp("2022-12-31"): {"Total Revenue": 900}})
+    bal = pd.DataFrame({pd.Timestamp("2022-12-31"): {"Total Assets": 5000}})
+    cf = pd.DataFrame({pd.Timestamp("2022-12-31"): {"Free Cash Flow": 150}})
+    res = f.compute_pit_factors(
+        income=inc, balance=bal, cashflow=cf,
+        market_cap=10000.0, as_of=pd.Timestamp("2024-03-30"), lag_days=90)
+    assert res.excluded is True
+    assert "EBIT" in res.exclusion_reason
