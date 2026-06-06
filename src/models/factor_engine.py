@@ -89,45 +89,12 @@ class FactorEngine:
         Returns:
             Dictionary with history, financial statements, and info, or None if failed
         """
-        # 1. TRY HISTORICAL STORAGE (for backtesting with as_of_date)
-        if self.as_of_date:
-            from pathlib import Path
-            hist_file = Path(f"data/historical/prices/{ticker}.parquet")
-            
-            if hist_file.exists():
-                try:
-                    df = pd.read_parquet(hist_file)
-                    
-                    # Point-in-time filter: only data BEFORE as_of_date
-                    df = df[df.index < self.as_of_date]
-                    
-                    # Need at least 2 years (~500 trading days) for factor calculations
-                    if len(df) >= 400:
-                        # Still need fundamentals - try cache or API
-                        info = default_cache.get(f"info_{ticker}")
-                        
-                        if info is None:
-                            # Fetch info from API (no historical info available)
-                            try:
-                                thread_safe_rate_limiter.wait()
-                                stock = yf.Ticker(ticker)
-                                info = stock.info
-                                default_cache.set(f"info_{ticker}", info)
-                            except:
-                                info = {}
-                        
-                        return {
-                            'history': df,
-                            'info': info,
-                            'cash_flow': None,  # Historical fundamentals not stored yet
-                            'income_stmt': None,
-                            'balance_sheet': None,
-                            'source': 'historical_storage'
-                        }
-                except Exception as e:
-                    logger.debug(f"Failed to load historical storage for {ticker}: {e}")
-                    # Fall through to cache/API
-        
+        # NOTE: point-in-time backtesting does NOT use this method. The as_of path in
+        # rank_universe() goes through _pit_factor_row (identity-guarded historical_store
+        # + point-in-time fundamentals). This method serves the live (current-data) path
+        # only. A prior historical-storage block here read parquet directly, bypassing the
+        # ticker-identity guard — removed to prevent reintroducing the 2026-06 corruption.
+
         # 2. TRY CONSOLIDATED CACHE (Phase 2 optimization)
         consolidated_key = f"ticker_{ticker}"
         cached_data = default_cache.get_consolidated(consolidated_key, expiry_hours=self.cache_expiry_hours)

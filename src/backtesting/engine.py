@@ -110,6 +110,7 @@ class BacktestEngine:
         self.portfolio_values = []
         self.dates = []
         self.exclusions_total = 0  # tickers excluded (missing PIT fields) across rebalances
+        self.skipped_rebalances = 0  # rebalances dropped due to errors / no measurable data
         
         # Benchmark
         self.benchmark_values = []
@@ -447,6 +448,7 @@ class BacktestEngine:
                         f"available point-in-time fundamentals window (~2023). Use a later "
                         f"start date. (Underlying: {e})"
                     )
+                self.skipped_rebalances += 1
                 if verbose:
                     print(f"   ✗ Error at {rebalance_date}: {str(e)}")
                     import traceback
@@ -455,7 +457,22 @@ class BacktestEngine:
         
         # Restore logging
         logging.disable(logging.NOTSET)
-        
+
+        # Loudly surface skipped rebalances — a partial backtest must NOT look complete.
+        total_planned = len(rebalance_dates)
+        if self.skipped_rebalances:
+            msg = (f"⚠ {self.skipped_rebalances}/{total_planned} rebalances were SKIPPED "
+                   f"(errors or no measurable data); the equity curve has gaps — treat "
+                   f"results with caution.")
+            logger.warning(msg)
+            if verbose:
+                print(msg)
+            if self.skipped_rebalances > total_planned / 2:
+                raise ValueError(
+                    f"Backtest unreliable: {self.skipped_rebalances}/{total_planned} rebalances "
+                    f"skipped (>50%). Refusing to report metrics on a mostly-empty backtest."
+                )
+
         # === CALCULATE PERFORMANCE METRICS ===
         
         if verbose:
@@ -533,7 +550,8 @@ class BacktestEngine:
             "Point-in-time fundamentals window ~2023-present (annual cadence) — an "
             "integrity check, not a long statistical sample. Survivorship: index "
             "membership is the CURRENT constituent list, not point-in-time. "
-            f"Excluded (missing required fields): {self.exclusions_total} ticker-rebalances."
+            f"Excluded (missing required fields): {self.exclusions_total} ticker-rebalances. "
+            f"Skipped rebalances (errors/no data): {self.skipped_rebalances}/{len(rebalance_dates)}."
         )
 
         # Create result

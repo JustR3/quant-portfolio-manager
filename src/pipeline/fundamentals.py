@@ -178,7 +178,8 @@ def get_statements(ticker: str) -> dict:
 
 def get_shares(ticker: str, start: str = "2015-01-01") -> Optional[pd.Series]:
     """Fetch + cache shares-outstanding history (for point-in-time market cap)."""
-    cached = _cache_get(f"shares_{ticker}")
+    cache_key = f"shares_{ticker}_{start}"
+    cached = _cache_get(cache_key)
     if cached is not None:
         return cached
 
@@ -192,5 +193,5 @@ def get_shares(ticker: str, start: str = "2015-01-01") -> Optional[pd.Series]:
         logger.debug("shares fetch failed for %s: %s", ticker, e)
         return None
     if shares is not None and len(shares) > 0:
-        _cache_set(f"shares_{ticker}", shares)
+        _cache_set(cache_key, shares)
     return shares
