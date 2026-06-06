@@ -17,3 +17,25 @@ def test_pit_market_cap_is_shares_times_price():
     mc = f.pit_market_cap_from(shares=shares, price=50.0, as_of=pd.Timestamp("2023-01-01"))
     assert mc == pytest.approx(5000.0)
     assert f.pit_market_cap_from(shares=shares, price=None, as_of=pd.Timestamp("2023-01-01")) is None
+
+
+def _annual_income():
+    cols = pd.to_datetime(["2023-12-31", "2022-12-31", "2021-12-31"])
+    return pd.DataFrame(
+        {cols[0]: {"EBIT": 300, "Gross Profit": 500, "Total Revenue": 1000},
+         cols[1]: {"EBIT": 200, "Gross Profit": 450, "Total Revenue": 900},
+         cols[2]: {"EBIT": 100, "Gross Profit": 400, "Total Revenue": 800}}
+    )
+
+
+def test_select_pit_statement_respects_lag():
+    inc = _annual_income()
+    col = f.select_pit_statement(inc, pd.Timestamp("2024-03-30"), lag_days=90)
+    assert col == pd.Timestamp("2022-12-31")
+    col2 = f.select_pit_statement(inc, pd.Timestamp("2024-04-01"), lag_days=90)
+    assert col2 == pd.Timestamp("2023-12-31")
+
+
+def test_select_pit_statement_none_when_too_early():
+    inc = _annual_income()
+    assert f.select_pit_statement(inc, pd.Timestamp("2021-06-01"), lag_days=90) is None

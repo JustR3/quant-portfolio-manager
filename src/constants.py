@@ -130,6 +130,12 @@ CONVICTION_HIGH_PROBABILITY: Final[float] = 75.0  # 75%
 CONVICTION_MODERATE_PROBABILITY: Final[float] = 60.0  # 60%
 
 # =============================================================================
+# FUNDAMENTALS / POINT-IN-TIME
+# =============================================================================
+# Reporting lag: conservative proxy for 10-K filing delay after fiscal year-end
+FUNDAMENTALS_REPORTING_LAG_DAYS = 90
+
+# =============================================================================
 # BAYESIAN PRIORS
 # =============================================================================
 BAYESIAN_PRIOR_WEIGHT: Final[float] = 0.30  # 30% prior

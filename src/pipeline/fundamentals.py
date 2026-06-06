@@ -30,3 +30,14 @@ def pit_market_cap_from(shares: pd.Series, price: Optional[float],
     if sh is None or price is None or price <= 0:
         return None
     return sh * price
+
+
+def select_pit_statement(statement: pd.DataFrame, as_of: pd.Timestamp,
+                         lag_days: int) -> Optional[pd.Timestamp]:
+    """Return the latest period-end column whose period_end + lag <= as_of, else None."""
+    if statement is None or statement.empty:
+        return None
+    as_of = pd.to_datetime(as_of)
+    eligible = [pd.to_datetime(c) for c in statement.columns
+                if pd.to_datetime(c) + pd.Timedelta(days=lag_days) < as_of]
+    return max(eligible) if eligible else None
