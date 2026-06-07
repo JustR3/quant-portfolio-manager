@@ -275,6 +275,17 @@ def get_equity_risk_scalar(
     }
 
 
+def display_cape_summary(macro: dict) -> None:
+    """Print a one-line CAPE / risk-scalar summary for the macro adjustment."""
+    cape = macro.get("current_cape")
+    cape_str = f"{cape:.1f}" if cape is not None else "n/a"
+    print(f"   CAPE: {cape_str} | Regime: {macro.get('regime', 'UNKNOWN')} | "
+          f"Risk scalar: {macro.get('risk_scalar', 1.0):.2f}x")
+    desc = macro.get("description")
+    if desc:
+        print(f"   {desc}")
+
+
 def get_cape_percentile() -> Optional[float]:
     """
     Get the current CAPE percentile vs all history.

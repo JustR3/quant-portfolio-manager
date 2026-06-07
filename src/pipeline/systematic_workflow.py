@@ -27,7 +27,7 @@ from src.models.factor_engine import FactorEngine
 from src.models.optimizer import BlackLittermanOptimizer
 from src.pipeline.universe import get_universe
 from src.pipeline.external.fred import get_fred_connector
-from src.pipeline.external.shiller import get_equity_risk_scalar
+from src.pipeline.external.shiller import get_equity_risk_scalar, display_cape_summary
 from src.pipeline.external.french import get_factor_regime, get_factor_tilts
 from src.utils.regime_adjustment import apply_regime_adjustment
 
