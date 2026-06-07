@@ -358,18 +358,33 @@ class BlackLittermanOptimizer:
                 objective=objective
             )
         
+        # max_sharpe needs at least one asset's posterior return above the
+        # risk-free rate (otherwise the tangency portfolio is undefined). The
+        # market-implied prior blended with small factor views can yield an
+        # all-sub-rf posterior; fall back to max-utility, which still optimizes
+        # against the same BL posterior rather than letting the caller drop to
+        # naive equal-weight.
+        effective_objective = objective
+        if objective == 'max_sharpe' and float(pd.Series(ret_bl).max()) <= self.risk_free_rate:
+            effective_objective = 'max_quadratic_utility'
+            logger.warning(
+                "max_sharpe infeasible (all posterior returns <= risk-free rate %.3f); "
+                "falling back to max_quadratic_utility.", self.risk_free_rate)
+            if self.verbose:
+                print("  ⚠️  max_sharpe infeasible (posterior ≤ risk-free); using max_quadratic_utility")
+
         # Optimize with minimum Sharpe constraint
         ef = EfficientFrontier(ret_bl, S, weight_bounds=weight_bounds)
-        
+
         # Apply sector concentration constraints if provided
         if sector_constraints:
             self._apply_sector_constraints(ef, sector_constraints)
-        
+
         # Try to optimize with minimum Sharpe constraint first
         constraint_met = False
         weights = None
-        
-        if objective == 'max_sharpe' and self.min_target_sharpe > 0:
+
+        if effective_objective == 'max_sharpe' and self.min_target_sharpe > 0:
             try:
                 # Strategy: First try regular max_sharpe, check if it meets target
                 # If not, try to find a portfolio on efficient frontier that does
@@ -411,11 +426,11 @@ class BlackLittermanOptimizer:
         
         # Fallback for other objectives or if constraint not applied
         if weights is None:
-            if objective == 'max_sharpe':
+            if effective_objective == 'max_sharpe':
                 weights = ef.max_sharpe(risk_free_rate=self.risk_free_rate)
-            elif objective == 'min_volatility':
+            elif effective_objective == 'min_volatility':
                 weights = ef.min_volatility()
-            elif objective == 'max_quadratic_utility':
+            elif effective_objective == 'max_quadratic_utility':
                 weights = ef.max_quadratic_utility()
             else:
                 raise ValueError(f"Unknown objective: {objective}")

@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import pytest
 from pypfopt import risk_models, expected_returns, black_litterman
 from src.models.optimizer import BlackLittermanOptimizer
 
@@ -37,10 +36,32 @@ def test_prior_realigns_and_renormalizes_after_dropped_ticker():
         verbose=False)
     S = risk_models.CovarianceShrinkage(px).ledoit_wolf()
     pi = opt._market_implied_prior(S)
-    w = pd.Series({"A": 0.5, "B": 0.3, "C": 0.1}); w /= w.sum()
+    w = pd.Series({"A": 0.5, "B": 0.3, "C": 0.1})
+    w /= w.sum()
     expected = black_litterman.market_implied_prior_returns(
         w, 2.5, S, risk_free_rate=opt.risk_free_rate)
     pd.testing.assert_series_equal(pi.sort_index(), expected.sort_index())
+
+
+def test_optimize_falls_back_to_utility_when_no_asset_beats_rf():
+    # With an absurdly high risk-free rate, no posterior return exceeds it, so
+    # max_sharpe is infeasible. optimize() must fall back to max_quadratic_utility
+    # (driven by the BL posterior) rather than raising into the caller's equal-weight.
+    px = _prices()
+    opt = BlackLittermanOptimizer(
+        tickers=["A", "B", "C"],
+        market_cap_weights={"A": 0.4, "B": 0.3, "C": 0.3},
+        risk_free_rate=0.99,
+        verbose=False)
+    opt.prices = px
+    scores = pd.DataFrame({
+        "Ticker": ["A", "B", "C"],
+        "Value_Z": [0.5, -0.2, 0.1], "Quality_Z": [0.3, 0.0, -0.1],
+        "Momentum_Z": [0.2, 0.1, -0.3], "Total_Score": [0.4, -0.1, -0.1]})
+    opt.generate_views_from_scores(scores)
+    result = opt.optimize(objective="max_sharpe", weight_bounds=(0.0, 1.0))  # must NOT raise
+    assert result is not None
+    assert abs(sum(result.weights.values()) - 1.0) < 0.02
 
 
 def test_custom_delta_scales_prior():
