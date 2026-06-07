@@ -8,6 +8,7 @@ This helps avoid rate limits and speeds up repeated queries.
 from __future__ import annotations
 
 import json
+import pickle
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -87,7 +88,7 @@ class DataCache:
             Cached data or None if not found/expired
         """
         expiry = expiry_hours if expiry_hours is not None else self.default_expiry_hours
-        
+
         # Check for Parquet file first (DataFrame)
         parquet_path = self._get_cache_path(key, "parquet")
         if self._is_cache_valid(parquet_path, expiry):
@@ -97,18 +98,29 @@ class DataCache:
                 return data
             except Exception as e:
                 logger.debug("Failed to read parquet cache %s: %s", key, e)
-        
-        # Check for JSON file (metadata/dict)
+
+        # Check for pickle file (Series / dict / nested DataFrames — round-trips intact)
+        pickle_path = self._get_cache_path(key, "pkl")
+        if self._is_cache_valid(pickle_path, expiry):
+            try:
+                with open(pickle_path, "rb") as f:
+                    data = pickle.load(f)
+                logger.debug("Cache hit (pickle): %s", key)
+                return data
+            except Exception as e:
+                logger.debug("Failed to read pickle cache %s: %s", key, e)
+
+        # Legacy JSON (pre-Plan-3 caches) — back-compat only
         json_path = self._get_cache_path(key, "json")
         if self._is_cache_valid(json_path, expiry):
             try:
                 with open(json_path, "r") as f:
                     data = json.load(f)
-                logger.debug("Cache hit (json): %s", key)
+                logger.debug("Cache hit (json/legacy): %s", key)
                 return data
             except Exception as e:
                 logger.debug("Failed to read json cache %s: %s", key, e)
-        
+
         logger.debug("Cache miss: %s", key)
         return None
     
@@ -129,11 +141,12 @@ class DataCache:
                 data.to_parquet(cache_path, compression="snappy", index=True)
                 logger.debug("Cached (parquet): %s", key)
             else:
-                # Store as JSON for non-DataFrame data
-                json_path = self._get_cache_path(key, "json")
-                with open(json_path, "w") as f:
-                    json.dump(data, f, default=str)
-                logger.debug("Cached (json): %s", key)
+                # Pickle round-trips arbitrary objects (Series, dicts, Timestamps,
+                # nested DataFrames) — the old json.dump(default=str) stringified them.
+                pickle_path = self._get_cache_path(key, "pkl")
+                with open(pickle_path, "wb") as f:
+                    pickle.dump(data, f)
+                logger.debug("Cached (pickle): %s", key)
             return True
         except Exception as e:
             logger.warning("Failed to cache %s: %s", key, e)
@@ -158,28 +171,12 @@ class DataCache:
             True if successful, False otherwise
         """
         try:
-            # Convert all DataFrames to dict format for nested storage
-            consolidated = {}
-            for data_key, data_value in data_dict.items():
-                if isinstance(data_value, pd.DataFrame):
-                    # Store DataFrame as dict with metadata
-                    consolidated[data_key] = {
-                        "type": "dataframe",
-                        "data": data_value.to_dict("tight"),
-                    }
-                else:
-                    # Store dict/json data directly
-                    consolidated[data_key] = {
-                        "type": "dict",
-                        "data": data_value,
-                    }
-            
-            # Save as JSON (parquet doesn't support nested dicts well)
-            json_path = self._get_cache_path(key, "json")
-            with open(json_path, "w") as f:
-                json.dump(consolidated, f, default=str)
-            
-            logger.debug("Cached consolidated: %s", key)
+            # Pickle the whole dict — DataFrames, dicts and Timestamps round-trip
+            # intact (the old to_dict + json.dump(default=str) path was lossy).
+            pickle_path = self._get_cache_path(key, "pkl")
+            with open(pickle_path, "wb") as f:
+                pickle.dump(data_dict, f)
+            logger.debug("Cached consolidated (pickle): %s", key)
             return True
         except Exception as e:
             logger.warning("Failed to cache consolidated %s: %s", key, e)
@@ -197,35 +194,41 @@ class DataCache:
             Dictionary with ticker data or None if not found/expired
         """
         expiry = expiry_hours if expiry_hours is not None else self.default_expiry_hours
-        
+
+        pickle_path = self._get_cache_path(key, "pkl")
+        if self._is_cache_valid(pickle_path, expiry):
+            try:
+                with open(pickle_path, "rb") as f:
+                    data = pickle.load(f)
+                logger.debug("Cache hit (consolidated pickle): %s", key)
+                return data
+            except Exception as e:
+                logger.debug("Failed to read consolidated pickle %s: %s", key, e)
+
+        # Legacy JSON consolidated (pre-Plan-3) — back-compat only
         json_path = self._get_cache_path(key, "json")
-        if not self._is_cache_valid(json_path, expiry):
-            return None
-        
-        try:
-            with open(json_path, "r") as f:
-                consolidated = json.load(f)
-            
-            # Reconstruct DataFrames from stored format
-            result = {}
-            for data_key, data_value in consolidated.items():
-                if data_value.get("type") == "dataframe":
-                    result[data_key] = pd.DataFrame.from_dict(
-                        data_value["data"],
-                        orient="tight",
-                    )
-                else:
-                    result[data_key] = data_value["data"]
-            
-            logger.debug("Cache hit (consolidated): %s", key)
-            return result
-        except Exception as e:
-            logger.debug("Failed to read consolidated cache %s: %s", key, e)
-            return None
+        if self._is_cache_valid(json_path, expiry):
+            try:
+                with open(json_path, "r") as f:
+                    consolidated = json.load(f)
+                result = {}
+                for data_key, data_value in consolidated.items():
+                    if isinstance(data_value, dict) and data_value.get("type") == "dataframe":
+                        result[data_key] = pd.DataFrame.from_dict(data_value["data"], orient="tight")
+                    elif isinstance(data_value, dict) and "data" in data_value:
+                        result[data_key] = data_value["data"]
+                    else:
+                        result[data_key] = data_value
+                logger.debug("Cache hit (consolidated json/legacy): %s", key)
+                return result
+            except Exception as e:
+                logger.debug("Failed to read consolidated json %s: %s", key, e)
+
+        return None
     
     def invalidate(self, key: str) -> None:
         """Remove cache entry."""
-        for ext in ["parquet", "json"]:
+        for ext in ["parquet", "json", "pkl"]:
             cache_path = self._get_cache_path(key, ext)
             if cache_path.exists():
                 try:
