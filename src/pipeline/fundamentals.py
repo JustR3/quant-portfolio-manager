@@ -8,13 +8,11 @@ in output; revisit if a paid PIT source is adopted later.
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
-import pickle
-import time
-from pathlib import Path
 import pandas as pd
 import yfinance as yf
 from src.logging_config import get_logger
-from src.core import retry_with_backoff, thread_safe_rate_limiter
+from src.core import default_cache, retry_with_backoff, thread_safe_rate_limiter
+from src.constants import FUNDAMENTALS_CACHE_EXPIRY_HOURS
 
 logger = get_logger(__name__)
 
@@ -146,39 +144,15 @@ def compute_pit_factors(income, balance, cashflow, market_cap,
 
 
 # --- network layer (cached) -------------------------------------------------
-# Thin wrappers around yfinance. These return pandas Series / dict-of-DataFrames,
-# which the shared default_cache mangles (it only round-trips a single DataFrame
-# via parquet and stringifies everything else through json). So we use a small
-# dedicated pickle cache that round-trips these structures correctly. Kept
-# side-effect-light so callers can monkeypatch them in tests.
-
-_FUND_CACHE = Path("data/cache/fundamentals")
-_FUND_CACHE_MAX_AGE_S = 7 * 24 * 3600
-
-
-def _cache_get(key: str):
-    p = _FUND_CACHE / f"{key}.pkl"
-    if p.exists() and (time.time() - p.stat().st_mtime) < _FUND_CACHE_MAX_AGE_S:
-        try:
-            with open(p, "rb") as f:
-                return pickle.load(f)
-        except Exception as e:
-            logger.debug("fundamentals cache read failed for %s: %s", key, e)
-    return None
-
-
-def _cache_set(key: str, obj) -> None:
-    try:
-        _FUND_CACHE.mkdir(parents=True, exist_ok=True)
-        with open(_FUND_CACHE / f"{key}.pkl", "wb") as f:
-            pickle.dump(obj, f)
-    except Exception as e:
-        logger.debug("fundamentals cache write failed for %s: %s", key, e)
+# Thin wrappers around yfinance. They return pandas Series / dict-of-DataFrames,
+# which the shared default_cache now round-trips correctly via pickle (Plan 3).
+# Kept side-effect-light so callers can monkeypatch them in tests.
 
 
 def get_statements(ticker: str) -> dict:
     """Fetch + cache annual income/balance/cashflow statements (dated columns)."""
-    cached = _cache_get(f"statements_{ticker}")
+    cache_key = f"statements_{ticker}"
+    cached = default_cache.get(cache_key, expiry_hours=FUNDAMENTALS_CACHE_EXPIRY_HOURS)
     if cached is not None:
         return cached
 
@@ -194,14 +168,14 @@ def get_statements(ticker: str) -> dict:
     except Exception as e:
         logger.debug("statements fetch failed for %s: %s", ticker, e)
         return {"income": None, "balance": None, "cashflow": None}
-    _cache_set(f"statements_{ticker}", data)
+    default_cache.set(cache_key, data)
     return data
 
 
 def get_shares(ticker: str, start: str = "2015-01-01") -> Optional[pd.Series]:
     """Fetch + cache shares-outstanding history (for point-in-time market cap)."""
     cache_key = f"shares_{ticker}_{start}"
-    cached = _cache_get(cache_key)
+    cached = default_cache.get(cache_key, expiry_hours=FUNDAMENTALS_CACHE_EXPIRY_HOURS)
     if cached is not None:
         return cached
 
@@ -215,5 +189,5 @@ def get_shares(ticker: str, start: str = "2015-01-01") -> Optional[pd.Series]:
         logger.debug("shares fetch failed for %s: %s", ticker, e)
         return None
     if shares is not None and len(shares) > 0:
-        _cache_set(cache_key, shares)
+        default_cache.set(cache_key, shares)
     return shares

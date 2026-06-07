@@ -139,6 +139,9 @@ CONVICTION_MODERATE_PROBABILITY: Final[float] = 60.0  # 60%
 # Reporting lag: conservative proxy for 10-K filing delay after fiscal year-end
 FUNDAMENTALS_REPORTING_LAG_DAYS = 90
 
+# Fundamentals statements/shares cache freshness (1 week)
+FUNDAMENTALS_CACHE_EXPIRY_HOURS: Final[int] = 168
+
 # =============================================================================
 # BACKTEST TRANSACTION COSTS
 # =============================================================================
