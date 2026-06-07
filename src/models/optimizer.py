@@ -13,7 +13,7 @@ from typing import Dict, Optional, Tuple
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from pypfopt import BlackLittermanModel, risk_models, expected_returns
+from pypfopt import BlackLittermanModel, risk_models, expected_returns, black_litterman
 from pypfopt.efficient_frontier import EfficientFrontier
 from pypfopt.discrete_allocation import DiscreteAllocation
 
@@ -21,6 +21,7 @@ from src.logging_config import get_logger
 from src.constants import (
     DEFAULT_RISK_FREE_RATE,
     DEFAULT_FACTOR_ALPHA_SCALAR,
+    DEFAULT_RISK_AVERSION,
     BL_TAU,
     TRADING_DAYS_PER_YEAR,
     MIN_TARGET_SHARPE,
@@ -64,6 +65,7 @@ class BlackLittermanOptimizer:
         tickers: list,
         risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
         factor_alpha_scalar: float = DEFAULT_FACTOR_ALPHA_SCALAR,
+        risk_aversion_delta: Optional[float] = None,
         market_cap_weights: Optional[Dict[str, float]] = None,
         macro_return_scalar: float = 1.0,
         sector_map: Optional[Dict[str, str]] = None,
@@ -93,6 +95,7 @@ class BlackLittermanOptimizer:
         self.tickers = tickers
         self.risk_free_rate = risk_free_rate
         self.factor_alpha_scalar = factor_alpha_scalar
+        self.risk_aversion_delta = risk_aversion_delta
         self.market_cap_weights = market_cap_weights or self._get_equal_weights()
         self.macro_return_scalar = macro_return_scalar
         self.sector_map = sector_map or {}
@@ -265,6 +268,23 @@ class BlackLittermanOptimizer:
         
         return views, confidences
     
+    def _market_implied_prior(self, S: pd.DataFrame) -> pd.Series:
+        """Market-cap-weighted equilibrium prior returns (replaces mean_historical_return).
+
+        Aligns ``self.market_cap_weights`` to the covariance matrix index (so tickers
+        dropped by fetch_price_data are handled), renormalizes, and applies
+        ``pypfopt.black_litterman.market_implied_prior_returns`` with risk aversion delta.
+        """
+        tickers = list(S.index)
+        mc = pd.Series({t: float(self.market_cap_weights.get(t, 0.0)) for t in tickers})
+        if mc.sum() <= 0:
+            mc = pd.Series(1.0 / len(tickers), index=tickers)
+        else:
+            mc = mc / mc.sum()
+        delta = self.risk_aversion_delta if self.risk_aversion_delta is not None else DEFAULT_RISK_AVERSION
+        return black_litterman.market_implied_prior_returns(
+            mc, delta, S, risk_free_rate=self.risk_free_rate)
+
     def optimize(
         self,
         objective: str = 'max_sharpe',
@@ -296,14 +316,15 @@ class BlackLittermanOptimizer:
         # Calculate sample covariance matrix
         S = risk_models.CovarianceShrinkage(self.prices).ledoit_wolf()
         
-        # Calculate market-implied prior returns using CAPM
-        # Use historical returns as a starting point
-        market_returns = expected_returns.mean_historical_return(self.prices)
-        
+        # Market-cap-weighted equilibrium prior (real Black-Litterman; wires up
+        # market_cap_weights). Replaces the mean_historical_return placeholder.
+        market_returns = self._market_implied_prior(S)
+
         # Apply macro adjustment to equilibrium returns (not to factor confidence)
         # This separates "market is expensive" from "factors don't work"
-        if self.macro_return_scalar != 1.0 and self.verbose:
-            print(f"  📉 Applying macro adjustment: {self.macro_return_scalar:.2f}x to equilibrium returns")
+        if self.macro_return_scalar != 1.0:
+            if self.verbose:
+                print(f"  📉 Applying macro adjustment: {self.macro_return_scalar:.2f}x to equilibrium returns")
             market_returns = market_returns * self.macro_return_scalar
         
         # Convert views dictionary to series aligned with tickers

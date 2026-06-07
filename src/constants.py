@@ -62,6 +62,10 @@ DEFAULT_FACTOR_ALPHA_SCALAR: Final[float] = 0.05  # 1-sigma = 5% outperformance
 # Black-Litterman tau parameter
 BL_TAU: Final[float] = 0.025
 
+# Market-implied prior risk aversion (delta) for market_implied_prior_returns.
+# Sane default for US equities; computing it from a market index is a later refinement.
+DEFAULT_RISK_AVERSION: Final[float] = 2.5
+
 # =============================================================================
 # PORTFOLIO OPTIMIZATION
 # =============================================================================

@@ -328,11 +328,16 @@ class BacktestEngine:
                 if verbose and not HAS_TQDM:
                     print(f"   Top stocks: {len(top_stocks)} selected")
                 
-                # 4. Optimize portfolio
+                # 4. Optimize portfolio with market-cap-weighted BL priors (PIT caps).
+                sel = universe_df[universe_df['ticker'].isin(top_stocks)]
+                total_mc = sel['market_cap'].sum()
+                mc_weights = (dict(zip(sel['ticker'], sel['market_cap'] / total_mc))
+                              if total_mc > 0 else None)
                 optimizer = BlackLittermanOptimizer(
                     tickers=top_stocks,
                     risk_free_rate=self.risk_free_rate,
                     factor_alpha_scalar=self.factor_alpha_scalar,
+                    market_cap_weights=mc_weights,
                     verbose=False  # Suppress prints during backtest iterations
                 )
                 
