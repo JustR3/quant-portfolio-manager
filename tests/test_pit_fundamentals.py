@@ -62,3 +62,30 @@ def test_compute_pit_factors_excludes_on_missing_field():
         market_cap=10000.0, as_of=pd.Timestamp("2024-03-30"), lag_days=90)
     assert res.excluded is True
     assert "EBIT" in res.exclusion_reason
+
+
+def test_dedup_statement_columns_collapses_duplicates():
+    col = pd.Timestamp("2023-12-31")
+    df = pd.DataFrame([[100, 999]], index=["EBIT"], columns=[col, col])
+    out = f.dedup_statement_columns(df)
+    assert list(out.columns) == [col]
+    assert out.loc["EBIT", col] == 100  # keep="first"
+
+
+def test_cell_returns_scalar_with_duplicate_columns():
+    col = pd.Timestamp("2023-12-31")
+    df = pd.DataFrame([[100, 999]], index=["EBIT"], columns=[col, col])
+    assert f._cell(df, "EBIT", col) == 100.0  # scalar, not a Series -> no float() crash
+
+
+def test_compute_pit_factors_flags_period_misalignment():
+    inc = pd.DataFrame({pd.Timestamp("2023-06-30"):
+                        {"EBIT": 300, "Gross Profit": 500, "Total Revenue": 1000}})
+    bal = pd.DataFrame({pd.Timestamp("2022-12-31"):
+                        {"Total Assets": 5000, "Current Liabilities": 1000}})
+    cf = pd.DataFrame({pd.Timestamp("2022-12-31"): {"Free Cash Flow": 150}})
+    res = f.compute_pit_factors(income=inc, balance=bal, cashflow=cf,
+                                market_cap=10000.0,
+                                as_of=pd.Timestamp("2024-06-01"), lag_days=90)
+    assert res.excluded is False
+    assert res.period_misaligned is True

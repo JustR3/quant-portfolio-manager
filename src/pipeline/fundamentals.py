@@ -73,12 +73,22 @@ class PITFactors:
     quality_raw: Optional[float] = None
     excluded: bool = False
     exclusion_reason: str = ""
+    period_misaligned: bool = False
+
+
+def dedup_statement_columns(stmt: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+    """Drop duplicate period-end columns (keep first) so cell lookups stay scalar."""
+    if stmt is None or getattr(stmt, "empty", True):
+        return stmt
+    return stmt.loc[:, ~stmt.columns.duplicated(keep="first")]
 
 
 def _cell(stmt: pd.DataFrame, field: str, col: pd.Timestamp) -> Optional[float]:
     if stmt is None or stmt.empty or field not in stmt.index or col not in stmt.columns:
         return None
     v = stmt.loc[field, col]
+    if isinstance(v, pd.Series):  # duplicate period-end column slipped through
+        v = v.iloc[0]
     return float(v) if pd.notna(v) else None
 
 
@@ -97,6 +107,15 @@ def compute_pit_factors(income, balance, cashflow, market_cap,
     cf_col = select_pit_statement(cashflow, as_of, lag_days)
     if inc_col is None or bal_col is None or cf_col is None:
         return PITFactors(excluded=True, exclusion_reason="no statement before as_of+lag")
+
+    # Flag (don't exclude) when the three selected period-ends span more than ~one
+    # quarter — they may mix fiscal years if yfinance cadence differs (review #7).
+    ends = [inc_col, bal_col, cf_col]
+    period_misaligned = (max(ends) - min(ends)) > pd.Timedelta(days=100)
+    if period_misaligned:
+        logger.warning(
+            "PIT period mismatch for as_of=%s: income=%s balance=%s cashflow=%s (>1 quarter apart)",
+            _to_naive(as_of).date(), inc_col.date(), bal_col.date(), cf_col.date())
 
     missing = []
     for stmt, col, req in [(income, inc_col, REQUIRED_INCOME),
@@ -122,7 +141,8 @@ def compute_pit_factors(income, balance, cashflow, market_cap,
 
     value_raw = 0.5 * (fcf / market_cap) + 0.5 * (ebit / market_cap)
     quality_raw = 0.5 * (ebit / invested) + 0.5 * (gp / rev)
-    return PITFactors(value_raw=value_raw, quality_raw=quality_raw)
+    return PITFactors(value_raw=value_raw, quality_raw=quality_raw,
+                      period_misaligned=period_misaligned)
 
 
 # --- network layer (cached) -------------------------------------------------
@@ -165,7 +185,9 @@ def get_statements(ticker: str) -> dict:
     def _fetch():
         thread_safe_rate_limiter.wait()
         t = yf.Ticker(ticker)
-        return {"income": t.income_stmt, "balance": t.balance_sheet, "cashflow": t.cashflow}
+        return {"income": dedup_statement_columns(t.income_stmt),
+                "balance": dedup_statement_columns(t.balance_sheet),
+                "cashflow": dedup_statement_columns(t.cashflow)}
 
     try:
         data = retry_with_backoff(_fetch, max_attempts=3)
