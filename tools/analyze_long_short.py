@@ -19,7 +19,6 @@ sys.path.insert(0, '.')
 import numpy as np
 import pandas as pd
 from pypfopt import BlackLittermanModel, risk_models, expected_returns, EfficientFrontier
-from pypfopt.efficient_frontier import EfficientFrontier as EF
 
 from src.models.factor_engine import FactorEngine
 from src.models.optimizer import BlackLittermanOptimizer
@@ -72,7 +71,7 @@ def optimize_long_short(
     
     # For market neutral or long/short, we need both long and short
     if short_exposure > 0 and len(short_candidates) == 0:
-        print(f"  ⚠️  No short candidates available (all factor scores positive)")
+        print("  ⚠️  No short candidates available (all factor scores positive)")
         return None
     
     # Strategy 1: Optimize longs separately
@@ -81,7 +80,7 @@ def optimize_long_short(
         S_long = S.loc[long_candidates, long_candidates]
         
         ef_long = EfficientFrontier(ret_long, S_long, weight_bounds=(0, max_position))
-        weights_long_raw = ef_long.max_sharpe(risk_free_rate=risk_free_rate)
+        ef_long.max_sharpe(risk_free_rate=risk_free_rate)
         weights_long = ef_long.clean_weights()
         
         # Scale to target long exposure
@@ -104,7 +103,7 @@ def optimize_long_short(
         ret_short_inverted = -ret_short
         
         ef_short = EfficientFrontier(ret_short_inverted, S_short, weight_bounds=(0, max_position))
-        weights_short_raw = ef_short.max_sharpe(risk_free_rate=risk_free_rate)
+        ef_short.max_sharpe(risk_free_rate=risk_free_rate)
         weights_short = ef_short.clean_weights()
         
         # Scale to target short exposure and make negative (shorts)
@@ -293,12 +292,12 @@ def analyze_long_short_strategies(top_n=50, universe_name="sp500"):
             print(f"  Net Exposure: {result['net_exposure']:.2f}%")
             print(f"  Positions: {result['num_long']} long, {result['num_short']} short")
             
-            print(f"\n  Top 5 Long Positions:")
+            print("\n  Top 5 Long Positions:")
             for ticker, weight in result['top_longs']:
                 print(f"    {ticker}: {weight:.2f}%")
             
             if result['num_short'] > 0:
-                print(f"\n  Top 5 Short Positions:")
+                print("\n  Top 5 Short Positions:")
                 for ticker, weight in result['top_shorts']:
                     print(f"    {ticker}: {weight:.2f}%")
             
@@ -328,13 +327,13 @@ def analyze_long_short_strategies(top_n=50, universe_name="sp500"):
         market_neutral = df_results[df_results['strategy'].str.contains('Market Neutral') & 
                                    ~df_results['strategy'].str.contains('Aggressive')]
         
-        print(f"1. LONG-ONLY (CURRENT SYSTEM)")
+        print("1. LONG-ONLY (CURRENT SYSTEM)")
         print(f"   Sharpe: {long_only['sharpe']:.2f}")
         print(f"   Return: {long_only['return']:.2f}%, Vol: {long_only['volatility']:.2f}%")
         print(f"   Net Exposure: {long_only['net_exposure']:.0f}%")
         print()
         
-        print(f"2. BEST ACHIEVABLE SHARPE (with long/short)")
+        print("2. BEST ACHIEVABLE SHARPE (with long/short)")
         print(f"   Strategy: {best_sharpe['strategy']}")
         print(f"   Sharpe: {best_sharpe['sharpe']:.2f}")
         print(f"   Return: {best_sharpe['return']:.2f}%, Vol: {best_sharpe['volatility']:.2f}%")
@@ -345,11 +344,11 @@ def analyze_long_short_strategies(top_n=50, universe_name="sp500"):
         
         if len(market_neutral) > 0:
             mn = market_neutral.iloc[0]
-            print(f"3. MARKET NEUTRAL (PURE ALPHA)")
+            print("3. MARKET NEUTRAL (PURE ALPHA)")
             print(f"   Sharpe: {mn['sharpe']:.2f}")
             print(f"   Return: {mn['return']:.2f}%, Vol: {mn['volatility']:.2f}%")
             print(f"   Net Exposure: {mn['net_exposure']:.0f}% (no market beta!)")
-            print(f"   This isolates factor alpha from market risk")
+            print("   This isolates factor alpha from market risk")
             print()
         
         print("4. STRATEGY COMPARISON BY NET EXPOSURE:")

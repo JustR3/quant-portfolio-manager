@@ -2,7 +2,6 @@
 
 import pytest
 import pandas as pd
-from datetime import datetime
 
 from src.utils.regime_adjustment import RegimePortfolioAdjuster, apply_regime_adjustment
 from src.models.regime import MarketRegime
@@ -300,7 +299,7 @@ class TestRegimeExposureMapping:
     
     def test_risk_off_exposure(self):
         """Test RISK_OFF exposure mapping."""
-        adjuster = RegimePortfolioAdjuster(
+        RegimePortfolioAdjuster(
             risk_off_exposure=0.30,
             caution_exposure=0.60,
             risk_on_exposure=1.00

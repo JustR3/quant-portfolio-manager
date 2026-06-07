@@ -51,7 +51,7 @@ def probe(ticker: str) -> dict:
     bal = t.balance_sheet
     cf = t.cashflow
 
-    inc_p, bal_p, cf_p = _periods(inc), _periods(bal), _periods(cf)
+    inc_p, _bal_p, _cf_p = _periods(inc), _periods(bal), _periods(cf)
 
     # Shares-outstanding history
     try:

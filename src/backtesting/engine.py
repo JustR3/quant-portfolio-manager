@@ -28,7 +28,6 @@ try:
 except ImportError:
     HAS_TQDM = False
 
-warnings.filterwarnings('ignore')
 logger = get_logger(__name__)
 
 
@@ -166,14 +165,17 @@ class BacktestEngine:
             DataFrame of adjusted close prices
         """
         try:
-            # Download data for all tickers at once
-            data = yf.download(
-                tickers,
-                start=start,
-                end=end,
-                progress=False,
-                auto_adjust=True  # Returns 'Close' instead of 'Adj Close'
-            )
+            # Download data for all tickers at once (scoped warning suppression —
+            # replaces the old module-level filterwarnings('ignore')).
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                data = yf.download(
+                    tickers,
+                    start=start,
+                    end=end,
+                    progress=False,
+                    auto_adjust=True  # Returns 'Close' instead of 'Adj Close'
+                )
             
             # Handle empty data
             if data.empty:
@@ -271,7 +273,6 @@ class BacktestEngine:
         equity_dates = []
         
         # Download benchmark data (SPY) - suppress all output
-        original_log_level = logging.getLogger().level
         logging.disable(logging.CRITICAL)  # Disable ALL logging temporarily
         
         import warnings as warn

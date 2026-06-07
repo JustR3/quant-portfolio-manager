@@ -308,7 +308,6 @@ def get_cape_percentile() -> Optional[float]:
 if __name__ == "__main__":
     """Test the Shiller CAPE loader."""
     from rich.console import Console
-    from rich.table import Table
 
     console = Console()
 

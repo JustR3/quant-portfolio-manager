@@ -22,8 +22,6 @@ from src.constants import (
     DEFAULT_RISK_FREE_RATE,
     DEFAULT_FACTOR_ALPHA_SCALAR,
     DEFAULT_RISK_AVERSION,
-    BL_TAU,
-    TRADING_DAYS_PER_YEAR,
     MIN_TARGET_SHARPE,
 )
 
@@ -423,7 +421,7 @@ class BlackLittermanOptimizer:
         
         opt_elapsed = time.time() - opt_start
         if self.verbose:
-            print(f"✅ Optimization complete!")
+            print("✅ Optimization complete!")
             print(f"  Expected Return: {result.expected_return*100:.2f}%")
             print(f"  Volatility: {result.volatility*100:.2f}%")
             print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}")
@@ -522,7 +520,7 @@ class BlackLittermanOptimizer:
         )
         
         if self.verbose:
-            print(f"✅ Optimization complete!")
+            print("✅ Optimization complete!")
             print(f"  Expected Return: {result.expected_return*100:.2f}%")
             print(f"  Volatility: {result.volatility*100:.2f}%")
             print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}")

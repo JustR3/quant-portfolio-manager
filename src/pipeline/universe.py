@@ -445,7 +445,7 @@ def fetch_combined_universe(
             mega_pct = 0.15    # Top 15% of universe → 15% of slots (mega-caps)
             large_pct = 0.35   # Next 35% of universe → 35% of slots (large-caps)
             mid_pct = 0.30     # Next 30% of universe → 30% of slots (mid-caps)
-            small_pct = 0.20   # Bottom 20% of universe → 20% of slots (small-caps)
+            # Bottom 20% (small-caps) is the remainder — see small_slots below.
             
             mega_slots = int(top_n * mega_pct)
             large_slots = int(top_n * large_pct)

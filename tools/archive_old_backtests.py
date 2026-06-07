@@ -4,7 +4,6 @@ Archive Old Backtest Results
 Keeps only the N most recent backtest directories to save disk space.
 """
 
-import os
 import shutil
 from pathlib import Path
 from datetime import datetime
@@ -57,7 +56,7 @@ def archive_old_backtests(keep_count: int = KEEP_COUNT, dry_run: bool = True):
     keep_dirs = backtest_dirs[:keep_count]
     archive_dirs = backtest_dirs[keep_count:]
     
-    print(f"\n📊 Backtest Archive Summary")
+    print("\n📊 Backtest Archive Summary")
     print(f"   Total backtests: {len(backtest_dirs)}")
     print(f"   Keeping:        {len(keep_dirs)}")
     print(f"   Archiving:      {len(archive_dirs)}")
@@ -79,7 +78,7 @@ def archive_old_backtests(keep_count: int = KEEP_COUNT, dry_run: bool = True):
         
         if not dry_run:
             shutil.rmtree(d)
-            print(f"    ✓ Deleted")
+            print("    ✓ Deleted")
     
     print(f"\n{'Would free' if dry_run else 'Freed'}: {total_size / 1024:.1f} KB\n")
     

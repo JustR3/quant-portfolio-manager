@@ -1,7 +1,6 @@
 """Unit tests for RegimeDetector functionality."""
 
 import pytest
-from datetime import datetime, timedelta
 
 from src.models.regime import RegimeDetector, MarketRegime, RegimeResult
 
@@ -15,7 +14,7 @@ class TestRegimeDetectorInitialization:
         
         assert detector.ticker == "SPY"
         assert detector.lookback_days == 300
-        assert detector.use_vix == True
+        assert detector.use_vix
     
     def test_custom_initialization(self):
         """Test custom initialization parameters."""
@@ -29,7 +28,7 @@ class TestRegimeDetectorInitialization:
         assert detector.ticker == "QQQ"
         assert detector.lookback_days == 250
         assert detector.cache_duration == 7200
-        assert detector.use_vix == False
+        assert not detector.use_vix
 
 
 class TestMarketRegimeEnum:
@@ -59,10 +58,10 @@ class TestMarketRegimeEnum:
     
     def test_regime_bullish_property(self):
         """Test is_bullish property."""
-        assert MarketRegime.RISK_ON.is_bullish == True
-        assert MarketRegime.RISK_OFF.is_bullish == False
-        assert MarketRegime.CAUTION.is_bullish == False
-        assert MarketRegime.UNKNOWN.is_bullish == False
+        assert MarketRegime.RISK_ON.is_bullish
+        assert not MarketRegime.RISK_OFF.is_bullish
+        assert not MarketRegime.CAUTION.is_bullish
+        assert not MarketRegime.UNKNOWN.is_bullish
 
 
 class TestRegimeDetectorMethods:
@@ -155,9 +154,8 @@ class TestCaching:
         
         # Should not raise error
         try:
-            result1 = detector.get_regime_with_details(use_cache=True)
-            result2 = detector.get_regime_with_details(use_cache=False)
-            assert True
+            detector.get_regime_with_details(use_cache=True)
+            detector.get_regime_with_details(use_cache=False)
         except Exception as e:
             pytest.fail(f"Cache parameter failed: {str(e)}")
     
@@ -182,11 +180,10 @@ class TestHistoricalDateParameter:
         
         # Should not raise error
         try:
-            result = detector.get_regime_with_details(
+            detector.get_regime_with_details(
                 as_of_date='2020-01-01',
                 use_cache=False
             )
-            assert True
         except Exception as e:
             pytest.fail(f"as_of_date parameter failed: {str(e)}")
     
@@ -213,12 +210,11 @@ class TestHistoricalDateParameter:
         
         for date_str in date_formats:
             try:
-                result = detector.get_regime_with_details(
+                detector.get_regime_with_details(
                     as_of_date=date_str,
                     use_cache=False
                 )
                 # Should accept format without error
-                assert True
             except ValueError:
                 pytest.fail(f"Date format {date_str} not accepted")
 
@@ -276,7 +272,7 @@ class TestErrorHandling:
         try:
             regime = detector.get_current_regime()
             assert isinstance(regime, MarketRegime)
-        except Exception as e:
+        except Exception:
             # Network errors are acceptable, but should be caught
             assert True
 
@@ -313,7 +309,7 @@ class TestVIXLogic:
         detector = RegimeDetector()
         
         # We can't control live data, but we can verify VIX is used
-        assert detector.use_vix == True
+        assert detector.use_vix
     
     def test_vix_contango_is_risk_on(self):
         """Test that VIX contango indicates RISK_ON."""
@@ -321,7 +317,7 @@ class TestVIXLogic:
         # Normal VIX curve should indicate RISK_ON
         detector = RegimeDetector()
         
-        assert detector.use_vix == True
+        assert detector.use_vix
 
 
 class TestCombinedLogic:
@@ -332,7 +328,7 @@ class TestCombinedLogic:
         detector = RegimeDetector()
         
         # Combined should use VIX
-        assert detector.use_vix == True
+        assert detector.use_vix
         
         # Combined should also use SMA (lookback_days > 0)
         assert detector.lookback_days > 0

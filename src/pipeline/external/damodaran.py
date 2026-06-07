@@ -13,7 +13,7 @@ Data Source: https://pages.stern.nyu.edu/~adamodar/New_Home_Page/data.html
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 import io
 import json

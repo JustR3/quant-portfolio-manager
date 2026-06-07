@@ -7,7 +7,6 @@ Systematic quantitative portfolio management using factor-based Black-Litterman 
 from __future__ import annotations
 
 # Load environment variables first (FRED_API_KEY, etc.)
-import src.env_loader
 
 import argparse
 import sys
@@ -24,7 +23,6 @@ except ImportError:
     HAS_RICH = False
 
 from src.logging_config import setup_logging, get_logger
-from src.config import Config
 from src.models.factor_engine import FactorEngine
 from src.pipeline.systematic_workflow import run_systematic_portfolio, display_portfolio_summary
 from src.backtesting.engine import BacktestEngine
@@ -194,7 +192,7 @@ Examples:
     validate_cmd.add_argument("snapshot", help="Path to portfolio snapshot JSON file")
     
     # portfolio list subcommand
-    list_cmd = portfolio_sub.add_parser(
+    portfolio_sub.add_parser(
         "list",
         help="List all available portfolio snapshots",
         description="Show all portfolio snapshots in data/portfolios/"
@@ -321,13 +319,13 @@ def main():
                 # Add macro/factor adjustments if enabled
                 if results.get('macro_adjustment'):
                     cape_data = results['macro_adjustment']
-                    metrics_text += f"\n\n[bold cyan]Macro Adjustment:[/bold cyan]\n"
+                    metrics_text += "\n\n[bold cyan]Macro Adjustment:[/bold cyan]\n"
                     metrics_text += f"  CAPE: {cape_data['current_cape']:.2f} ({cape_data['regime']})\n"
                     metrics_text += f"  Risk Scalar: {cape_data['risk_scalar']:.2f}x"
                 
                 if results.get('factor_tilts'):
                     tilt_data = results['factor_tilts']
-                    metrics_text += f"\n\n[bold cyan]Factor Tilts:[/bold cyan]\n"
+                    metrics_text += "\n\n[bold cyan]Factor Tilts:[/bold cyan]\n"
                     metrics_text += f"  Value: {tilt_data['value_tilt']:.2f}x\n"
                     metrics_text += f"  Quality: {tilt_data['quality_tilt']:.2f}x\n"
                     metrics_text += f"  Momentum: {tilt_data['momentum_tilt']:.2f}x"
@@ -354,7 +352,7 @@ def main():
                     capital=DEFAULT_CAPITAL
                 )
                 
-                print_msg(f"Portfolio snapshot saved:", "success")
+                print_msg("Portfolio snapshot saved:", "success")
                 print(f"  📄 CSV:  {csv_path}")
                 print(f"  📸 JSON: {json_path}")
                 print(f"  💰 Capital: ${DEFAULT_CAPITAL:,.2f}")
@@ -530,7 +528,7 @@ def main():
             
             if not json_files:
                 print_msg("No portfolio snapshots found", "info")
-                print(f"Create one with: qpm optimize --export my_portfolio")
+                print("Create one with: qpm optimize --export my_portfolio")
                 return
             
             print(f"\nFound {len(json_files)} snapshot(s):\n")
@@ -566,7 +564,7 @@ def main():
                 for snapshot_file in json_files:
                     print(f"  - {snapshot_file.name}")
             
-            print(f"\nValidate with: qpm portfolio validate <filename>\n")
+            print("\nValidate with: qpm portfolio validate <filename>\n")
         
         return
 

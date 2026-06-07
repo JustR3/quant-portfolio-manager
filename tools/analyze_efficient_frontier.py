@@ -12,10 +12,8 @@ This script investigates:
 import sys
 sys.path.insert(0, '.')
 
-import numpy as np
 import pandas as pd
 from pypfopt import BlackLittermanModel, risk_models, expected_returns, EfficientFrontier
-from pypfopt.discrete_allocation import DiscreteAllocation
 
 from src.models.factor_engine import FactorEngine
 from src.models.optimizer import BlackLittermanOptimizer
@@ -23,7 +21,6 @@ from src.pipeline.universe import get_universe
 from src.constants import (
     DEFAULT_RISK_FREE_RATE,
     DEFAULT_FACTOR_ALPHA_SCALAR,
-    MAX_POSITION_SIZE,
 )
 
 def analyze_portfolio_constraints(top_n=50, universe_name="sp500"):
@@ -197,7 +194,7 @@ def analyze_portfolio_constraints(top_n=50, universe_name="sp500"):
             
             # Show top 5 positions
             top_5 = sorted(weights.items(), key=lambda x: x[1], reverse=True)[:5]
-            print(f"\n  Top 5 positions:")
+            print("\n  Top 5 positions:")
             for ticker, weight in top_5:
                 if weight > 0.001:
                     print(f"    {ticker}: {weight*100:.2f}%")

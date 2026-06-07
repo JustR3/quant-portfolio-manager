@@ -9,7 +9,6 @@ Data Source: https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_librar
 """
 
 from typing import Optional
-from datetime import datetime
 import io
 import zipfile
 

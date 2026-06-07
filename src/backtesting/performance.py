@@ -5,7 +5,7 @@ Calculates risk-adjusted returns and portfolio statistics.
 
 import numpy as np
 import pandas as pd
-from typing import Tuple, Optional
+from typing import Tuple
 
 
 class PerformanceMetrics:

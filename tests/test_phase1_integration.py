@@ -52,7 +52,7 @@ class TestFredConnector:
         assert macro.source == "FRED"
         assert macro.fetched_at is not None
         
-        print(f"✓ Macro data:")
+        print("✓ Macro data:")
         print(f"  Risk-free rate: {macro.risk_free_rate:.2%}")
         print(f"  Inflation: {macro.inflation_rate:.2%}" if macro.inflation_rate else "  Inflation: N/A")
         print(f"  GDP growth: {macro.gdp_growth:.2%}" if macro.gdp_growth else "  GDP growth: N/A")
@@ -92,7 +92,7 @@ class TestDamodaranLoader:
         assert priors.beta is not None, "Beta should be loaded"
         assert priors.beta > 0, "Beta should be positive"
         
-        print(f"✓ Technology sector priors:")
+        print("✓ Technology sector priors:")
         print(f"  Beta: {priors.beta:.2f}")
         print(f"  Revenue growth: {priors.revenue_growth:.2%}" if priors.revenue_growth else "  Revenue growth: N/A")
         print(f"  Operating margin: {priors.operating_margin:.2%}" if priors.operating_margin else "  Operating margin: N/A")

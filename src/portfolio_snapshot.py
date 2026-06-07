@@ -8,7 +8,7 @@ Records factor scores, prices, configuration, and expected performance metrics.
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 
 import pandas as pd
 

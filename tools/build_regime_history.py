@@ -8,13 +8,13 @@ Usage:
 """
 
 import argparse
-from datetime import datetime, timedelta
+import sys
 from pathlib import Path
 
 import pandas as pd
 from tqdm import tqdm
 
-from src.models.regime import RegimeDetector, MarketRegime
+from src.models.regime import RegimeDetector
 
 
 def build_regime_history(
@@ -160,7 +160,7 @@ def build_regime_history(
                 if not regime_row.empty:
                     regime = regime_row.iloc[0]['regime']
                     print(f"  {date_str} ({description}): {regime}")
-            except:
+            except Exception:
                 pass
         print()
         

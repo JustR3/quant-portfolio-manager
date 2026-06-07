@@ -13,7 +13,6 @@ __version__ = "2.0.0"
 # Core utilities
 from src.config import Config
 from src.logging_config import setup_logging, get_logger
-from src.constants import *
 
 # Models
 from src.models import (

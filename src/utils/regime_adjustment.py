@@ -144,7 +144,7 @@ class RegimePortfolioAdjuster:
             print(f"   VIX Structure: 9D={vix['vix9d']:.1f}, "
                   f"30D={vix['vix']:.1f}, 3M={vix['vix3m']:.1f}")
             if vix.get('is_backwardation'):
-                print(f"   ⚠️ VIX Backwardation detected (fear elevated)")
+                print("   ⚠️ VIX Backwardation detected (fear elevated)")
 
 
 def apply_regime_adjustment(

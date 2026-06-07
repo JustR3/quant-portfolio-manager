@@ -8,7 +8,6 @@ import time
 from typing import Dict, Optional, Tuple, List
 
 import pandas as pd
-import numpy as np
 
 from src.logging_config import get_logger
 from src.config import config
@@ -40,7 +39,7 @@ def display_factor_summary(factor_tilts: Dict) -> None:
         print("⚠️  No factor tilts available")
         return
     
-    print(f"✅ Factor Regime Analysis:")
+    print("✅ Factor Regime Analysis:")
     print(f"   Value tilt: {factor_tilts['value_tilt']:.2f}x")
     print(f"   Quality tilt: {factor_tilts['quality_tilt']:.2f}x")
     print(f"   Momentum tilt: {factor_tilts['momentum_tilt']:.2f}x")
@@ -148,7 +147,7 @@ def run_systematic_portfolio(
             print()
         except Exception as e:
             print(f"⚠️  Warning: Failed to load CAPE data: {e}")
-            print(f"   Continuing without macro adjustment...\n")
+            print("   Continuing without macro adjustment...\n")
             use_macro_adjustment = False
     
     # Optional: Factor God (Fama-French)
@@ -176,7 +175,7 @@ def run_systematic_portfolio(
                 use_factor_regimes = False
         except Exception as e:
             print(f"⚠️  Warning: Failed to load Fama-French data: {e}")
-            print(f"   Continuing without factor tilts...\n")
+            print("   Continuing without factor tilts...\n")
             use_factor_regimes = False
     
     # =========================================================================
@@ -198,7 +197,7 @@ def run_systematic_portfolio(
     # =========================================================================
     # Step 2: Run Factor Engine
     # =========================================================================
-    print(f"🔬 Step 2/4: Running factor analysis...")
+    print("🔬 Step 2/4: Running factor analysis...")
     print("-" * 90)
     
     tickers = universe_df['ticker'].tolist()
@@ -238,7 +237,7 @@ def run_systematic_portfolio(
         how='left'
     )
     
-    print(f"✅ Factor scoring complete")
+    print("✅ Factor scoring complete")
     print(f"   Top ranked: {factor_scores.iloc[0]['Ticker']} (score: {factor_scores.iloc[0]['Total_Score']:.3f})")
     print(f"   Score range: [{factor_scores['Total_Score'].min():.3f}, {factor_scores['Total_Score'].max():.3f}]")
     print()
@@ -263,7 +262,7 @@ def run_systematic_portfolio(
     # =========================================================================
     # Step 4: Black-Litterman Optimization
     # =========================================================================
-    print(f"💼 Step 4/4: Running Black-Litterman optimization...")
+    print("💼 Step 4/4: Running Black-Litterman optimization...")
     print("-" * 90)
     
     # Get market cap weights for priors (vectorized)
@@ -331,7 +330,7 @@ def run_systematic_portfolio(
         sector_constraints=sector_constraints
     )
     
-    print(f"✅ Optimization complete")
+    print("✅ Optimization complete")
     print(f"   Expected Return: {optimization_result.expected_return*100:.2f}%")
     print(f"   Volatility: {optimization_result.volatility*100:.2f}%")
     print(f"   Sharpe Ratio: {optimization_result.sharpe_ratio:.2f}")
@@ -393,7 +392,7 @@ def run_systematic_portfolio(
     
     print("Configuration:")
     print(f"  Universe: {universe_name.upper()} (top {top_n} by market cap)")
-    print(f"  Factor scoring: Value (40%), Quality (40%), Momentum (20%)")
+    print("  Factor scoring: Value (40%), Quality (40%), Momentum (20%)")
     print(f"  Optimization: {objective}")
     print(f"  Weight bounds: {weight_bounds[0]:.0%} - {weight_bounds[1]:.0%}")
     print()
@@ -407,16 +406,16 @@ def run_systematic_portfolio(
         print(f"     Return scalar: {macro_adjustment['risk_scalar']:.2f}x")
         adjustment_count += 1
     else:
-        print(f"  ⭕ Macro God (CAPE): Disabled")
+        print("  ⭕ Macro God (CAPE): Disabled")
     
     if use_factor_regimes and factor_tilts:
-        print(f"  ✅ Factor God (Fama-French):")
+        print("  ✅ Factor God (Fama-French):")
         print(f"     Value tilt: {factor_tilts['value_tilt']:.2f}x")
         print(f"     Quality tilt: {factor_tilts['quality_tilt']:.2f}x")
         print(f"     Momentum tilt: {factor_tilts['momentum_tilt']:.2f}x")
         adjustment_count += 1
     else:
-        print(f"  ⭕ Factor God (Fama-French): Disabled")
+        print("  ⭕ Factor God (Fama-French): Disabled")
     
     if use_regime_adjustment and regime_metadata:
         print(f"  ✅ Regime Adjustment: {regime_metadata['regime']}")
@@ -424,10 +423,10 @@ def run_systematic_portfolio(
         print(f"     Cash allocation: {regime_metadata['cash_allocation']:.0%}")
         adjustment_count += 1
     else:
-        print(f"  ⭕ Regime Adjustment: Disabled")
+        print("  ⭕ Regime Adjustment: Disabled")
     
     if adjustment_count == 0:
-        print(f"  ⚠️  No adjustments active (pure factor-based portfolio)")
+        print("  ⚠️  No adjustments active (pure factor-based portfolio)")
     
     print()
     

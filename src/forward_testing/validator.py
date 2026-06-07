@@ -6,16 +6,13 @@ predicted metrics against realized returns.
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
-import pandas as pd
-import numpy as np
 import yfinance as yf
 
 from src.logging_config import get_logger
-from src.constants import TRADING_DAYS_PER_YEAR
 
 logger = get_logger(__name__)
 
@@ -125,7 +122,6 @@ class PortfolioValidator:
         for pos in self.positions:
             ticker = pos['ticker']
             shares = pos['shares']
-            initial_price = pos['price_at_creation']
             initial_value = pos['position_value']
             
             current_price = current_prices.get(ticker)
@@ -272,14 +268,14 @@ class PortfolioValidator:
         
         # Risk metrics (if time period sufficient)
         if realized['years_elapsed'] >= 0.25:  # At least 3 months
-            print(f"⚠️  Risk Metrics:")
+            print("⚠️  Risk Metrics:")
             print(f"  Expected Volatility:     {expected['expected_volatility']*100:>7.2f}%")
             print(f"  Expected Sharpe Ratio:   {expected['sharpe_ratio']:>7.2f}")
-            print(f"  (Realized metrics require longer time period)")
+            print("  (Realized metrics require longer time period)")
             print()
         
         # Position health
-        print(f"💼 Position Status:")
+        print("💼 Position Status:")
         print(f"  Active positions:        {realized['valid_positions']}/{len(self.positions)}")
         
         if realized['delisted_positions']:
