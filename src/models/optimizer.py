@@ -285,6 +285,17 @@ class BlackLittermanOptimizer:
         return black_litterman.market_implied_prior_returns(
             mc, delta, S, risk_free_rate=self.risk_free_rate)
 
+    def _max_sharpe_or_utility(self, ef: EfficientFrontier):
+        """max_sharpe, or max_quadratic_utility when no asset's expected return
+        exceeds the risk-free rate (the same infeasibility the long-only path guards)."""
+        try:
+            return ef.max_sharpe(risk_free_rate=self.risk_free_rate)
+        except ValueError as e:
+            if "risk-free rate" in str(e):
+                logger.warning("max_sharpe infeasible in long/short leg; using max_quadratic_utility")
+                return ef.max_quadratic_utility()
+            raise
+
     def optimize(
         self,
         objective: str = 'max_sharpe',
@@ -453,7 +464,7 @@ class BlackLittermanOptimizer:
             S_long = S.loc[long_candidates, long_candidates]
             
             ef_long = EfficientFrontier(ret_long, S_long, weight_bounds=(0, weight_bounds[1]))
-            ef_long.max_sharpe(risk_free_rate=self.risk_free_rate)
+            self._max_sharpe_or_utility(ef_long)
             weights_long = ef_long.clean_weights(cutoff=0.005)  # Keep smaller positions
             
             # Scale to target long exposure
@@ -471,7 +482,7 @@ class BlackLittermanOptimizer:
             ret_short_inverted = -ret_short
             
             ef_short = EfficientFrontier(ret_short_inverted, S_short, weight_bounds=(0, weight_bounds[1]))
-            ef_short.max_sharpe(risk_free_rate=self.risk_free_rate)
+            self._max_sharpe_or_utility(ef_short)
             weights_short = ef_short.clean_weights(cutoff=0.005)  # Keep smaller positions for shorts
             
             # Scale to target short exposure and make negative

@@ -98,3 +98,24 @@ def test_min_sharpe_is_report_only_no_effect_on_weights():
     assert set(w_low) == set(w_high)
     for k in w_low:
         assert w_low[k] == pytest.approx(w_high[k], abs=1e-9)
+
+
+def test_long_short_optimize_handles_infeasible_max_sharpe():
+    # 8 names (4 long / 4 short) so each leg can be fully invested under the 30% cap;
+    # rf=0.99 forces the max_sharpe infeasibility we want the guard to absorb.
+    tickers = ["A", "B", "C", "D", "E", "F", "G", "H"]
+    px = _prices(tuple(tickers))
+    opt = BlackLittermanOptimizer(
+        tickers=tickers,
+        market_cap_weights={t: 1.0 / len(tickers) for t in tickers},
+        risk_free_rate=0.99, long_short_mode=True, verbose=False)
+    opt.prices = px
+    totals = [0.5, 0.4, 0.3, 0.2, -0.2, -0.3, -0.4, -0.5]  # 4 long, 4 short
+    scores = pd.DataFrame({
+        "Ticker": tickers,
+        "Value_Z": totals, "Quality_Z": totals, "Momentum_Z": totals,
+        "Total_Score": totals})
+    opt.generate_views_from_scores(scores)
+    result = opt.optimize(objective="max_sharpe")  # long/short path; must not raise
+    assert result is not None
+    assert len(result.weights) > 0
