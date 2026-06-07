@@ -26,6 +26,7 @@ from src.logging_config import setup_logging, get_logger
 from src.models.factor_engine import FactorEngine
 from src.pipeline.systematic_workflow import run_systematic_portfolio, display_portfolio_summary
 from src.backtesting.engine import BacktestEngine
+from src.research.command import run_signal_eval
 
 # Initialize logging
 setup_logging()
@@ -175,6 +176,27 @@ Examples:
     backtest.add_argument("--min-sharpe", type=float, default=None, metavar="RATIO",
                          help="Minimum target Sharpe ratio (e.g., 1.5 for 1.5:1 return-to-volatility). Default: 1.5")
     
+    # Signal-eval command (factor-isolation research study)
+    sig = sub.add_parser(
+        "signal-eval",
+        help="Measure raw factor predictive power (rank-IC + quantile spreads), no optimizer",
+        description="Signal-isolation study: rank-IC and long-short quantile spreads per factor",
+    )
+    sig.add_argument("--factors", type=str, default="momentum,value,quality",
+                     help="Comma-separated subset of: momentum,value,quality")
+    sig.add_argument("--frequency", type=str, default="monthly",
+                     choices=["monthly", "quarterly"], help="Observation cadence (default: monthly)")
+    sig.add_argument("--horizon", type=int, default=1, metavar="MONTHS",
+                     help="Forward-return horizon in months (default: 1; non-overlapping with monthly)")
+    sig.add_argument("--quantiles", type=int, default=10, help="Number of quantile buckets (default: 10)")
+    sig.add_argument("--min-names-per-bucket", type=int, default=10,
+                     help="Skip dates with fewer measurable names than this (default: 10)")
+    sig.add_argument("--start", type=str, default="2016-01-01", help="Study start (YYYY-MM-DD)")
+    sig.add_argument("--end", type=str, default="2026-06-01", help="Study end (YYYY-MM-DD)")
+    sig.add_argument("--transaction-cost-bps", type=float, default=10.0,
+                     help="Per-side cost bps on leg turnover for the NET spread (default: 10)")
+    sig.add_argument("--export", type=str, metavar="DIR", help="Directory for the JSON artifact")
+
     # Portfolio command - snapshot validation
     portfolio = sub.add_parser(
         "portfolio",
@@ -491,9 +513,21 @@ def main():
             import traceback
             traceback.print_exc()
             sys.exit(1)
-        
+
         return
-    
+
+    # Signal-eval command (factor-isolation research study)
+    if args.module == "signal-eval":
+        print_header("Signal-Isolation Study")
+        try:
+            run_signal_eval(args)
+        except Exception as e:
+            print_msg(f"Error: {e}", "error")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+        return
+
     # Portfolio command
     if args.module == "portfolio":
         if args.portfolio_action == "validate":
