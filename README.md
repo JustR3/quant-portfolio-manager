@@ -33,7 +33,7 @@ The Quant Portfolio Manager implements a systematic approach to quantitative inv
 ### 🚀 Production-Ready Systematic Workflow
 - **Multi-Universe Support**: S&P 500 (large-cap), Russell 2000 (small-cap), NASDAQ-100 (tech/growth), or combined
 - **Long/Short Strategies**: 130/30 long/short with a **1.87 optimizer-expected (in-sample) Sharpe** — this is the optimizer's own expectation, NOT a realized/backtested result (see "Expected vs Realized" below)
-- **Minimum Sharpe Constraint**: Enforce 1.5:1 return-to-volatility targets with automatic validation
+- **Min-Sharpe Target (report-only)**: prints achieved-vs-target Sharpe; does **not** constrain the optimization
 - **Consolidated Cache System**: Single file per ticker with 24-hour expiry (76% more efficient)
 - **Batch Processing**: Handles 50-500 stocks reliably (50 tickers/batch)
 - **Point-in-Time Data Integrity**: Eliminates look-ahead bias in backtesting
@@ -150,7 +150,7 @@ uv run ./main.py optimize --universe sp500 --top-n 50 --long-short --use-french
 # Custom long/short exposures (e.g., 120/20 for more conservative)
 uv run ./main.py optimize --universe sp500 --long-short --long-exposure 1.2 --short-exposure 0.2
 
-# Enforce minimum Sharpe ratio (1.5:1 return-to-volatility)
+# Report a min-Sharpe target (report-only; does not constrain optimization)
 uv run ./main.py optimize --universe sp500 --top-n 50 --min-sharpe 1.5
 
 # Example with all features enabled
@@ -193,7 +193,7 @@ uv run ./main.py backtest \
   --long-short \
   --use-french
 
-# Backtest with minimum Sharpe constraint
+# Backtest with a report-only min-Sharpe target
 uv run ./main.py backtest \
   --start 2020-01-01 \
   --end 2024-12-31 \
@@ -355,35 +355,11 @@ uv run main.py optimize --universe sp500 --long-short --long-exposure 1.2 --shor
 # Aggressive 150/50
 uv run main.py optimize --universe sp500 --long-short --long-exposure 1.5 --short-exposure 0.5
 
-# Defensive 100/50 (best Sharpe: 2.22, lower absolute return)
+# Defensive 100/50 (optimizer-expected in-sample Sharpe ~2.22; not realized)
 uv run main.py optimize --universe sp500 --long-short --long-exposure 1.0 --short-exposure 0.5
 ```
 
 **Comprehensive Guide**: See [docs/LONG_SHORT_130_30.md](docs/LONG_SHORT_130_30.md) for strategy comparison, short borrowing costs, risk considerations, and best practices.
-
----
-
-## 🎯 Minimum Sharpe Ratio Constraint
-
-Enforce a minimum 1.5:1 return-to-volatility target to ensure risk-adjusted returns meet your requirements:
-
-```bash
-# Default minimum Sharpe of 1.5
-uv run main.py optimize --universe sp500 --top-n 50 --min-sharpe 1.5
-
-# Custom target (e.g., 2.0 for aggressive targets)
-uv run main.py optimize --universe sp500 --min-sharpe 2.0
-
-# Combine with 130/30 for best results
-uv run main.py optimize --universe sp500 --long-short --min-sharpe 1.5
-```
-
-**Behavior**:
-- If max achievable Sharpe ≥ target: Portfolio optimized to target
-- If max achievable Sharpe < target: Warning issued, falls back to best achievable
-- Validates with 5% tolerance for numerical stability
-
-**Documentation**: See [docs/MINIMUM_SHARPE_CONSTRAINT.md](docs/MINIMUM_SHARPE_CONSTRAINT.md) for examples and troubleshooting.
 
 ---
 
@@ -534,71 +510,6 @@ uv run ./main.py optimize \
 - If data is unavailable, they default to neutral (1.0x) and continue
 - Caching ensures reliability (weekly refresh)
 
-## 🎯 Long/Short 130/30 Strategy
-
-Combine long positions in high-factor-score stocks with short positions in low-factor-score stocks. The optimizer *expects* a higher Sharpe for the 130/30 construction (1.87 in-sample) — but this is the optimizer's in-sample expectation, **not a realized result** (see "Expected vs Realized").
-
-### Optimizer-expected metrics (SP500 Top 50)
-
-> The numbers below are the **optimizer's in-sample expectations**, not realized/backtested
-> results — useful for construction, not evidence the strategy works. See "Expected vs Realized".
-
-| Metric | Long-Only | 130/30 Long/Short | Δ (expected) |
-|--------|-----------|-------------------|-------------|
-| Expected Return (in-sample) | 31.47% | **44.60%** | **+41.8%** |
-| Expected Volatility (in-sample) | 18.25% | 21.59% | +18.3% |
-| **Expected Sharpe (in-sample)** | 1.50 | **1.87** | **+24.7%** |
-| Net Exposure | 100% | 100% | Same |
-
-### How It Works
-
-1. **Separate Candidates**: Stocks with positive factor scores → long, negative scores → short
-2. **Optimize Independently**: Max Sharpe for longs, inverted returns for shorts
-3. **Scale Exposures**: 130% long + 30% short = 100% net exposure
-4. **Preserve Constraints**: 30% max position, 35% sector limits still apply
-
-### Strategy Variants
-
-```bash
-# Standard 130/30 (recommended)
-uv run main.py optimize --universe sp500 --long-short
-
-# Conservative 120/20
-uv run main.py optimize --universe sp500 --long-short --long-exposure 1.2 --short-exposure 0.2
-
-# Aggressive 150/50
-uv run main.py optimize --universe sp500 --long-short --long-exposure 1.5 --short-exposure 0.5
-
-# Defensive 100/50 (best Sharpe: 2.22, lower absolute return)
-uv run main.py optimize --universe sp500 --long-short --long-exposure 1.0 --short-exposure 0.5
-```
-
-**Comprehensive Guide**: See [docs/LONG_SHORT_130_30.md](docs/LONG_SHORT_130_30.md) for strategy comparison, short borrowing costs, risk considerations, and best practices.
-
----
-
-## 🎯 Minimum Sharpe Ratio Constraint
-
-Enforce a minimum 1.5:1 return-to-volatility target to ensure risk-adjusted returns meet your requirements:
-
-```bash
-# Default minimum Sharpe of 1.5
-uv run main.py optimize --universe sp500 --top-n 50 --min-sharpe 1.5
-
-# Custom target (e.g., 2.0 for aggressive targets)
-uv run main.py optimize --universe sp500 --min-sharpe 2.0
-
-# Combine with 130/30 for best results
-uv run main.py optimize --universe sp500 --long-short --min-sharpe 1.5
-```
-
-**Behavior**:
-- If max achievable Sharpe ≥ target: Portfolio optimized to target
-- If max achievable Sharpe < target: Warning issued, falls back to best achievable
-- Validates with 5% tolerance for numerical stability
-
-**Documentation**: See [docs/MINIMUM_SHARPE_CONSTRAINT.md](docs/MINIMUM_SHARPE_CONSTRAINT.md) for examples and troubleshooting.
-
 ---
 
 ## 🎯 Portfolio Optimization
@@ -712,7 +623,7 @@ For detailed documentation on all features including:
 **Core Guides**:
 - [REPOSITORY_OVERVIEW.md](docs/REPOSITORY_OVERVIEW.md) - Architecture, data flow, and development guide
 - [LONG_SHORT_130_30.md](docs/LONG_SHORT_130_30.md) - 130/30 strategy, performance analysis, best practices
-- [MINIMUM_SHARPE_CONSTRAINT.md](docs/MINIMUM_SHARPE_CONSTRAINT.md) - Sharpe ratio targets and validation
+- [MINIMUM_SHARPE_CONSTRAINT.md](docs/MINIMUM_SHARPE_CONSTRAINT.md) - legacy min-Sharpe notes (now report-only; not enforced)
 - [REGIME_AND_GODS_GUIDE.md](docs/REGIME_AND_GODS_GUIDE.md) - Market regime detection, Macro God (CAPE), Factor God (Fama-French)
 - [CACHING_STRATEGY.md](docs/CACHING_STRATEGY.md) - 3-tier caching system details
 

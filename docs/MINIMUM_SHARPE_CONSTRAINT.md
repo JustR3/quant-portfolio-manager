@@ -1,5 +1,11 @@
 # Minimum Sharpe Ratio Constraint
 
+> **⚠️ DEPRECATED (2026-06, Plan 3):** The minimum-Sharpe *constraint* was a no-op and has been
+> removed. `--min-sharpe` is now a **report-only target** — the optimizer prints achieved-vs-target
+> Sharpe but does **not** constrain the optimization. A real Sharpe-targeting constraint is deferred
+> (strategy work). This document is retained for historical context only; the enforcement behavior
+> described below no longer exists.
+
 ## Overview
 
 The portfolio optimizer now supports enforcing a **minimum Sharpe ratio** constraint, ensuring that the expected return-to-volatility ratio meets your risk-adjusted performance targets.
