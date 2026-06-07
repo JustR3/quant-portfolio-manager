@@ -266,97 +266,39 @@ class FactorEngine:
             print(f"\n✅ Data fetched: {successful} successful, {failed} failed")
             print(f"⏱️  Data Fetching - Total: {overall_elapsed:.2f}s\n")
     
+    def _live_pit_factors(self, ticker: str):
+        """Live Value/Quality via the shared compute_pit_factors (single source of truth).
+
+        Uses the current marketCap and as_of=today with lag_days=0 (everything present
+        in live data is already public), so statement selection matches the old
+        ``.iloc[0]`` behavior while the factor MATH is identical to the backtest path.
+        Adopts the PIT/no-clamp convention: negative earnings/FCF flow through instead
+        of being clamped to 0 or NaN'd.
+        """
+        data = self.data.get(ticker)
+        if data is None:
+            return None
+        info = data.get('info') or {}
+        market_cap = info.get('marketCap')
+        return fnd.compute_pit_factors(
+            income=data.get('income_stmt'), balance=data.get('balance_sheet'),
+            cashflow=data.get('cash_flow'), market_cap=market_cap,
+            as_of=pd.Timestamp.today().normalize(), lag_days=0,
+        )
+
     def calculate_value_factor(self, ticker: str) -> float:
-        """
-        Calculate Value Factor: FCF Yield (50%) + Earnings Yield (50%)
-        
-        FCF Yield = Free Cash Flow / Market Cap
-        Earnings Yield = EBIT / Enterprise Value (approximated as Market Cap)
-        """
-        try:
-            data = self.data.get(ticker)
-            if data is None:
-                return np.nan
-            
-            info = data['info']
-            income_stmt = data['income_stmt']
-            cash_flow = data['cash_flow']
-            
-            # Get market cap
-            market_cap = info.get('marketCap')
-            if not market_cap or market_cap <= 0:
-                return np.nan
-            
-            # FCF Yield
-            fcf_yield = 0
-            if not cash_flow.empty and 'Free Cash Flow' in cash_flow.index:
-                fcf = cash_flow.loc['Free Cash Flow'].iloc[0]  # Most recent
-                if pd.notna(fcf) and fcf > 0:
-                    fcf_yield = fcf / market_cap
-            
-            # Earnings Yield (using EBIT)
-            earnings_yield = 0
-            if not income_stmt.empty and 'EBIT' in income_stmt.index:
-                ebit = income_stmt.loc['EBIT'].iloc[0]  # Most recent
-                if pd.notna(ebit) and ebit > 0:
-                    earnings_yield = ebit / market_cap
-            
-            # Composite: 50/50 blend
-            value_score = 0.5 * fcf_yield + 0.5 * earnings_yield
-            return value_score if value_score > 0 else np.nan
-            
-        except Exception:
-            # print(f"  Value calc failed for {ticker}: {e}")
+        """Value = 0.5*FCF/MC + 0.5*EBIT/MC (PIT/no-clamp convention; negatives allowed)."""
+        pf = self._live_pit_factors(ticker)
+        if pf is None or pf.excluded:
             return np.nan
-    
+        return pf.value_raw
+
     def calculate_quality_factor(self, ticker: str) -> float:
-        """
-        Calculate Quality Factor: ROIC (50%) + Gross Margin (50%)
-        
-        ROIC = EBIT / Invested Capital
-        Invested Capital ≈ Total Assets - Current Liabilities
-        Gross Margin = Gross Profit / Revenue
-        """
-        try:
-            data = self.data.get(ticker)
-            if data is None:
-                return np.nan
-            
-            income_stmt = data['income_stmt']
-            balance_sheet = data['balance_sheet']
-            
-            # ROIC calculation
-            roic = 0
-            if not income_stmt.empty and not balance_sheet.empty:
-                if 'EBIT' in income_stmt.index:
-                    ebit = income_stmt.loc['EBIT'].iloc[0]
-                    
-                    # Invested Capital = Total Assets - Current Liabilities
-                    total_assets = balance_sheet.loc['Total Assets'].iloc[0] if 'Total Assets' in balance_sheet.index else 0
-                    current_liabilities = balance_sheet.loc['Current Liabilities'].iloc[0] if 'Current Liabilities' in balance_sheet.index else 0
-                    
-                    invested_capital = total_assets - current_liabilities
-                    
-                    if invested_capital > 0 and pd.notna(ebit):
-                        roic = ebit / invested_capital
-            
-            # Gross Margin
-            gross_margin = 0
-            if not income_stmt.empty:
-                if 'Gross Profit' in income_stmt.index and 'Total Revenue' in income_stmt.index:
-                    gross_profit = income_stmt.loc['Gross Profit'].iloc[0]
-                    revenue = income_stmt.loc['Total Revenue'].iloc[0]
-                    
-                    if revenue > 0 and pd.notna(gross_profit):
-                        gross_margin = gross_profit / revenue
-            
-            # Composite: 50/50 blend
-            quality_score = 0.5 * roic + 0.5 * gross_margin
-            return quality_score if not np.isnan(quality_score) else np.nan
-            
-        except Exception:
-            # print(f"  Quality calc failed for {ticker}: {e}")
+        """Quality = 0.5*EBIT/(Assets-CurrLiab) + 0.5*GrossProfit/Revenue (no-clamp)."""
+        pf = self._live_pit_factors(ticker)
+        if pf is None or pf.excluded:
             return np.nan
+        return pf.quality_raw
     
     def calculate_momentum_factor(self, ticker: str) -> float:
         """
