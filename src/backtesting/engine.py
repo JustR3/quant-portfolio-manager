@@ -18,6 +18,8 @@ from src.models.optimizer import BlackLittermanOptimizer
 from src.pipeline.universe import get_universe
 from src.backtesting.performance import PerformanceMetrics
 from src.backtesting.results import BacktestResult
+from src.backtesting.costs import compute_turnover, cost_fraction
+from src.constants import TRANSACTION_COST_BPS_PER_SIDE
 
 # Try to import tqdm for progress bars
 try:
@@ -52,6 +54,7 @@ class BacktestEngine:
         initial_capital: float = 10000.0,
         risk_free_rate: float = 0.04,
         factor_alpha_scalar: float = 0.05,
+        transaction_cost_bps: float = TRANSACTION_COST_BPS_PER_SIDE,
         objective: str = 'max_sharpe',
         weight_bounds: Tuple[float, float] = (0.0, 0.30),
         use_macro: bool = False,
@@ -94,6 +97,7 @@ class BacktestEngine:
         self.initial_capital = initial_capital
         self.risk_free_rate = risk_free_rate
         self.factor_alpha_scalar = factor_alpha_scalar
+        self.transaction_cost_bps = transaction_cost_bps
         self.objective = objective
         self.weight_bounds = weight_bounds
         self.use_macro = use_macro
@@ -111,6 +115,8 @@ class BacktestEngine:
         self.dates = []
         self.exclusions_total = 0  # tickers excluded (missing PIT fields) across rebalances
         self.skipped_rebalances = 0  # rebalances dropped due to errors / no measurable data
+        self.total_transaction_cost = 0.0  # cumulative $ paid in costs
+        self.expected_sharpes = []  # per-rebalance optimizer (in-sample) Sharpe
         
         # Benchmark
         self.benchmark_values = []
@@ -254,12 +260,14 @@ class BacktestEngine:
             print(f"\n🚀 Backtesting {self.universe} ({self.start_date.strftime('%Y-%m-%d')} → {self.end_date.strftime('%Y-%m-%d')})")
             print(f"   {len(rebalance_dates)} rebalances | Top {self.top_n} stocks | ${self.initial_capital:,.0f} capital\n")
         
-        # Initialize portfolio
-        current_portfolio_value = self.initial_capital
+        # Initialize portfolio (net = after costs, gross = costs ignored)
+        current_value_net = self.initial_capital
+        current_value_gross = self.initial_capital
         current_weights = {}
-        
-        # Track equity curve
-        equity_curve = []
+
+        # Track equity curves
+        equity_curve = []       # NET (after transaction costs)
+        gross_curve = []        # GROSS (parallel to equity_curve / equity_dates)
         equity_dates = []
         
         # Download benchmark data (SPY) - suppress all output
@@ -360,6 +368,7 @@ class BacktestEngine:
                         weight_bounds=self.weight_bounds
                     )
                     new_weights = opt_result.weights
+                    self.expected_sharpes.append(opt_result.sharpe_ratio)
                 except (ValueError, Exception) as opt_error:
                     # Fallback to equal-weight if optimization fails
                     if verbose and not HAS_TQDM:
@@ -420,26 +429,34 @@ class BacktestEngine:
                     start=rebalance_date,
                     end=next_rebalance
                 )
-                
+
                 if period_prices.empty:
                     if verbose and not HAS_TQDM:
                         print(f"   ⚠️  No price data for holding period ({rebalance_date} to {next_rebalance}), skipping...")
                     continue
-                
-                # Calculate portfolio value during holding period
-                period_values = self._calculate_portfolio_value(
-                    weights=new_weights,
-                    prices=period_prices,
-                    initial_value=current_portfolio_value
-                )
-                
-                # Update current portfolio value (end of period)
-                current_portfolio_value = period_values.iloc[-1]
-                
-                # Append to equity curve
-                equity_curve.extend(period_values.tolist())
-                equity_dates.extend(period_values.index.tolist())
-                
+
+                # Charge transaction costs on turnover from the PREVIOUS holding's
+                # target weights to the new target weights (target-to-target).
+                turnover = compute_turnover(current_weights, new_weights)
+                frac = cost_fraction(turnover, self.transaction_cost_bps)
+                cost_paid = current_value_net * frac
+                self.total_transaction_cost += cost_paid
+                value_net_start = current_value_net - cost_paid
+
+                # Dual-track: net (costs charged) and gross (no costs), same prices.
+                net_values = self._calculate_portfolio_value(
+                    weights=new_weights, prices=period_prices, initial_value=value_net_start)
+                gross_values = self._calculate_portfolio_value(
+                    weights=new_weights, prices=period_prices, initial_value=current_value_gross)
+
+                current_value_net = net_values.iloc[-1]
+                current_value_gross = gross_values.iloc[-1]
+
+                # Append to equity curves
+                equity_curve.extend(net_values.tolist())
+                gross_curve.extend(gross_values.tolist())
+                equity_dates.extend(net_values.index.tolist())
+
                 # Update weights for next period
                 current_weights = new_weights
                 

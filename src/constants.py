@@ -140,6 +140,13 @@ CONVICTION_MODERATE_PROBABILITY: Final[float] = 60.0  # 60%
 FUNDAMENTALS_REPORTING_LAG_DAYS = 90
 
 # =============================================================================
+# BACKTEST TRANSACTION COSTS
+# =============================================================================
+# Per-side cost in basis points charged on turnover at each rebalance.
+# 10 bps/side ≈ 20 bps round-trip — validated in docs/research/2026-06-07-cost-sensitivity.md
+TRANSACTION_COST_BPS_PER_SIDE: Final[float] = 10.0
+
+# =============================================================================
 # BAYESIAN PRIORS
 # =============================================================================
 BAYESIAN_PRIOR_WEIGHT: Final[float] = 0.30  # 30% prior
