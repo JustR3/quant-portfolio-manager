@@ -52,6 +52,14 @@ class BacktestResult:
     # Data-integrity caveats (survivorship, fundamentals window, exclusions)
     data_caveats: Optional[str] = None
 
+    # Expected vs realized split (Plan 2). Existing total_return/cagr/sharpe_ratio are NET.
+    expected_sharpe_in_sample: Optional[float] = None  # avg per-rebalance optimizer Sharpe
+    gross_total_return: Optional[float] = None
+    gross_cagr: Optional[float] = None
+    gross_sharpe: Optional[float] = None
+    total_transaction_cost: Optional[float] = None
+    transaction_cost_bps: Optional[float] = None
+
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization."""
         return {
@@ -83,6 +91,18 @@ class BacktestResult:
                 'avg_win': round(self.avg_win, 4) if self.avg_win else None,
                 'avg_loss': round(self.avg_loss, 4) if self.avg_loss else None,
                 'profit_factor': round(self.profit_factor, 4) if self.profit_factor else None
+            },
+            'expected_vs_realized': {
+                'expected_sharpe_in_sample': (round(self.expected_sharpe_in_sample, 4)
+                                              if self.expected_sharpe_in_sample is not None else None),
+                'realized_sharpe_gross': (round(self.gross_sharpe, 4)
+                                          if self.gross_sharpe is not None else None),
+                'realized_sharpe_net': round(self.sharpe_ratio, 4),
+                'gross_total_return': (round(self.gross_total_return, 4)
+                                       if self.gross_total_return is not None else None),
+                'total_transaction_cost': (round(self.total_transaction_cost, 2)
+                                           if self.total_transaction_cost is not None else None),
+                'transaction_cost_bps': self.transaction_cost_bps,
             }
         }
     
@@ -130,7 +150,7 @@ class BacktestResult:
 🔄 Rebalances: {self.num_rebalances} ({self.rebalance_frequency})
 
 {'─'*80}
-PERFORMANCE METRICS
+PERFORMANCE METRICS (realized, net of costs)
 {'─'*80}
   Total Return:          {self.total_return:>8.2%}
   CAGR:                  {self.cagr:>8.2%}
@@ -159,6 +179,21 @@ TRADE STATISTICS
   Average Win:           {self.avg_win:>8.2%}
   Average Loss:          {self.avg_loss:>8.2%}
   Profit Factor:         {self.profit_factor:>8.2f}
+"""
+
+        if self.gross_sharpe is not None:
+            exp = (f"{self.expected_sharpe_in_sample:>8.2f}"
+                   if self.expected_sharpe_in_sample is not None else "     n/a")
+            cost = self.total_transaction_cost if self.total_transaction_cost is not None else 0.0
+            bps = self.transaction_cost_bps if self.transaction_cost_bps is not None else 0.0
+            summary += f"""
+{'─'*80}
+EXPECTED vs REALIZED  (do not conflate)
+{'─'*80}
+  Expected Sharpe (in-sample optimizer, avg): {exp}
+  Realized Sharpe (gross):                    {self.gross_sharpe:>8.2f}
+  Realized Sharpe (net of costs):             {self.sharpe_ratio:>8.2f}
+  Transaction cost (total / per side):        ${cost:>10,.0f} / {bps:.0f} bps
 """
 
         if self.data_caveats:

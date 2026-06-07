@@ -528,7 +528,19 @@ class BacktestEngine:
         sortino = PerformanceMetrics.sortino_ratio(returns, self.risk_free_rate)
         max_dd, drawdown_series = PerformanceMetrics.max_drawdown(equity_series)
         calmar = PerformanceMetrics.calmar_ratio(cagr, max_dd)
-        
+
+        # Gross (cost-free) curve + expected (in-sample optimizer) Sharpe, for the
+        # expected-vs-realized split. equity_series above is the NET curve.
+        gross_series = pd.Series(gross_curve, index=equity_dates)
+        gross_series = gross_series[~gross_series.index.duplicated(keep='last')]
+        gross_returns = PerformanceMetrics.calculate_returns(gross_series)
+        gross_total_return = PerformanceMetrics.total_return(gross_series)
+        gross_cagr = PerformanceMetrics.cagr(gross_series)
+        gross_sharpe = PerformanceMetrics.sharpe_ratio(gross_returns, self.risk_free_rate)
+        expected_sharpe_in_sample = (
+            sum(self.expected_sharpes) / len(self.expected_sharpes)
+            if self.expected_sharpes else None)
+
         # Benchmark metrics
         spy_aligned = spy_prices.reindex(equity_series.index, method='ffill')
         benchmark_returns = spy_aligned.pct_change().dropna()
@@ -573,7 +585,9 @@ class BacktestEngine:
             "integrity check, not a long statistical sample. Survivorship: index "
             "membership is the CURRENT constituent list, not point-in-time. "
             f"Excluded (missing required fields): {self.exclusions_total} ticker-rebalances. "
-            f"Skipped rebalances (errors/no data): {self.skipped_rebalances}/{len(rebalance_dates)}."
+            f"Skipped rebalances (errors/no data): {self.skipped_rebalances}/{len(rebalance_dates)}. "
+            f"Transaction costs: {self.transaction_cost_bps:.0f} bps/side on turnover "
+            f"(target-to-target; intra-period drift not modeled)."
         )
 
         # Create result
@@ -602,7 +616,13 @@ class BacktestEngine:
             avg_win=avg_win,
             avg_loss=avg_loss,
             profit_factor=profit_factor,
-            data_caveats=data_caveats
+            data_caveats=data_caveats,
+            expected_sharpe_in_sample=expected_sharpe_in_sample,
+            gross_total_return=gross_total_return,
+            gross_cagr=gross_cagr,
+            gross_sharpe=gross_sharpe,
+            total_transaction_cost=self.total_transaction_cost,
+            transaction_cost_bps=self.transaction_cost_bps,
         )
         
         if verbose:

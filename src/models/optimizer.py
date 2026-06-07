@@ -13,7 +13,7 @@ from typing import Dict, Optional, Tuple
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from pypfopt import BlackLittermanModel, risk_models, expected_returns, black_litterman
+from pypfopt import BlackLittermanModel, risk_models, black_litterman
 from pypfopt.efficient_frontier import EfficientFrontier
 from pypfopt.discrete_allocation import DiscreteAllocation
 
@@ -662,7 +662,7 @@ class BlackLittermanOptimizer:
         print("\n" + "=" * 80)
         print(f"Expected Return: {result.expected_return*100:.2f}%")
         print(f"Volatility: {result.volatility*100:.2f}%")
-        print(f"Sharpe Ratio: {result.sharpe_ratio:.2f}")
+        print(f"Sharpe Ratio (expected, in-sample optimizer — not realized): {result.sharpe_ratio:.2f}")
         print("=" * 80 + "\n")
 
 

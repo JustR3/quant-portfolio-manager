@@ -32,7 +32,7 @@ The Quant Portfolio Manager implements a systematic approach to quantitative inv
 
 ### 🚀 Production-Ready Systematic Workflow
 - **Multi-Universe Support**: S&P 500 (large-cap), Russell 2000 (small-cap), NASDAQ-100 (tech/growth), or combined
-- **Long/Short Strategies**: 130/30 long/short achieving **1.87 Sharpe ratio** (24.7% improvement over long-only)
+- **Long/Short Strategies**: 130/30 long/short with a **1.87 optimizer-expected (in-sample) Sharpe** — this is the optimizer's own expectation, NOT a realized/backtested result (see "Expected vs Realized" below)
 - **Minimum Sharpe Constraint**: Enforce 1.5:1 return-to-volatility targets with automatic validation
 - **Consolidated Cache System**: Single file per ticker with 24-hour expiry (76% more efficient)
 - **Batch Processing**: Handles 50-500 stocks reliably (50 tickers/batch)
@@ -141,7 +141,7 @@ uv run ./main.py optimize --universe sp500 --objective min_volatility
 # Enable "The Gods" - Macro CAPE adjustment + Fama-French tilts
 uv run ./main.py optimize --universe sp500 --top-n 50 --use-macro --use-french
 
-# 130/30 Long/Short strategy (1.87 Sharpe ratio, 44.6% expected return)
+# 130/30 Long/Short (optimizer-EXPECTED in-sample: 1.87 Sharpe / 44.6% return — not realized)
 uv run ./main.py optimize --universe sp500 --top-n 50 --long-short
 
 # 130/30 with Factor God for optimal performance
@@ -300,17 +300,40 @@ uv run ./main.py portfolio validate data/portfolios/my_portfolio_20260106_120000
    ABC: -8.5% (Materials)
 ```
 
+## 📐 Expected vs Realized
+
+This project distinguishes two very different numbers, and never presents one as the other:
+
+- **Expected (in-sample optimizer):** what the Black-Litterman optimizer *expects* given its
+  own factor-implied views. Useful for construction; it is **not evidence the strategy works.**
+- **Realized (backtest, net of costs):** what a walk-forward backtest actually produced after
+  transaction costs (default 10 bps/side on turnover). Reported in the backtest's
+  `EXPECTED vs REALIZED` block (Sharpe gross vs net) and the saved JSON's
+  `expected_vs_realized` section.
+
+Run a backtest to see realized, net-of-cost metrics:
+
+```bash
+uv run ./main.py backtest --start 2023-07-01 --end 2025-06-01 --top-n 20 --frequency quarterly
+```
+
+Caveat: annual point-in-time fundamentals + current index membership make the backtest an
+**integrity check over a ~3-year window, not a strong statistical validation.**
+
 ## 🎯 Long/Short 130/30 Strategy
 
-Achieve **1.87 Sharpe ratio** (24.7% improvement over long-only) by combining long positions in high-factor-score stocks with short positions in low-factor-score stocks.
+Combine long positions in high-factor-score stocks with short positions in low-factor-score stocks. The optimizer *expects* a higher Sharpe for the 130/30 construction (1.87 in-sample) — but this is the optimizer's in-sample expectation, **not a realized result** (see "Expected vs Realized").
 
-### Performance Results (SP500 Top 50)
+### Optimizer-expected metrics (SP500 Top 50)
 
-| Metric | Long-Only | 130/30 Long/Short | Improvement |
+> The numbers below are the **optimizer's in-sample expectations**, not realized/backtested
+> results — useful for construction, not evidence the strategy works. See "Expected vs Realized".
+
+| Metric | Long-Only | 130/30 Long/Short | Δ (expected) |
 |--------|-----------|-------------------|-------------|
-| Expected Return | 31.47% | **44.60%** | **+41.8%** |
-| Volatility | 18.25% | 21.59% | +18.3% |
-| **Sharpe Ratio** | 1.50 | **1.87** | **+24.7%** |
+| Expected Return (in-sample) | 31.47% | **44.60%** | **+41.8%** |
+| Expected Volatility (in-sample) | 18.25% | 21.59% | +18.3% |
+| **Expected Sharpe (in-sample)** | 1.50 | **1.87** | **+24.7%** |
 | Net Exposure | 100% | 100% | Same |
 
 ### How It Works
@@ -513,15 +536,18 @@ uv run ./main.py optimize \
 
 ## 🎯 Long/Short 130/30 Strategy
 
-Achieve **1.87 Sharpe ratio** (24.7% improvement over long-only) by combining long positions in high-factor-score stocks with short positions in low-factor-score stocks.
+Combine long positions in high-factor-score stocks with short positions in low-factor-score stocks. The optimizer *expects* a higher Sharpe for the 130/30 construction (1.87 in-sample) — but this is the optimizer's in-sample expectation, **not a realized result** (see "Expected vs Realized").
 
-### Performance Results (SP500 Top 50)
+### Optimizer-expected metrics (SP500 Top 50)
 
-| Metric | Long-Only | 130/30 Long/Short | Improvement |
+> The numbers below are the **optimizer's in-sample expectations**, not realized/backtested
+> results — useful for construction, not evidence the strategy works. See "Expected vs Realized".
+
+| Metric | Long-Only | 130/30 Long/Short | Δ (expected) |
 |--------|-----------|-------------------|-------------|
-| Expected Return | 31.47% | **44.60%** | **+41.8%** |
-| Volatility | 18.25% | 21.59% | +18.3% |
-| **Sharpe Ratio** | 1.50 | **1.87** | **+24.7%** |
+| Expected Return (in-sample) | 31.47% | **44.60%** | **+41.8%** |
+| Expected Volatility (in-sample) | 18.25% | 21.59% | +18.3% |
+| **Expected Sharpe (in-sample)** | 1.50 | **1.87** | **+24.7%** |
 | Net Exposure | 100% | 100% | Same |
 
 ### How It Works

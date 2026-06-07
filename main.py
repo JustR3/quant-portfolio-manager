@@ -157,6 +157,8 @@ Examples:
                          help="Number of top-ranked stocks for optimization (default: same as --top-n)")
     backtest.add_argument("--capital", type=float, default=10000.0, metavar="AMOUNT",
                          help="Initial capital for backtest (default: 10000)")
+    backtest.add_argument("--transaction-cost-bps", type=float, default=10.0, metavar="BPS",
+                         help="Per-side transaction cost (bps) charged on turnover (default: 10)")
     backtest.add_argument("--use-macro", action="store_true",
                          help="Apply Shiller CAPE-based equity risk adjustment")
     backtest.add_argument("--use-french", action="store_true",
@@ -460,6 +462,7 @@ def main():
                 top_n_for_optimization=args.optimize_top,
                 rebalance_frequency=args.frequency,
                 initial_capital=args.capital,
+                transaction_cost_bps=args.transaction_cost_bps,
                 use_macro=args.use_macro,
                 use_french=args.use_french,
                 use_regime=args.use_regime,
