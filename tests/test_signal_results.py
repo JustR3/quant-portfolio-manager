@@ -1,0 +1,109 @@
+import numpy as np
+import pandas as pd
+from src.research import results as R
+
+
+def _predictive_panel(factor_col, periods=12, names=200, seed=0):
+    rng = np.random.default_rng(seed)
+    frames = []
+    for m in range(periods):
+        x = rng.normal(size=names)
+        fwd = x * 0.05 + rng.normal(size=names) * 0.01     # strong positive relationship
+        df = pd.DataFrame({factor_col: x, "fwd_return": fwd})
+        df["ticker"] = [f"T{i}" for i in range(names)]
+        df["date"] = pd.Timestamp("2021-01-31") + pd.offsets.MonthEnd(m)
+        frames.append(df)
+    panel = pd.concat(frames, ignore_index=True)
+    for c in ("momentum_raw", "value_raw", "quality_raw"):
+        if c not in panel:
+            panel[c] = np.nan
+    return panel
+
+
+def test_evaluate_factor_passes_strong_signal():
+    panel = _predictive_panel("momentum_raw")
+    res = R.evaluate_factor(panel, "momentum", q=5, min_names=10,
+                            frequency="monthly", cost_bps=10)
+    assert res.factor == "momentum"
+    assert res.ic["t_stat"] > 2
+    assert res.monotonic is True
+    assert res.net_spread["sharpe"] > 0
+    assert res.passed is True
+
+
+def test_evaluate_factor_fails_pure_noise():
+    rng = np.random.default_rng(7)
+    frames = []
+    for m in range(12):
+        df = pd.DataFrame({"value_raw": rng.normal(size=200),
+                           "fwd_return": rng.normal(size=200)})
+        df["ticker"] = [f"T{i}" for i in range(200)]
+        df["date"] = pd.Timestamp("2021-01-31") + pd.offsets.MonthEnd(m)
+        df["momentum_raw"] = np.nan
+        df["quality_raw"] = np.nan
+        frames.append(df)
+    panel = pd.concat(frames, ignore_index=True)
+    res = R.evaluate_factor(panel, "value", q=5, min_names=10,
+                            frequency="monthly", cost_bps=10)
+    assert res.passed is False
+
+
+def test_evaluate_factor_wrong_sign_fails_even_if_significant():
+    panel = _predictive_panel("momentum_raw")
+    panel["momentum_raw"] = -panel["momentum_raw"]   # significant but NEGATIVE IC
+    res = R.evaluate_factor(panel, "momentum", q=5, min_names=10,
+                            frequency="monthly", cost_bps=10)
+    assert res.ic["t_stat"] < -2
+    assert res.passed is False
+
+
+def test_build_caveats_flags_overlap_and_survivorship():
+    cav = R.build_caveats(frequency="monthly", horizon_months=3, factors=["value"])
+    text = " ".join(cav).lower()
+    assert "survivorship" in text
+    assert "overlap" in text                  # horizon (3) != monthly spacing (1)
+    assert any("value" in c.lower() or "fundamental" in c.lower() for c in cav)
+
+
+def test_signal_eval_result_json_roundtrip(tmp_path):
+    panel = _predictive_panel("momentum_raw")
+    fr = R.evaluate_factor(panel, "momentum", q=5, min_names=10,
+                           frequency="monthly", cost_bps=10)
+    result = R.SignalEvalResult(
+        factors=[fr], caveats=["x"], params={"frequency": "monthly", "horizon_months": 1})
+    out = tmp_path / "res.json"
+    result.to_json(out)
+    loaded = R.json.loads(out.read_text())
+    assert loaded["factors"][0]["factor"] == "momentum"
+    assert loaded["factors"][0]["passed"] is True
+    assert loaded["params"]["frequency"] == "monthly"
+
+
+def test_signal_eval_result_render_contains_verdict_and_caveats():
+    panel = _predictive_panel("momentum_raw")
+    fr = R.evaluate_factor(panel, "momentum", q=5, min_names=10,
+                           frequency="monthly", cost_bps=10)
+    text = R.SignalEvalResult(factors=[fr], caveats=["SURVIVORSHIP note"],
+                              params={}).render()
+    assert "MOMENTUM" in text.upper()
+    assert "PASS" in text.upper()
+    assert "SURVIVORSHIP note" in text
+
+
+def test_run_signal_eval_with_injected_panel(tmp_path, monkeypatch, capsys):
+    from types import SimpleNamespace
+    from src.research import command as cmd
+    panel = _predictive_panel("momentum_raw")
+    # Inject a prebuilt panel so the command runs fully offline (no store/network).
+    monkeypatch.setattr(cmd, "_build_panel_for_args", lambda args: panel)
+    args = SimpleNamespace(
+        factors="momentum", frequency="monthly", horizon=1, quantiles=5,
+        min_names_per_bucket=10, start="2021-01-01", end="2021-12-31",
+        transaction_cost_bps=10, export=str(tmp_path),
+    )
+    result = cmd.run_signal_eval(args)
+    out = capsys.readouterr().out
+    assert "MOMENTUM" in out.upper()
+    assert result.factors[0].factor == "momentum"
+    # JSON artifact written under export dir
+    assert any(p.suffix == ".json" for p in tmp_path.iterdir())
