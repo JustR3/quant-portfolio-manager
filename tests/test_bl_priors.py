@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 from pypfopt import risk_models, expected_returns, black_litterman
 from src.models.optimizer import BlackLittermanOptimizer
 
@@ -74,3 +75,26 @@ def test_custom_delta_scales_prior():
     expected = black_litterman.market_implied_prior_returns(
         pd.Series({"A": 0.6, "B": 0.3, "C": 0.1}), 5.0, S, risk_free_rate=opt.risk_free_rate)
     pd.testing.assert_series_equal(pi.sort_index(), expected.sort_index())
+
+
+def test_min_sharpe_is_report_only_no_effect_on_weights():
+    px = _prices()
+
+    def weights_for(target):
+        o = BlackLittermanOptimizer(
+            tickers=["A", "B", "C"],
+            market_cap_weights={"A": 0.4, "B": 0.3, "C": 0.3},
+            min_target_sharpe=target, verbose=False)
+        o.prices = px
+        scores = pd.DataFrame({
+            "Ticker": ["A", "B", "C"],
+            "Value_Z": [0.5, -0.2, 0.1], "Quality_Z": [0.3, 0.0, -0.1],
+            "Momentum_Z": [0.2, 0.1, -0.3], "Total_Score": [0.4, -0.1, -0.1]})
+        o.generate_views_from_scores(scores)
+        return o.optimize(objective="max_sharpe", weight_bounds=(0.0, 1.0)).weights
+
+    w_low = weights_for(0.0)
+    w_high = weights_for(5.0)
+    assert set(w_low) == set(w_high)
+    for k in w_low:
+        assert w_low[k] == pytest.approx(w_high[k], abs=1e-9)

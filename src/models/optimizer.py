@@ -380,60 +380,16 @@ class BlackLittermanOptimizer:
         if sector_constraints:
             self._apply_sector_constraints(ef, sector_constraints)
 
-        # Try to optimize with minimum Sharpe constraint first
-        constraint_met = False
-        weights = None
-
-        if effective_objective == 'max_sharpe' and self.min_target_sharpe > 0:
-            try:
-                # Strategy: First try regular max_sharpe, check if it meets target
-                # If not, try to find a portfolio on efficient frontier that does
-                
-                # Get the unconstrained max Sharpe portfolio
-                ef_temp = EfficientFrontier(ret_bl, S, weight_bounds=weight_bounds)
-                if sector_constraints:
-                    self._apply_sector_constraints(ef_temp, sector_constraints)
-                ef_temp.max_sharpe(risk_free_rate=self.risk_free_rate)
-                max_sharpe_perf = ef_temp.portfolio_performance(risk_free_rate=self.risk_free_rate)
-                max_sharpe_ratio = max_sharpe_perf[2]
-                
-                if max_sharpe_ratio >= self.min_target_sharpe * 0.95:  # Allow 5% tolerance
-                    # Max Sharpe portfolio already meets target
-                    ef = EfficientFrontier(ret_bl, S, weight_bounds=weight_bounds)
-                    if sector_constraints:
-                        self._apply_sector_constraints(ef, sector_constraints)
-                    weights = ef.max_sharpe(risk_free_rate=self.risk_free_rate)
-                    constraint_met = True
-                    
-                    if self.verbose:
-                        print(f"  ✓ Portfolio meets minimum Sharpe ratio target: {self.min_target_sharpe:.2f} (achieved: {max_sharpe_ratio:.2f})")
-                else:
-                    # Max Sharpe doesn't meet target - cannot achieve it
-                    raise ValueError(f"Maximum achievable Sharpe ratio is {max_sharpe_ratio:.2f}, below target {self.min_target_sharpe:.2f}")
-                    
-            except Exception as e:
-                # Constraint cannot be satisfied - fallback to unconstrained max Sharpe
-                logger.warning(f"Minimum Sharpe constraint ({self.min_target_sharpe:.2f}) cannot be met: {str(e)}")
-                if self.verbose:
-                    print(f"  ⚠️  Cannot meet minimum Sharpe {self.min_target_sharpe:.2f} - optimizing without constraint")
-                    print(f"      (Current universe/factors cannot achieve this return-to-risk ratio)")
-                
-                # Recreate optimizer without constraint and do regular max_sharpe
-                ef = EfficientFrontier(ret_bl, S, weight_bounds=weight_bounds)
-                if sector_constraints:
-                    self._apply_sector_constraints(ef, sector_constraints)
-                weights = ef.max_sharpe(risk_free_rate=self.risk_free_rate)
-        
-        # Fallback for other objectives or if constraint not applied
-        if weights is None:
-            if effective_objective == 'max_sharpe':
-                weights = ef.max_sharpe(risk_free_rate=self.risk_free_rate)
-            elif effective_objective == 'min_volatility':
-                weights = ef.min_volatility()
-            elif effective_objective == 'max_quadratic_utility':
-                weights = ef.max_quadratic_utility()
-            else:
-                raise ValueError(f"Unknown objective: {objective}")
+        # Optimize against the BL posterior. min_target_sharpe is REPORT-ONLY
+        # (surfaced in display_results); it does NOT constrain the optimization.
+        if effective_objective == 'max_sharpe':
+            weights = ef.max_sharpe(risk_free_rate=self.risk_free_rate)
+        elif effective_objective == 'min_volatility':
+            weights = ef.min_volatility()
+        elif effective_objective == 'max_quadratic_utility':
+            weights = ef.max_quadratic_utility()
+        else:
+            raise ValueError(f"Unknown objective: {objective}")
         
         # Clean weights (remove tiny positions)
         weights = ef.clean_weights()
@@ -678,6 +634,10 @@ class BlackLittermanOptimizer:
         print(f"Expected Return: {result.expected_return*100:.2f}%")
         print(f"Volatility: {result.volatility*100:.2f}%")
         print(f"Sharpe Ratio (expected, in-sample optimizer — not realized): {result.sharpe_ratio:.2f}")
+        if self.min_target_sharpe and self.min_target_sharpe > 0:
+            meets = "✓ met" if result.sharpe_ratio >= self.min_target_sharpe else "✗ below"
+            print(f"Min-Sharpe target (report-only): {self.min_target_sharpe:.2f} "
+                  f"— expected {result.sharpe_ratio:.2f} ({meets})")
         print("=" * 80 + "\n")
 
 
