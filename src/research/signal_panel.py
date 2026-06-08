@@ -7,14 +7,11 @@ are unavailable. Pure assembly (`build_panel`) is separated from I/O
 (`load_inputs`) so the panel logic is unit-testable on synthetic dicts.
 """
 from __future__ import annotations
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
 import numpy as np
 import pandas as pd
 
-from src.constants import FUNDAMENTALS_REPORTING_LAG_DAYS, MAX_PARALLEL_WORKERS  # noqa: F401
-from src.pipeline import fundamentals as fnd
 from src.pipeline import historical_store as hstore
 
 MOMENTUM_LOOKBACK_DAYS = 252
@@ -69,15 +66,10 @@ def forward_return(prices: pd.Series, as_of: pd.Timestamp, horizon_months: int) 
     return (p1 / p0) - 1 if p0 > 0 else np.nan
 
 
-def build_panel(tickers, obs_dates, horizon_months, lag_days,
-                close_prices: dict, adj_prices: dict,
-                statements: dict, shares: dict) -> pd.DataFrame:
-    """Assemble the long panel. Pure over the provided in-memory data dicts.
-
-    For each (date, ticker): momentum from close prices (always attempted),
-    forward return from adjusted prices, and Value/Quality from
-    compute_pit_factors (NaN where excluded). Tickers are never dropped.
-    """
+def build_panel(tickers, obs_dates, horizon_months,
+                close_prices: dict, adj_prices: dict, fundamentals) -> pd.DataFrame:
+    """Assemble the long panel. Momentum/forward-returns from prices; Value/Quality
+    from the `fundamentals` provider (`pit_factors(ticker, as_of, price)`)."""
     rows = []
     for as_of in obs_dates:
         for t in tickers:
@@ -88,13 +80,7 @@ def build_panel(tickers, obs_dates, horizon_months, lag_days,
             mom = momentum_asof(close, as_of)
             fwd = forward_return(adj, as_of, horizon_months)
             price = price_asof_series(close, as_of)
-            mc = fnd.pit_market_cap_from(shares.get(t), price, as_of)
-            stmts = statements.get(t) or {}
-            pf = fnd.compute_pit_factors(
-                income=stmts.get("income"), balance=stmts.get("balance"),
-                cashflow=stmts.get("cashflow"), market_cap=mc,
-                as_of=as_of, lag_days=lag_days,
-            )
+            pf = fundamentals.pit_factors(t, as_of, price)
             rows.append({
                 "date": as_of, "ticker": t,
                 "momentum_raw": mom,
@@ -114,15 +100,14 @@ def universe_tickers(base_dir: Path = DEFAULT_PRICE_BASE) -> list[str]:
     return sorted({p.stem for p in prices_dir.glob("*.parquet")})
 
 
-def load_inputs(tickers, with_fundamentals: bool = True):
-    """Load price series (Close + Adj Close) and cached fundamentals for each ticker.
+def load_inputs(tickers, with_fundamentals: bool = False):
+    """Load Close + Adj Close price series per ticker from the local store.
 
-    Prices come from the local identity-guarded store. Fundamentals (statements +
-    shares) are fetched only when ``with_fundamentals`` is True — a momentum-only
-    study skips them and stays fully offline. Returns four dicts keyed by ticker:
-    (close_prices, adj_prices, statements, shares).
+    Fundamentals now come from a FundamentalsProvider, so they are no longer loaded
+    here; `with_fundamentals` is kept for signature compatibility and ignored.
+    Returns two dicts keyed by ticker: (close_prices, adj_prices).
     """
-    close_prices, adj_prices, statements, shares = {}, {}, {}, {}
+    close_prices, adj_prices = {}, {}
     for t in tickers:
         close = hstore.load_prices(t, field="Close")
         if close is None:
@@ -130,18 +115,4 @@ def load_inputs(tickers, with_fundamentals: bool = True):
         adj = hstore.load_prices(t, field="Adj Close")
         close_prices[t] = close
         adj_prices[t] = adj if adj is not None else close
-
-    have = list(close_prices.keys())
-    if not with_fundamentals:
-        return close_prices, adj_prices, {t: {} for t in have}, {t: None for t in have}
-
-    # Fundamentals are the slow part (network for uncached tickers). Fetch concurrently;
-    # fnd.get_statements/get_shares call the thread-safe rate limiter internally.
-    def _fund(t):
-        return t, fnd.get_statements(t), fnd.get_shares(t)
-
-    with ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as ex:
-        for t, st, sh in ex.map(_fund, have):
-            statements[t] = st
-            shares[t] = sh
-    return close_prices, adj_prices, statements, shares
+    return close_prices, adj_prices

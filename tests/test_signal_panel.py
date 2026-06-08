@@ -2,6 +2,17 @@ import numpy as np
 import pandas as pd
 import pytest
 from src.research import signal_panel as sp
+from src.pipeline.fundamentals import PITFactors
+
+
+class _StubProvider:
+    def __init__(self, value=0.3, quality=0.4, excluded=False):
+        self._v, self._q, self._x = value, quality, excluded
+
+    def pit_factors(self, ticker, as_of, price):
+        if self._x:
+            return PITFactors(excluded=True, exclusion_reason="stub")
+        return PITFactors(value_raw=self._v, quality_raw=self._q)
 
 
 def _daily_series(start, periods, step=1.0, start_price=100.0):
@@ -51,43 +62,28 @@ def test_forward_return_nan_when_no_future_price():
     assert np.isnan(sp.forward_return(s, as_of, horizon_months=1))
 
 
-def _statements_with(period_end="2021-12-31"):
-    col = pd.Timestamp(period_end)
-    income = pd.DataFrame({col: {"EBIT": 50.0, "Gross Profit": 80.0, "Total Revenue": 200.0}})
-    balance = pd.DataFrame({col: {"Total Assets": 300.0, "Current Liabilities": 100.0}})
-    cashflow = pd.DataFrame({col: {"Free Cash Flow": 40.0}})
-    return {"income": income, "balance": balance, "cashflow": cashflow}
-
-
-def test_build_panel_momentum_present_value_nan_when_no_statement():
-    # One ticker, prices only, no fundamentals -> momentum populated, V/Q NaN, no row dropped.
+def test_build_panel_uses_provider_for_value_quality():
     close = {"AAA": _daily_series("2019-01-01", 600)}
     adj = {"AAA": _daily_series("2019-01-01", 600)}
     dates = [close["AAA"].index[400]]
     panel = sp.build_panel(
-        tickers=["AAA"], obs_dates=dates, horizon_months=1, lag_days=90,
-        close_prices=close, adj_prices=adj, statements={"AAA": {}}, shares={"AAA": None},
-    )
-    assert len(panel) == 1
+        tickers=["AAA"], obs_dates=dates, horizon_months=1,
+        close_prices=close, adj_prices=adj, fundamentals=_StubProvider(0.7, 0.9))
+    row = panel.iloc[0]
+    assert row["value_raw"] == 0.7 and row["quality_raw"] == 0.9
+    assert not np.isnan(row["momentum_raw"])      # momentum still from prices
+
+
+def test_build_panel_momentum_present_value_nan_when_excluded():
+    close = {"AAA": _daily_series("2019-01-01", 600)}
+    adj = {"AAA": _daily_series("2019-01-01", 600)}
+    dates = [close["AAA"].index[400]]
+    panel = sp.build_panel(
+        tickers=["AAA"], obs_dates=dates, horizon_months=1,
+        close_prices=close, adj_prices=adj, fundamentals=_StubProvider(excluded=True))
     row = panel.iloc[0]
     assert not np.isnan(row["momentum_raw"])
     assert np.isnan(row["value_raw"]) and np.isnan(row["quality_raw"])
-
-
-def test_build_panel_value_quality_populated_with_pit_statement_and_shares():
-    close = {"BBB": _daily_series("2019-01-01", 1000, start_price=50.0)}
-    adj = {"BBB": _daily_series("2019-01-01", 1000, start_price=50.0)}
-    shares = {"BBB": pd.Series([1.0], index=[pd.Timestamp("2019-01-01")])}  # 1 share => MC = price
-    stmts = {"BBB": _statements_with("2021-12-31")}
-    as_of = pd.Timestamp("2022-06-30")
-    panel = sp.build_panel(
-        tickers=["BBB"], obs_dates=[as_of], horizon_months=1, lag_days=90,
-        close_prices=close, adj_prices=adj, statements=stmts, shares=shares,
-    )
-    row = panel.iloc[0]
-    assert not np.isnan(row["value_raw"])
-    assert not np.isnan(row["quality_raw"])
-    assert row["quality_raw"] == pytest.approx(0.5 * (50.0 / 200.0) + 0.5 * (80.0 / 200.0))
 
 
 def test_universe_tickers_reads_parquet_filenames(tmp_path):
@@ -99,15 +95,9 @@ def test_universe_tickers_reads_parquet_filenames(tmp_path):
     assert out == ["AAPL", "MSFT", "NVDA"]  # sorted, deduped
 
 
-def test_load_inputs_skips_fundamentals_when_not_needed(monkeypatch):
+def test_load_inputs_returns_close_and_adj_prices(monkeypatch):
     monkeypatch.setattr(sp.hstore, "load_prices",
                         lambda t, field="Close": _daily_series("2020-01-01", 10))
-
-    def _boom(*a, **k):
-        raise AssertionError("fundamentals should not be fetched when with_fundamentals=False")
-
-    monkeypatch.setattr(sp.fnd, "get_statements", _boom)
-    monkeypatch.setattr(sp.fnd, "get_shares", _boom)
-    close, adj, stmts, shares = sp.load_inputs(["AAA"], with_fundamentals=False)
-    assert stmts == {"AAA": {}}
-    assert shares == {"AAA": None}
+    close, adj = sp.load_inputs(["AAA"])
+    assert set(close) == {"AAA"} and set(adj) == {"AAA"}
+    assert len(close["AAA"]) == 10

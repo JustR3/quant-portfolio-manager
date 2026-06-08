@@ -60,7 +60,8 @@ def evaluate_factor(panel: pd.DataFrame, factor: str, q: int, min_names: int,
     )
 
 
-def build_caveats(frequency: str, horizon_months: int, factors: list) -> list:
+def build_caveats(frequency: str, horizon_months: int, factors: list,
+                  fundamentals_source: str = "yfinance") -> list:
     """Honest caveats attached to every run."""
     cav = [
         "SURVIVORSHIP: universe = CURRENT index membership (price store) for all dates; "
@@ -73,10 +74,17 @@ def build_caveats(frequency: str, horizon_months: int, factors: list) -> list:
             "windows overlap, so naive IC t-stats are inflated (no Newey-West in the Standard bar)."
         )
     if any(f in ("value", "quality") for f in factors):
-        cav.append(
-            "THIN FUNDAMENTALS: Value/Quality rely on yfinance annual statements floored at "
-            "~2021-2022; their IC time series is short (few independent periods) — directional only."
-        )
+        if fundamentals_source == "sec":
+            cav.append(
+                "SEC PIT FUNDAMENTALS: true point-in-time (filed-date) data ~2008+; the testable "
+                "window is bounded by the price store start (~2015). EBIT=OperatingIncomeLoss; "
+                "banks/financials excluded (no LiabilitiesCurrent/OperatingIncomeLoss)."
+            )
+        else:
+            cav.append(
+                "THIN FUNDAMENTALS (yfinance): Value/Quality rely on yfinance annual statements "
+                "floored at ~2021-2022; their IC time series is short — directional only."
+            )
     return cav
 
 

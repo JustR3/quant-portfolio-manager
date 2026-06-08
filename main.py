@@ -195,6 +195,9 @@ Examples:
     sig.add_argument("--end", type=str, default="2026-06-01", help="Study end (YYYY-MM-DD)")
     sig.add_argument("--transaction-cost-bps", type=float, default=10.0,
                      help="Per-side cost bps on leg turnover for the NET spread (default: 10)")
+    sig.add_argument("--fundamentals", type=str, default="yfinance",
+                     choices=["yfinance", "sec"],
+                     help="Fundamentals source for Value/Quality (default: yfinance)")
     sig.add_argument("--export", type=str, metavar="DIR", help="Directory for the JSON artifact")
 
     # Portfolio command - snapshot validation

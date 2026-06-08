@@ -6,7 +6,7 @@ pytestmark = pytest.mark.integration
 
 def test_load_inputs_real_store_smoke():
     tickers = sp.universe_tickers()[:5]
-    close, adj, stmts, shares = sp.load_inputs(tickers)
+    close, adj = sp.load_inputs(tickers)   # prices-only 2-tuple after the provider refactor
     assert set(close) <= set(tickers)
     # At least one ticker should have a non-empty close series from the real store.
     assert any(s is not None and len(s) > 0 for s in close.values())

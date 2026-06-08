@@ -65,6 +65,14 @@ def test_build_caveats_flags_overlap_and_survivorship():
     assert any("value" in c.lower() or "fundamental" in c.lower() for c in cav)
 
 
+def test_build_caveats_sec_source_drops_thin_yfinance_note():
+    yf = " ".join(R.build_caveats("monthly", 1, ["value"], fundamentals_source="yfinance")).lower()
+    sec = " ".join(R.build_caveats("monthly", 1, ["value"], fundamentals_source="sec")).lower()
+    assert "yfinance" in yf and "~2021-2022" in yf
+    assert "yfinance" not in sec
+    assert "sec" in sec and ("operatingincomeloss" in sec or "price store" in sec)
+
+
 def test_signal_eval_result_json_roundtrip(tmp_path):
     panel = _predictive_panel("momentum_raw")
     fr = R.evaluate_factor(panel, "momentum", q=5, min_names=10,
@@ -88,6 +96,25 @@ def test_signal_eval_result_render_contains_verdict_and_caveats():
     assert "MOMENTUM" in text.upper()
     assert "PASS" in text.upper()
     assert "SURVIVORSHIP note" in text
+
+
+def test_build_panel_for_args_selects_sec_provider(monkeypatch):
+    from types import SimpleNamespace
+    from src.research import command as cmd
+    captured = {}
+
+    def _fake_build_panel(tickers, obs_dates, horizon_months, close_prices, adj_prices, fundamentals):
+        captured["provider"] = type(fundamentals).__name__
+        return _predictive_panel("momentum_raw")
+
+    monkeypatch.setattr(cmd.sp, "universe_tickers", lambda: ["AAA"])
+    monkeypatch.setattr(cmd.sp, "load_inputs", lambda tickers, **k: ({"AAA": None}, {"AAA": None}))
+    monkeypatch.setattr(cmd.sp, "build_panel", _fake_build_panel)
+    args = SimpleNamespace(factors="value", frequency="monthly", horizon=1, quantiles=5,
+                           min_names_per_bucket=10, start="2021-01-01", end="2021-12-31",
+                           transaction_cost_bps=10, export=None, fundamentals="sec")
+    cmd._build_panel_for_args(args)
+    assert captured["provider"] == "SECFundamentals"
 
 
 def test_run_signal_eval_with_injected_panel(tmp_path, monkeypatch, capsys):
