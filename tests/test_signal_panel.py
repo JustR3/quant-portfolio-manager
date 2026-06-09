@@ -101,3 +101,29 @@ def test_load_inputs_returns_close_and_adj_prices(monkeypatch):
     close, adj = sp.load_inputs(["AAA"])
     assert set(close) == {"AAA"} and set(adj) == {"AAA"}
     assert len(close["AAA"]) == 10
+
+
+class _StubProv:
+    def pit_factors(self, ticker, as_of, price):
+        from src.pipeline.fundamentals import PITFactors
+        if ticker == "BANK":
+            return PITFactors(excluded=True, exclusion_reason="bank")
+        return PITFactors(value_raw=1.0, quality_raw=1.0, gross_profitability_raw=0.2,
+                          net_issuance_raw=0.03, asset_growth_raw=-0.1)
+
+
+def test_build_panel_emits_new_columns_and_nans_excluded():
+    import numpy as np
+    import pandas as pd
+    from src.research import signal_panel as sp2
+    s = pd.Series([10.0] * 300, index=pd.date_range("2020-01-01", periods=300))
+    panel = sp2.build_panel(
+        tickers=["AAA", "BANK"], obs_dates=[pd.Timestamp("2021-06-30")],
+        horizon_months=1, close_prices={"AAA": s, "BANK": s},
+        adj_prices={"AAA": s, "BANK": s}, fundamentals=_StubProv())
+    for col in ("gross_profitability_raw", "net_issuance_raw", "asset_growth_raw"):
+        assert col in panel.columns
+    aaa = panel[panel.ticker == "AAA"].iloc[0]
+    assert aaa["gross_profitability_raw"] == 0.2 and aaa["asset_growth_raw"] == -0.1
+    bank = panel[panel.ticker == "BANK"].iloc[0]
+    assert np.isnan(bank["gross_profitability_raw"]) and np.isnan(bank["net_issuance_raw"])

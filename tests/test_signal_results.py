@@ -134,3 +134,38 @@ def test_run_signal_eval_with_injected_panel(tmp_path, monkeypatch, capsys):
     assert result.factors[0].factor == "momentum"
     # JSON artifact written under export dir
     assert any(p.suffix == ".json" for p in tmp_path.iterdir())
+
+
+def _strong_factor_panel(n=60, seed=0):
+    """A factor with a strong, monotone, positive relationship to forward return.
+    Factor values are fixed per period (zero leg turnover); only fwd has noise, so
+    the IC time-series has finite, non-degenerate variance (real t-stat)."""
+    import numpy as np
+    import pandas as pd
+    rng = np.random.default_rng(seed)
+    rows = []
+    for d in pd.date_range("2016-01-31", periods=n, freq="ME"):
+        for i in range(20):
+            rows.append({"date": d, "ticker": f"T{i}",
+                         "gross_profitability_raw": float(i),
+                         "fwd_return": 0.05 * i + rng.normal(0, 0.02)})
+    return pd.DataFrame(rows)
+
+
+def test_evaluate_factor_respects_t_gate():
+    from src.research import results as R
+    panel = _strong_factor_panel()
+    common = dict(q=5, min_names=10, frequency="monthly", cost_bps=10)
+    res_low = R.evaluate_factor(panel, "gross_profitability", t_gate=2.0, **common)
+    res_high = R.evaluate_factor(panel, "gross_profitability", t_gate=1e9, **common)
+    assert res_low.passed is True
+    assert res_high.passed is False                    # same data, only the gate changed
+    assert res_low.ic["t_stat"] == res_high.ic["t_stat"]
+
+
+def test_build_caveats_has_qleg_and_issuance_notes():
+    from src.research import results as R
+    cav = " ".join(R.build_caveats("monthly", 1, ["net_issuance", "asset_growth"],
+                                   fundamentals_source="sec"))
+    assert "issuance" in cav.lower() or "split" in cav.lower()
+    assert "bonferroni" in cav.lower() or "q-leg" in cav.lower() or "rmw" in cav.lower()

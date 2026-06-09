@@ -86,10 +86,15 @@ def build_panel(tickers, obs_dates, horizon_months,
                 "momentum_raw": mom,
                 "value_raw": np.nan if pf.excluded else pf.value_raw,
                 "quality_raw": np.nan if pf.excluded else pf.quality_raw,
+                "gross_profitability_raw": np.nan if pf.excluded else pf.gross_profitability_raw,
+                "net_issuance_raw": np.nan if pf.excluded else pf.net_issuance_raw,
+                "asset_growth_raw": np.nan if pf.excluded else pf.asset_growth_raw,
                 "fwd_return": fwd,
             })
     return pd.DataFrame(rows, columns=["date", "ticker", "momentum_raw",
-                                       "value_raw", "quality_raw", "fwd_return"])
+                                       "value_raw", "quality_raw",
+                                       "gross_profitability_raw", "net_issuance_raw",
+                                       "asset_growth_raw", "fwd_return"])
 
 
 def universe_tickers(base_dir: Path = DEFAULT_PRICE_BASE) -> list[str]:

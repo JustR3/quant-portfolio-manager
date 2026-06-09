@@ -137,3 +137,37 @@ def test_long_short_net_zero_cost_equals_gross():
     gross = se.long_short_gross(panel, "momentum_raw", q=5, min_names=10)
     net = se.long_short_net(panel, "momentum_raw", q=5, min_names=10, cost_bps=0)
     pd.testing.assert_series_equal(gross, net)
+
+
+def test_new_factors_registered():
+    from src.research import signal_eval as se2
+    for fac in ("gross_profitability", "net_issuance", "asset_growth"):
+        assert fac in se2.FACTOR_COLUMN
+        assert se2.EXPECTED_SIGN[fac] == 1
+    assert se2.FACTOR_COLUMN["gross_profitability"] == "gross_profitability_raw"
+    assert se2.FACTOR_COLUMN["net_issuance"] == "net_issuance_raw"
+    assert se2.FACTOR_COLUMN["asset_growth"] == "asset_growth_raw"
+
+
+def test_run_signal_eval_threads_t_gate(tmp_path):
+    import types
+    from unittest.mock import patch
+    import numpy as np
+    import pandas as pd
+    from src.research import command as cmd
+    panel = pd.DataFrame({
+        "date": pd.to_datetime(["2016-01-31"] * 20),
+        "ticker": [f"T{i}" for i in range(20)],
+        "momentum_raw": np.nan, "value_raw": np.nan, "quality_raw": np.nan,
+        "gross_profitability_raw": np.arange(20.0),
+        "net_issuance_raw": np.nan, "asset_growth_raw": np.nan,
+        "fwd_return": np.arange(20.0) * 0.01,
+    })
+    args = types.SimpleNamespace(
+        factors="gross_profitability", frequency="monthly", horizon=1, quantiles=5,
+        min_names_per_bucket=10, start="2016-01-01", end="2016-02-01",
+        transaction_cost_bps=10.0, fundamentals="sec", export=str(tmp_path), t_gate=99.0)
+    with patch.object(cmd, "_build_panel_for_args", return_value=panel):
+        res = cmd.run_signal_eval(args)
+    assert res.factors[0].passed is False         # impossibly-high gate -> not passed
+    assert res.params["t_gate"] == 99.0

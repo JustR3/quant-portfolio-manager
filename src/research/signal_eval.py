@@ -6,8 +6,11 @@ import numpy as np
 import pandas as pd
 from src.backtesting.costs import compute_turnover, cost_fraction
 
-FACTOR_COLUMN = {"momentum": "momentum_raw", "value": "value_raw", "quality": "quality_raw"}
-EXPECTED_SIGN = {"momentum": 1, "value": 1, "quality": 1}
+FACTOR_COLUMN = {"momentum": "momentum_raw", "value": "value_raw", "quality": "quality_raw",
+                 "gross_profitability": "gross_profitability_raw",
+                 "net_issuance": "net_issuance_raw", "asset_growth": "asset_growth_raw"}
+EXPECTED_SIGN = {"momentum": 1, "value": 1, "quality": 1,
+                 "gross_profitability": 1, "net_issuance": 1, "asset_growth": 1}
 
 
 def rank_ic(panel: pd.DataFrame, factor_col: str) -> pd.Series:

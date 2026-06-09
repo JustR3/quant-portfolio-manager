@@ -24,11 +24,13 @@ class FactorResult:
 
 
 def evaluate_factor(panel: pd.DataFrame, factor: str, q: int, min_names: int,
-                    frequency: str, cost_bps: float) -> FactorResult:
+                    frequency: str, cost_bps: float,
+                    t_gate: float = T_STAT_GATE) -> FactorResult:
     """Compute IC + quantile + spread for one factor and apply the decision rule.
 
-    PASS iff: mean IC in the expected sign, |t-stat| >= 2, broadly monotone
-    deciles, and net long-short Sharpe > 0.
+    PASS iff: mean IC in the expected sign, |t-stat| >= t_gate, broadly monotone
+    deciles, and net long-short Sharpe > 0. `t_gate` defaults to 2.0; a pre-registered
+    multi-factor run raises it (Bonferroni) to keep the family-wise error controlled.
     """
     col = se.FACTOR_COLUMN[factor]
     expected_sign = se.EXPECTED_SIGN[factor]
@@ -43,7 +45,7 @@ def evaluate_factor(panel: pd.DataFrame, factor: str, q: int, min_names: int,
     net = se.spread_summary(se.long_short_net(panel, col, q, min_names, cost_bps), ppy)
 
     sign_ok = pd.notna(ic["mean_ic"]) and np.sign(ic["mean_ic"]) == expected_sign
-    tstat_ok = pd.notna(ic["t_stat"]) and abs(ic["t_stat"]) >= T_STAT_GATE
+    tstat_ok = pd.notna(ic["t_stat"]) and abs(ic["t_stat"]) >= t_gate
     sharpe_ok = pd.notna(net["sharpe"]) and net["sharpe"] > 0
     passed = bool(sign_ok and tstat_ok and monotonic and sharpe_ok)
 
@@ -85,6 +87,18 @@ def build_caveats(frequency: str, horizon_months: int, factors: list,
                 "THIN FUNDAMENTALS (yfinance): Value/Quality rely on yfinance annual statements "
                 "floored at ~2021-2022; their IC time series is short — directional only."
             )
+    NEW_FACTORS = {"gross_profitability", "net_issuance", "asset_growth"}
+    if any(f in NEW_FACTORS for f in factors):
+        cav.append(
+            "PRE-REGISTERED q-LEGS: gross-profitability/asset-growth are FF5/q legs (RMW/CMA) "
+            "with weak realized large-cap premia 2016-2026; judged at a Bonferroni-raised |t| "
+            "bar (pass --t-gate). Universe held constant (same exclusion as Value/Quality)."
+        )
+    if "net_issuance" in factors:
+        cav.append(
+            "NET ISSUANCE: shares = SEC cover-page count; stock splits removed via a simple-multiple "
+            "ratio heuristic (see docs/research/2026-06-09-net-issuance-splits-spike.md)."
+        )
     return cav
 
 

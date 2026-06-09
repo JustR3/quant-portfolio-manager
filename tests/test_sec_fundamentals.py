@@ -120,3 +120,81 @@ def test_prepared_fast_path_matches_pandas_path():
         if not slow.excluded:
             assert fast.value_raw == pytest.approx(slow.value_raw)
             assert fast.quality_raw == pytest.approx(slow.quality_raw)
+
+
+# --- Phase #3: prior-year + split-adjustment helpers --------------------------
+
+def _prep(rows):
+    return sf.prepare_facts(_facts(rows))
+
+
+def test_np_value_prior_year_picks_prior_fy():
+    prep = _prep([
+        ("total_assets", "2020-12-31", "2021-02-15", 200.0),
+        ("total_assets", "2019-12-31", "2020-02-15", 100.0),
+    ])
+    as_of64 = pd.Timestamp("2021-06-01").to_datetime64()
+    pe_now = pd.Timestamp("2020-12-31").to_datetime64()
+    assert sf._np_value_prior_year(prep, "total_assets", pe_now, as_of64) == 100.0
+
+
+def test_np_value_prior_year_none_when_no_older_period():
+    prep = _prep([("total_assets", "2020-12-31", "2021-02-15", 200.0)])
+    as_of64 = pd.Timestamp("2021-06-01").to_datetime64()
+    pe_now = pd.Timestamp("2020-12-31").to_datetime64()
+    assert sf._np_value_prior_year(prep, "total_assets", pe_now, as_of64) is None
+
+
+def test_np_value_prior_year_respects_pit():
+    # the prior-year value was only filed AFTER as_of -> invisible
+    prep = _prep([
+        ("total_assets", "2020-12-31", "2021-02-15", 200.0),
+        ("total_assets", "2019-12-31", "2021-07-01", 100.0),  # late/restated filing
+    ])
+    as_of64 = pd.Timestamp("2021-06-01").to_datetime64()
+    pe_now = pd.Timestamp("2020-12-31").to_datetime64()
+    assert sf._np_value_prior_year(prep, "total_assets", pe_now, as_of64) is None
+
+
+def test_split_factor_detects_4_to_1():
+    prep = _prep([
+        ("shares", "2020-03-31", "2020-04-30", 100.0),
+        ("shares", "2020-09-30", "2020-10-30", 400.0),   # 4:1 split
+        ("shares", "2021-03-31", "2021-04-30", 396.0),   # mild buyback after split
+    ])
+    as_of64 = pd.Timestamp("2021-06-01").to_datetime64()
+    t_prior = pd.Timestamp("2020-03-31").to_datetime64()
+    t_now = pd.Timestamp("2021-03-31").to_datetime64()
+    assert sf.split_factor_in_window(prep, t_prior, t_now, as_of64) == 4.0
+
+
+def test_split_factor_ignores_ordinary_buyback():
+    prep = _prep([
+        ("shares", "2020-03-31", "2020-04-30", 100.0),
+        ("shares", "2021-03-31", "2021-04-30", 95.0),    # 5% buyback, not a split
+    ])
+    as_of64 = pd.Timestamp("2021-06-01").to_datetime64()
+    t_prior = pd.Timestamp("2020-03-31").to_datetime64()
+    t_now = pd.Timestamp("2021-03-31").to_datetime64()
+    assert sf.split_factor_in_window(prep, t_prior, t_now, as_of64) == 1.0
+
+
+def test_pit_factors_from_prepared_enriches_new_factors():
+    prep = _prep([
+        # full statement so compute_pit_factors does NOT exclude (current FY = 2020-12-31)
+        ("ebit", "2020-12-31", "2021-02-15", 50.0),
+        ("gross_profit", "2020-12-31", "2021-02-15", 40.0),
+        ("revenue", "2020-12-31", "2021-02-15", 100.0),
+        ("total_assets", "2020-12-31", "2021-02-15", 200.0),
+        ("current_liabilities", "2020-12-31", "2021-02-15", 50.0),
+        ("cfo", "2020-12-31", "2021-02-15", 60.0),
+        ("capex", "2020-12-31", "2021-02-15", 10.0),
+        ("total_assets", "2019-12-31", "2020-02-15", 160.0),   # prior-year assets
+        ("shares", "2020-03-31", "2020-04-30", 100.0),         # ~1yr ago
+        ("shares", "2021-01-31", "2021-02-15", 95.0),          # now: 5% buyback over the year
+    ])
+    pf = sf.pit_factors_from_prepared(prep, pd.Timestamp("2021-06-01"), price=10.0)
+    assert not pf.excluded
+    assert pf.gross_profitability_raw == pytest.approx(40.0 / 200.0)
+    assert pf.asset_growth_raw == pytest.approx(-((200.0 - 160.0) / 160.0))   # -0.25
+    assert pf.net_issuance_raw is not None and pf.net_issuance_raw > 0        # buyback -> positive

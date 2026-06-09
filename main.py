@@ -183,7 +183,8 @@ Examples:
         description="Signal-isolation study: rank-IC and long-short quantile spreads per factor",
     )
     sig.add_argument("--factors", type=str, default="momentum,value,quality",
-                     help="Comma-separated subset of: momentum,value,quality")
+                     help="Comma-separated subset of: momentum,value,quality,"
+                          "gross_profitability,net_issuance,asset_growth")
     sig.add_argument("--frequency", type=str, default="monthly",
                      choices=["monthly", "quarterly"], help="Observation cadence (default: monthly)")
     sig.add_argument("--horizon", type=int, default=1, metavar="MONTHS",
@@ -198,6 +199,8 @@ Examples:
     sig.add_argument("--fundamentals", type=str, default="yfinance",
                      choices=["yfinance", "sec"],
                      help="Fundamentals source for Value/Quality (default: yfinance)")
+    sig.add_argument("--t-gate", dest="t_gate", type=float, default=2.0, metavar="T",
+                     help="|t|-stat gate for PASS (default 2.0; pre-registered k=3 set uses 2.4)")
     sig.add_argument("--export", type=str, metavar="DIR", help="Directory for the JSON artifact")
 
     # Portfolio command - snapshot validation

@@ -34,6 +34,11 @@ STATEMENT_LABELS = {
 }
 SEC_FUND_DIR = Path("data/historical/fundamentals_sec")
 
+# Phase #3 (new factor inputs): prior-year lookup + net-issuance split adjustment.
+PRIOR_YEAR_MIN_GAP_DAYS = 300        # prior-FY period must be at least this much older
+SIMPLE_SPLIT_MULTIPLES = [1.5, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20]
+SPLIT_RATIO_TOL = 0.05               # ±5% around a multiple; validated in the 2026-06-09 spike
+
 
 def select_pit_value(facts: pd.DataFrame, field: str, as_of: pd.Timestamp):
     """Latest-period, latest-filed value for `field` known by as_of, or None.
@@ -164,6 +169,55 @@ def _np_single_col(prep, fields_labels, as_of64):
     return pd.DataFrame({pd.Timestamp(pe): data})
 
 
+def _np_value_prior_year(prep, field, pe_now, as_of64):
+    """Value at the latest period_end >= PRIOR_YEAR_MIN_GAP_DAYS older than pe_now,
+    known by as_of. None if no such period or no PIT value."""
+    if field not in prep:
+        return None
+    pes = _np_available_pes(prep, field, as_of64)
+    gap = np.timedelta64(PRIOR_YEAR_MIN_GAP_DAYS, "D")
+    older = [p for p in pes if p <= pe_now - gap]
+    if not older:
+        return None
+    return _np_value_at(prep[field], max(older), as_of64)
+
+
+def _nearest_split_multiple(ratio):
+    """The simple split multiple (or reciprocal, for reverse splits) within tol of `ratio`, else None."""
+    for m in SIMPLE_SPLIT_MULTIPLES:
+        for cand in (m, 1.0 / m):
+            if abs(ratio - cand) <= SPLIT_RATIO_TOL * cand:
+                return cand
+    return None
+
+
+def _shares_by_period(prep, as_of64):
+    """[(period_end, value)] for shares known by as_of, latest-filed per period_end, sorted by pe."""
+    if "shares" not in prep:
+        return []
+    filed, pe, val = prep["shares"]
+    m = filed <= as_of64
+    out = {}
+    for p, v, fl in sorted(zip(pe[m], val[m], filed[m]), key=lambda x: x[2]):
+        out[p] = float(v)   # later filed overwrites
+    return sorted(out.items())
+
+
+def split_factor_in_window(prep, t_prior64, t_now64, as_of64):
+    """Product of simple-split multiples among consecutive share period_ends in
+    [t_prior, t_now] (PIT-filtered by as_of). 1.0 if none detected."""
+    series = [(p, v) for (p, v) in _shares_by_period(prep, as_of64)
+              if t_prior64 <= p <= t_now64]
+    factor = 1.0
+    for i in range(1, len(series)):
+        prev_v = series[i - 1][1]
+        if prev_v > 0:
+            mult = _nearest_split_multiple(series[i][1] / prev_v)
+            if mult is not None:
+                factor *= mult
+    return factor
+
+
 def pit_factors_from_prepared(prep: dict, as_of: pd.Timestamp, price: Optional[float]):
     """Fast equivalent of pit_factors_from_facts over a prepared (numpy) fact table."""
     from src.pipeline.fundamentals import compute_pit_factors
@@ -180,8 +234,25 @@ def pit_factors_from_prepared(prep: dict, as_of: pd.Timestamp, price: Optional[f
     shares_res = _np_select_latest(prep["shares"], as_of64) if "shares" in prep else None
     shares = shares_res[1] if shares_res else None
     market_cap = shares * price if (shares is not None and price is not None and price > 0) else None
-    return compute_pit_factors(inc, bal, cf, market_cap=market_cap,
-                               as_of=pd.Timestamp(as_of), lag_days=0)
+    pf = compute_pit_factors(inc, bal, cf, market_cap=market_cap,
+                             as_of=pd.Timestamp(as_of), lag_days=0)
+
+    # Phase #3 new factors (price-free). These are set whenever the inputs exist; the
+    # panel NaN-fills any pf.excluded row across ALL factor columns, holding the
+    # universe constant vs Value/Quality (spec 2026-06-09 §5).
+    from src.pipeline.fundamentals import asset_growth_factor, net_issuance_factor
+    ta_res = _np_select_latest(prep["total_assets"], as_of64) if "total_assets" in prep else None
+    if ta_res is not None:
+        pe_now, ta_now = ta_res
+        ta_prior = _np_value_prior_year(prep, "total_assets", pe_now, as_of64)
+        pf.asset_growth_raw = asset_growth_factor(ta_now, ta_prior)
+    if shares_res is not None:
+        a_prior64 = (pd.Timestamp(as_of) - pd.Timedelta(days=365)).to_datetime64()
+        prior_sh = _np_select_latest(prep["shares"], a_prior64)
+        if prior_sh is not None:
+            sfac = split_factor_in_window(prep, prior_sh[0], shares_res[0], as_of64)
+            pf.net_issuance_raw = net_issuance_factor(shares_res[1] / sfac, prior_sh[1])
+    return pf
 
 
 def cache_path(ticker: str, base_dir: Path = SEC_FUND_DIR) -> Path:

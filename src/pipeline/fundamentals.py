@@ -6,6 +6,7 @@ not strictly as-originally-reported. Residual look-ahead is small and noted
 in output; revisit if a paid PIT source is adopted later.
 """
 from __future__ import annotations
+import math
 from dataclasses import dataclass
 from typing import Optional
 import pandas as pd
@@ -72,6 +73,32 @@ class PITFactors:
     excluded: bool = False
     exclusion_reason: str = ""
     period_misaligned: bool = False
+    gross_profitability_raw: Optional[float] = None
+    net_issuance_raw: Optional[float] = None
+    asset_growth_raw: Optional[float] = None
+
+
+def gross_profitability(gross_profit, total_assets):
+    """Novy-Marx GP/Assets. Oriented +: higher -> higher expected return."""
+    if gross_profit is None or total_assets is None or total_assets <= 0:
+        return None
+    return gross_profit / total_assets
+
+
+def asset_growth_factor(ta_now, ta_prior):
+    """Oriented -asset-growth: less growth -> higher expected return."""
+    if ta_now is None or ta_prior is None or ta_prior <= 0:
+        return None
+    return -((ta_now - ta_prior) / ta_prior)
+
+
+def net_issuance_factor(shares_now, shares_prior):
+    """Oriented -dlog(shares): net buyback -> higher expected return.
+    Inputs must be split-adjusted by the caller."""
+    if (shares_now is None or shares_prior is None
+            or shares_now <= 0 or shares_prior <= 0):
+        return None
+    return -(math.log(shares_now) - math.log(shares_prior))
 
 
 def dedup_statement_columns(stmt: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
@@ -140,6 +167,7 @@ def compute_pit_factors(income, balance, cashflow, market_cap,
     value_raw = 0.5 * (fcf / market_cap) + 0.5 * (ebit / market_cap)
     quality_raw = 0.5 * (ebit / invested) + 0.5 * (gp / rev)
     return PITFactors(value_raw=value_raw, quality_raw=quality_raw,
+                      gross_profitability_raw=gross_profitability(gp, ta),
                       period_misaligned=period_misaligned)
 
 
