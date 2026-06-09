@@ -34,7 +34,24 @@ a point-in-time Value/Quality/Momentum model, builds views, and optimizes with m
 - Factors are computed by the single source of truth `fundamentals.compute_pit_factors`
   (PIT/no-clamp: negatives allowed) for both live and backtest.
 
+## Edge status (validated-edge phase — three honest NEGATIVES)
+The factor → BL → optimizer thesis has **no demonstrated cross-sectional edge** on free, current-membership,
+large-cap US data, confirmed three ways via the decoupled `signal-eval` gate (rank-IC + decile spreads):
+- **#1 Momentum** (~11yr): ~0 IC; 12-1/6-1/sector-neutral variants all fail (dead-end branch).
+- **#2 Value/Quality** on deep true-PIT SEC data: Value's thin lead was a small-sample mirage
+  (IC +0.036/t=1.58 → +0.014/t=1.11); Quality flat. Closes "needs more data."
+- **#3 New q-leg inputs** (gross profitability, net issuance, asset growth), pre-registered + Bonferroni
+  bar: all flat, best t=0.73, none clears |t|=2.0. Closes "needs new inputs." See
+  `docs/research/2026-06-09-new-factor-inputs-results.md`.
+
+Next leads (a fresh brainstorm, NOT a continuation): (a) a **different universe** — down-cap small/mid +
+the **survivorship-kill** sub-project (historical membership + delisted prices; the bigger data lift), or
+(b) **reframe** as an honest PIT research-harness/methodology artifact. Free large-cap US is the market's
+most efficient slice; three rigorous negatives is itself the finding.
+
 ## Deferred (not built)
-- "Living strategy"/automation (daily refresh + scheduled rebalance) — its own future brainstorm.
-- Factor-view calibration (`factor_alpha_scalar`), a real min-Sharpe constraint, historical index
-  membership, paid PIT data, git-history purge of old parquets.
+- "Living strategy"/automation (daily refresh + scheduled rebalance) — parked; automating an edgeless
+  strategy is low-value until something clears the gate.
+- **Do NOT** build BL factor-view calibration (`factor_alpha_scalar`) or composites — no validated signal
+  to express. Also deferred: a real min-Sharpe constraint, historical index membership + delisted prices
+  (the survivorship-kill lead above), paid PIT data, git-history purge of old parquets.
