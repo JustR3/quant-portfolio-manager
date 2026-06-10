@@ -5,13 +5,19 @@ plans in `docs/superpowers/plans/`, investigations in `docs/research/`). Full au
 in the agent auto-memory (`memory/audit-findings-2026-06.md`).
 
 ## What this is
-A factor → Black-Litterman portfolio tool with a walk-forward backtester. It ranks a universe by
-a point-in-time Value/Quality/Momentum model, builds views, and optimizes with market-implied
-(market-cap-weighted) BL priors.
+An **honest point-in-time equity research harness** — three decoupled evaluation gates
+(`signal-eval` cross-sectional, `ts-eval` time-series, `pead-eval` event-time), two SEC PIT data
+pipelines (FY + quarterly), and integrity-guarded price stores — wrapped around a legacy
+factor → Black-Litterman portfolio tool with a walk-forward backtester. The edge hunt is CLOSED
+(five pre-registered negatives, see below); the repo's standing job is **claim-tester**: put any
+strategy claim through an honest, costed, PIT-correct gate.
 
 ## Run it
-- Optimize (live, current data): `uv run ./main.py optimize --universe sp500 --top-n 50`
-- Backtest (walk-forward): `uv run ./main.py backtest --start 2023-07-01 --end 2025-06-01 --top-n 20 --frequency quarterly`
+- Harnesses: `uv run ./main.py signal-eval --fundamentals sec --t-gate 2.4` /
+  `uv run ./main.py ts-eval` / `uv run ./main.py pead-eval` (all offline from local stores;
+  JSON artifacts to `data/research/`)
+- Legacy tool: `uv run ./main.py optimize --universe sp500 --top-n 50`;
+  backtest: `uv run ./main.py backtest --start 2023-07-01 --end 2025-06-01 --top-n 20 --frequency quarterly`
 - Tests: `uv run pytest -q` (network/integration tests are opt-in: `-m integration`)
 - Price store integrity: `uv run python tools/verify_price_store.py`
 
@@ -62,18 +68,17 @@ Closes the down-cap/survivorship lead until paid data is justified.
   the wrong direction); quintile drift U-shaped, not monotone. See
   `docs/research/2026-06-10-pead-event-drift-results.md`.
 
-## Direction: REFRAME IN FORCE (stopping rule fired 2026-06-10, counter 2 of 2)
-The pre-registered stopping rule (iters #5 AND #6 both negative → reframe, no relitigating) has
-**fired**. The free-data edge hunt is CLOSED across all three signal classes; paid data is NOT
-justified (it was gated on a first validated edge).
-- **The project IS the artifact now:** an honest PIT research harness — `signal-eval` + `ts-eval` +
-  `pead-eval`, the SEC PIT pipelines (FY + quarterly), the price-store integrity guards, and five
-  pre-registered, documented negatives as the methodology showcase.
-- **Final workstream:** README/docs repositioning around the harness (the five negatives are the
-  product, not a failure to hide). No new edge studies without a genuinely new data tier AND a
-  fresh pre-registration.
-- Do NOT re-tune any iter-1–6 parameters; do NOT build BL view calibration, composites, or
-  automation — nothing earned them.
+## Direction: PARKED (reframe executed 2026-06-10; stopping rule fired, counter 2 of 2)
+The pre-registered stopping rule (iters #5 AND #6 both negative → reframe, no relitigating)
+**fired** and the reframe is **done**: the README now leads with the harness identity and the
+five-negatives table. Active investment in this project has STOPPED.
+- **Standing job: claim-tester.** Any new strategy claim gets an afternoon through the relevant
+  harness — pre-registered gate, realistic costs, PIT data — before it earns another minute.
+- **Reopening criteria (pre-registered):** a genuinely NEW data tier (paid survivorship-free,
+  e.g. down-cap + delisted) AND a fresh pre-registration, treated as a new project with its own
+  budget decision. Re-tuning any iter-1–6 parameter is p-hacking, not reopening.
+- **Deferred indefinitely:** a public write-up of the five-negatives journey (user will decide
+  later); BL view calibration, composites, automation — nothing earned them.
 
 ## Deferred (not built)
 - "Living strategy"/automation (daily refresh + scheduled rebalance) — parked; automating an edgeless
