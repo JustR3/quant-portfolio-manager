@@ -96,6 +96,19 @@ def test_yearago_comparator_within_45d_window():
     assert len(t) == 1 and np.isnan(t.iloc[0]["diff"])
 
 
+def test_yearago_comparator_first_filed_after_event_blocks_sue():
+    rows = (_year_rows(2018, VALS[0:4]) + _year_rows(2019, VALS[4:8])
+            + _year_rows(2020, VALS[8:12]))
+    # the 2019-09-30 quarter (comparator of 2020-09-30) first appears only in 2021
+    for r in rows:
+        if r["period_end"] == pd.Timestamp("2019-09-30"):
+            r["filed"] = pd.Timestamp("2021-02-01")
+    q = pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "net_income")
+    s = pe.sue_series(q)
+    t = s[s["period_end"] == pd.Timestamp("2020-09-30")]
+    assert len(t) == 1 and np.isnan(t.iloc[0]["sue"])
+
+
 def test_event_date_is_min_across_fields():
     ni = [_row("net_income", "2020-03-31", "Q1", "2020-05-07", 10)]
     rv = [_row("revenue", "2020-03-31", "Q1", "2020-05-05", 500)]   # revenue files first

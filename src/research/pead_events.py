@@ -74,7 +74,8 @@ def sue_series(q: pd.DataFrame, n_hist: int = SUE_N_HIST,
     for i in range(len(out)):
         f = out["filed"].iloc[i]
         d = out["diff"].iloc[i]
-        if np.isnan(d):
+        if np.isnan(d) or out["diff_avail"].iloc[i] > f:
+            # comparator first-filed after the event would peek -> no SUE (PIT)
             sues.append(np.nan)
             continue
         prior = out.iloc[:i]
