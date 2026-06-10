@@ -27,6 +27,7 @@ from src.models.factor_engine import FactorEngine
 from src.pipeline.systematic_workflow import run_systematic_portfolio, display_portfolio_summary
 from src.backtesting.engine import BacktestEngine
 from src.research.command import run_signal_eval
+from src.research.pead_command import run_pead_eval
 from src.research.ts_command import run_ts_eval
 
 # Initialize logging
@@ -229,6 +230,26 @@ Examples:
                      help="Execution lag in days (default 1 = pre-registered; 2 = robustness "
                           "diagnostic, NOT gated)")
     tse.add_argument("--export", type=str, metavar="DIR", help="Directory for the JSON artifact")
+
+    # PEAD-eval command (iter-6 SEC-event drift study)
+    pead = sub.add_parser(
+        "pead-eval",
+        help="Evaluate pre-registered post-SEC-filing drift measures (iter-6)",
+        description="PEAD event study: calendar-time long-short quintile spreads on SUE/EAR "
+                    "(spec: docs/superpowers/specs/2026-06-10-pead-event-drift-design.md)",
+    )
+    pead.add_argument("--measures", type=str, default="sue_e,sue_r,ear",
+                      help="Comma-separated subset of: sue_e,sue_r,ear (default: all three)")
+    pead.add_argument("--horizon", type=int, default=60,
+                      help="Holding horizon in trading days (default 60, pre-registered)")
+    pead.add_argument("--min-leg", dest="min_leg", type=int, default=10,
+                      help="Min names per leg, else the day is excluded (default: 10)")
+    pead.add_argument("--cost-bps", dest="cost_bps", type=float, default=10.0,
+                      help="Per-side cost bps on daily weight changes (default: 10)")
+    pead.add_argument("--bootstrap-n", dest="bootstrap_n", type=int, default=10000,
+                      help="Stationary-bootstrap resamples (default: 10000)")
+    pead.add_argument("--seed", type=int, default=42, help="Bootstrap seed (default: 42)")
+    pead.add_argument("--export", type=str, metavar="DIR", help="Directory for the JSON artifact")
 
     # Portfolio command - snapshot validation
     portfolio = sub.add_parser(
@@ -566,6 +587,18 @@ def main():
         print_header("TS Timing Study")
         try:
             run_ts_eval(args)
+        except Exception as e:
+            print_msg(f"Error: {e}", "error")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+        return
+
+    # PEAD-eval command (iter-6 SEC-event drift study)
+    if args.module == "pead-eval":
+        print_header("PEAD Event-Drift Study")
+        try:
+            run_pead_eval(args)
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             import traceback
