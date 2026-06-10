@@ -44,10 +44,24 @@ large-cap US data, confirmed three ways via the decoupled `signal-eval` gate (ra
   bar: all flat, best t=0.73, none clears |t|=2.0. Closes "needs new inputs." See
   `docs/research/2026-06-09-new-factor-inputs-results.md`.
 
-Next leads (a fresh brainstorm, NOT a continuation): (a) a **different universe** — down-cap small/mid +
-the **survivorship-kill** sub-project (historical membership + delisted prices; the bigger data lift), or
-(b) **reframe** as an honest PIT research-harness/methodology artifact. Free large-cap US is the market's
-most efficient slice; three rigorous negatives is itself the finding.
+**#4 Survivorship-kill spike (2026-06-09): NO-GO on free data** — membership reconstruction PASS, but
+delisted-price coverage only 56% and non-random (`docs/research/2026-06-09-survivorship-free-sp500-spike.md`).
+Closes the down-cap/survivorship lead until paid data is justified.
+
+## Locked direction (2026-06-10 alignment)
+Free-data edge hunt, personal scale; **paid data unlocks only after a first validated edge.**
+- **Iter #5 (next): combined time-series study** on ~10 liquid multi-asset ETFs (SPY QQQ IWM EFA EEM
+  TLT IEF GLD DBC VNQ; daily bars). Pre-registered must-include: (a) **legacy regime overlay**
+  (SPY 200dma + VIX term structure — confirms/kills the last legacy claim; note `^VIX9D` history starts
+  ~2011), (b) **vol/distribution conditioning**. Momentum variants are optional spec additions (each
+  widens the correction family). Build: minimal TS-eval harness (timing-alpha t/bootstrap,
+  net-Sharpe-vs-B&H, sub-windows); SPA machinery deferred to a possible TA-scan iter.
+- **Gate (two-part, family-adjusted):** net-of-cost Sharpe > buy-and-hold (full window AND majority of
+  sub-windows) AND bootstrapped p<0.05 on net timing alpha.
+- **Iter #6 (designated follow-up): PEAD/SEC-event drift** on the existing companyfacts cache.
+- **Stopping rule (pre-registered):** #5 AND #6 both negative → reframe as research-harness artifact,
+  automatically — no relitigating. **Positive →** paper forward-test (~2 quarters, snapshot/forward
+  validator) before any real money.
 
 ## Deferred (not built)
 - "Living strategy"/automation (daily refresh + scheduled rebalance) — parked; automating an edgeless
