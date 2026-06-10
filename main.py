@@ -27,6 +27,7 @@ from src.models.factor_engine import FactorEngine
 from src.pipeline.systematic_workflow import run_systematic_portfolio, display_portfolio_summary
 from src.backtesting.engine import BacktestEngine
 from src.research.command import run_signal_eval
+from src.research.ts_command import run_ts_eval
 
 # Initialize logging
 setup_logging()
@@ -202,6 +203,32 @@ Examples:
     sig.add_argument("--t-gate", dest="t_gate", type=float, default=2.0, metavar="T",
                      help="|t|-stat gate for PASS (default 2.0; pre-registered k=3 set uses 2.4)")
     sig.add_argument("--export", type=str, metavar="DIR", help="Directory for the JSON artifact")
+
+    # TS-eval command (iter-5 time-series timing study)
+    tse = sub.add_parser(
+        "ts-eval",
+        help="Evaluate pre-registered time-series timing rules vs buy-and-hold (iter-5)",
+        description="TS timing study: net-of-cost timing rules vs B&H with bootstrapped "
+                    "timing alpha (spec: docs/superpowers/specs/2026-06-10-ts-timing-study-design.md)",
+    )
+    tse.add_argument("--rules", type=str,
+                     default="a1_sma,a2_combined,a3_vix,b1_voltarget,b2_volfilter",
+                     help="Comma-separated subset of: a1_sma,a2_combined,a3_vix,"
+                          "b1_voltarget,b2_volfilter (default: all five)")
+    tse.add_argument("--start", type=str, default=None,
+                     help="Optional window start (YYYY-MM-DD); only NARROWS the "
+                          "availability-derived pre-registered windows")
+    tse.add_argument("--end", type=str, default="2026-05-31",
+                     help="Window end (default 2026-05-31, pre-registered)")
+    tse.add_argument("--cost-bps", dest="cost_bps", type=float, default=10.0,
+                     help="Per-side cost bps on exposure turnover (default: 10)")
+    tse.add_argument("--bootstrap-n", dest="bootstrap_n", type=int, default=10000,
+                     help="Stationary-bootstrap resamples (default: 10000)")
+    tse.add_argument("--seed", type=int, default=42, help="Bootstrap seed (default: 42)")
+    tse.add_argument("--shift", type=int, default=1,
+                     help="Execution lag in days (default 1 = pre-registered; 2 = robustness "
+                          "diagnostic, NOT gated)")
+    tse.add_argument("--export", type=str, metavar="DIR", help="Directory for the JSON artifact")
 
     # Portfolio command - snapshot validation
     portfolio = sub.add_parser(
@@ -527,6 +554,18 @@ def main():
         print_header("Signal-Isolation Study")
         try:
             run_signal_eval(args)
+        except Exception as e:
+            print_msg(f"Error: {e}", "error")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+        return
+
+    # TS-eval command (iter-5 time-series timing study)
+    if args.module == "ts-eval":
+        print_header("TS Timing Study")
+        try:
+            run_ts_eval(args)
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             import traceback
