@@ -34,9 +34,9 @@ a point-in-time Value/Quality/Momentum model, builds views, and optimizes with m
 - Factors are computed by the single source of truth `fundamentals.compute_pit_factors`
   (PIT/no-clamp: negatives allowed) for both live and backtest.
 
-## Edge status (validated-edge phase — three honest NEGATIVES)
-The factor → BL → optimizer thesis has **no demonstrated cross-sectional edge** on free, current-membership,
-large-cap US data, confirmed three ways via the decoupled `signal-eval` gate (rank-IC + decile spreads):
+## Edge status (validated-edge phase — FOUR honest NEGATIVES)
+No demonstrated edge on free data — cross-sectional (factor → BL → optimizer thesis, via the decoupled
+`signal-eval` gate) or time-series (timing rules, via the `ts-eval` gate):
 - **#1 Momentum** (~11yr): ~0 IC; 12-1/6-1/sector-neutral variants all fail (dead-end branch).
 - **#2 Value/Quality** on deep true-PIT SEC data: Value's thin lead was a small-sample mirage
   (IC +0.036/t=1.58 → +0.014/t=1.11); Quality flat. Closes "needs more data."
@@ -44,24 +44,29 @@ large-cap US data, confirmed three ways via the decoupled `signal-eval` gate (ra
   bar: all flat, best t=0.73, none clears |t|=2.0. Closes "needs new inputs." See
   `docs/research/2026-06-09-new-factor-inputs-results.md`.
 
-**#4 Survivorship-kill spike (2026-06-09): NO-GO on free data** — membership reconstruction PASS, but
+**Survivorship-kill spike (2026-06-09): NO-GO on free data** — membership reconstruction PASS, but
 delisted-price coverage only 56% and non-random (`docs/research/2026-06-09-survivorship-free-sp500-spike.md`).
 Closes the down-cap/survivorship lead until paid data is justified.
 
-## Locked direction (2026-06-10 alignment)
+- **#4 TS timing (iter-5, 2026-06-10):** five pre-registered rules (legacy regime overlay as-coded/
+  as-documented/VIX-only + vol-targeting + vol-filter) on SPY + 10 multi-asset ETFs via the new
+  `qpm ts-eval` harness — ALL FAIL the two-part gate (best p=0.070 vs 0.010 bar). The legacy
+  "validated 25yr regime" claim is dead with data: as-coded SMA-only is +1.2%/yr *insignificant*;
+  as-documented combined **underperforms B&H** (its VIX leg was never even computable historically —
+  `RegimeDetector` hard-codes `vix=None` for as_of_date). See
+  `docs/research/2026-06-10-ts-timing-study-results.md`.
+
+## Locked direction (2026-06-10 alignment) — stopping-rule counter: 1 of 2
 Free-data edge hunt, personal scale; **paid data unlocks only after a first validated edge.**
-- **Iter #5 (next): combined time-series study** on ~10 liquid multi-asset ETFs (SPY QQQ IWM EFA EEM
-  TLT IEF GLD DBC VNQ; daily bars). Pre-registered must-include: (a) **legacy regime overlay**
-  (SPY 200dma + VIX term structure — confirms/kills the last legacy claim; note `^VIX9D` history starts
-  ~2011), (b) **vol/distribution conditioning**. Momentum variants are optional spec additions (each
-  widens the correction family). Build: minimal TS-eval harness (timing-alpha t/bootstrap,
-  net-Sharpe-vs-B&H, sub-windows); SPA machinery deferred to a possible TA-scan iter.
-- **Gate (two-part, family-adjusted):** net-of-cost Sharpe > buy-and-hold (full window AND majority of
-  sub-windows) AND bootstrapped p<0.05 on net timing alpha.
-- **Iter #6 (designated follow-up): PEAD/SEC-event drift** on the existing companyfacts cache.
+- **Iter #5 (DONE, negative):** combined TS study — see above. Harness lives on: `ts_signals/ts_eval/
+  ts_results/ts_command` + `qpm ts-eval`, data via `tools/download_ts_universe.py` into
+  `data/historical/ts/` (separate base dir; signal-eval's universe glob untouched).
+- **Iter #6 (NEXT): PEAD/SEC-event drift** on the existing companyfacts cache — own brainstorm,
+  fresh pre-registration (event-time harness; filing dates are the events, PIT by construction).
 - **Stopping rule (pre-registered):** #5 AND #6 both negative → reframe as research-harness artifact,
-  automatically — no relitigating. **Positive →** paper forward-test (~2 quarters, snapshot/forward
-  validator) before any real money.
+  automatically — no relitigating. #5 is negative, so **iter #6 is the last pre-registered shot.**
+  **Positive →** paper forward-test (~2 quarters, snapshot/forward validator) before any real money.
+- Do NOT re-tune iter-5 rule parameters — any variant is a new pre-registration nothing has earned.
 
 ## Deferred (not built)
 - "Living strategy"/automation (daily refresh + scheduled rebalance) — parked; automating an edgeless
