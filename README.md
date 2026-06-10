@@ -5,9 +5,11 @@
 ![Status](https://img.shields.io/badge/status-Active%20Development-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
 
-> **Production-ready systematic quantitative finance platform for data-driven portfolio construction.**
+> **A factor → Black-Litterman portfolio tool with a walk-forward backtester and a point-in-time (PIT) research harness.**
 
-Combines real-time macroeconomic data, academic financial research, and multi-factor stock ranking with Black-Litterman optimization for institutional-grade portfolio management.
+Combines macroeconomic data, academic factor models, and multi-factor stock ranking with Black-Litterman optimization.
+
+**Honest status (June 2026):** the decoupled signal-evaluation gate (`qpm signal-eval`) has found **no demonstrated cross-sectional edge** for this factor set on free, current-membership, large-cap US data — three pre-registered negative results (see [docs/research/](docs/research/)). The optimizer's expected numbers are construction tools, not evidence the strategy works (see "Expected vs Realized" below).
 
 ## 📦 Architecture
 
@@ -26,11 +28,11 @@ The Quant Portfolio Manager implements a systematic approach to quantitative inv
 3. **Factor Engine**: Multi-factor stock ranking (Value, Quality, Momentum) with Z-score normalization
 4. **Portfolio Optimization**: Black-Litterman with factor-based views and market-cap-weighted priors
 5. **Macro & Factor Gods** *(Optional)*: Shiller CAPE risk adjustment and Fama-French factor tilts
-6. **Robustness**: Production-ready with caching, batching, progress bars, and error recovery
+6. **Robustness**: Caching, batching, progress bars, and error recovery
 
 ## ✨ Key Features
 
-### 🚀 Production-Ready Systematic Workflow
+### 🚀 Robust Systematic Workflow
 - **Multi-Universe Support**: S&P 500 (large-cap), Russell 2000 (small-cap), NASDAQ-100 (tech/growth), or combined
 - **Long/Short Strategies**: 130/30 long/short with a **1.87 optimizer-expected (in-sample) Sharpe** — this is the optimizer's own expectation, NOT a realized/backtested result (see "Expected vs Realized" below)
 - **Min-Sharpe Target (report-only)**: prints achieved-vs-target Sharpe; does **not** constrain the optimization
@@ -578,7 +580,7 @@ The Glass Box verification layer provides full transparency into stock rankings:
 
 ## 🎯 Advanced Features: Regime Detection & Risk Management
 
-Beyond the core factor-based system, this platform includes validated tactical overlays for downside protection and factor timing:
+Beyond the core factor-based system, this platform includes optional — **unvalidated** — tactical overlays for downside protection and factor timing:
 
 ### Market Regime Detection (Optional)
 
@@ -588,11 +590,11 @@ Beyond the core factor-based system, this platform includes validated tactical o
 - **CAUTION (Mixed)**: 75% equity, 25% cash when signals conflict
 - **RISK_OFF (Bearish)**: 50% equity, 50% cash when SPY < 200-day MA + VIX backwardation
 
-**Validated Performance (25-year backtest, 2000-2024):**
-- 14,785% total return (100K → 14.9M)
-- 22.16% CAGR vs SPY 7.2%
-- 75.51% win rate, 0.91 Sharpe ratio
-- 27x better returns than SPY buy-and-hold
+**Validation status: ⚠️ unvalidated.** Earlier versions of this README claimed a "validated
+25-year backtest" for this overlay (14,785% total return / 22.16% CAGR / 27x SPY). Those numbers
+predate the June 2026 integrity audit — they were produced on a corrupted price store by a backtest
+that silently ran momentum-only — and have never been re-validated with the current harness. Treat
+the regime overlay as a mechanism, not a proven edge.
 
 **Enable with:**
 ```bash
@@ -606,15 +608,16 @@ For detailed documentation on all features including:
 - Regime adjustment strategies and configurations
 - CAPE (Macro God) valuation adjustments
 - Fama-French (Factor God) factor timing
-- Recommended configurations (Conservative/Balanced/Aggressive)
-- Validation results and crisis performance analysis
+- Example configurations (Conservative/Balanced/Aggressive)
+- Crisis-behavior reference (legacy performance claims retracted)
 
-**See:** [docs/REGIME_AND_GODS_GUIDE.md](docs/REGIME_AND_GODS_GUIDE.md)
+**See:** [docs/REGIME_AND_GODS_GUIDE.md](docs/REGIME_AND_GODS_GUIDE.md) — mechanism reference; all
+legacy performance claims in that guide are retracted.
 
 **Quick recommendations:**
-- **Default (Recommended)**: `--use-french` (validated +17.59% alpha over 25 years)
-- **Conservative**: `--use-french --use-regime` (tactical defense + factor timing)
-- **Aggressive**: No flags (pure factors, maximum CAGR)
+- **Default**: no flags (pure factors) — none of the overlays has validated performance
+- `--use-french` / `--use-regime` / `--use-macro`: experimental overlays; judge any run with the
+  backtest's `EXPECTED vs REALIZED` block, not the optimizer's expectations
 
 ---
 

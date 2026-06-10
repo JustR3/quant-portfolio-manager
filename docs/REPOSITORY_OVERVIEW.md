@@ -13,7 +13,12 @@
 
 ## What This Repository Does
 
-The **Quant Portfolio Manager** is a production-ready systematic quantitative finance platform that automates the entire process of data-driven portfolio construction. It's designed for individual investors, quantitative analysts, and portfolio managers who want to apply institutional-grade quantitative strategies without the complexity of building everything from scratch.
+The **Quant Portfolio Manager** is a systematic portfolio-construction tool — factor ranking feeding Black-Litterman optimization — plus a point-in-time research harness for evaluating signals honestly. It's designed for quantitative analysts, researchers, and individual investors who want transparent, systematic tooling without building everything from scratch.
+
+> ⚠️ **Honest status (June 2026):** the project's own signal-evaluation gate has found **no
+> demonstrated cross-sectional edge** for its factor set on free, current-membership, large-cap US
+> data (three pre-registered negative results — see `docs/research/`). Treat the pipeline as
+> engineering plus methodology, not a proven strategy.
 
 ### Core Capabilities
 
@@ -27,8 +32,8 @@ The **Quant Portfolio Manager** is a production-ready systematic quantitative fi
    - Balances risk and return using modern portfolio theory
    - Supports multiple objectives (Max Sharpe, Min Volatility, Max Utility)
 
-3. **Comprehensive Backtesting**
-   - Tests strategies across multiple market cycles (2000-2024)
+3. **Walk-Forward Backtesting**
+   - Usable window is short (~3 years on free annual fundamentals) — an integrity check, not statistical validation
    - Ensures data integrity with point-in-time validation (no look-ahead bias)
    - Generates detailed performance analytics (Sharpe, Sortino, drawdowns, etc.)
 
@@ -153,14 +158,14 @@ confidence = calculate_confidence(std_dev_of_z_scores)
 - **Objectivity**: Factor-based ranking eliminates emotional bias
 - **Transparency**: Full visibility into why each stock is selected
 - **Academic rigor**: Built on decades of quantitative finance research
-- **Production-ready**: Caching, error handling, progress tracking, validation
+- **Robust engineering**: Caching, error handling, progress tracking, validation
 
 ### Who Should Use This
 
 #### ✅ Ideal Users
 - **Quantitative analysts** building factor-based strategies
 - **Portfolio managers** seeking systematic stock selection
-- **Individual investors** who want institutional-grade tools
+- **Individual investors** who want systematic, transparent tools
 - **Researchers** testing academic finance theories
 - **Students** learning quantitative portfolio management
 
@@ -603,10 +608,9 @@ python build_regime_history.py --start 2000-01-01
 - **CAUTION**: 75% equity (mixed signals)
 - **RISK_OFF**: 50% equity (SPY < 200-day MA + elevated VIX)
 
-**Validated Performance (2000-2024):**
-- CAGR: 22.16% vs SPY 7.2%
-- Sharpe: 0.91
-- Max Drawdown: -41.77% (2008 crisis)
+**Performance:** unvalidated. Legacy claims for this overlay ("22.16% CAGR over 2000-2024", etc.)
+predate the June 2026 integrity audit and are retracted — see
+[REGIME_AND_GODS_GUIDE.md](REGIME_AND_GODS_GUIDE.md) for the retraction notice.
 
 **Configuration:**
 ```python
@@ -753,12 +757,12 @@ dependencies = [
 
 ## Summary
 
-The **Quant Portfolio Manager** is a comprehensive, production-ready platform for systematic portfolio management. It combines:
+The **Quant Portfolio Manager** is a systematic portfolio-construction tool and point-in-time research harness. It combines:
 
-- ✅ **Academic rigor** (Fama-French, Black-Litterman, Shiller CAPE)
+- ✅ **Academic grounding** (Fama-French, Black-Litterman, Shiller CAPE)
 - ✅ **Practical engineering** (caching, batching, error handling)
 - ✅ **Full transparency** (glass-box verification)
-- ✅ **Extensive validation** (25-year backtests)
+- ✅ **Honest evaluation** (decoupled `signal-eval` gate; backtest with expected-vs-realized split — which so far shows **no validated edge** for the factor set)
 - ✅ **Modular design** (use what you need, skip what you don't)
 
 Whether you're building a long-term portfolio, researching factor strategies, or learning quantitative finance, this platform provides the tools to do it systematically and rigorously.

@@ -1,5 +1,12 @@
 # Long/Short 130/30 Strategy
 
+> ⚠️ **All performance numbers in this guide are the optimizer's own in-sample EXPECTED metrics**,
+> derived from the model's factor-implied views on a single date (January 2026). They are NOT
+> realized or backtested results, and the underlying factor set has since failed a decoupled
+> signal-evaluation gate three times (see `docs/research/`). Read this as a mechanics guide for the
+> `--long-short` flags, not as evidence the strategy works. See the README's "Expected vs Realized"
+> section.
+
 ## Overview
 
 The 130/30 long/short strategy allocates **130% to long positions** and **30% to short positions**, resulting in **100% net equity exposure**. This approach aims to enhance returns and Sharpe ratio by:
@@ -8,17 +15,17 @@ The 130/30 long/short strategy allocates **130% to long positions** and **30% to
 2. **Shorting losers**: Profiting from stocks with negative factor scores expected to underperform
 3. **Maintaining market exposure**: Net 100% exposure keeps beta roughly market-neutral relative to pure short strategies
 
-## Performance Comparison
+## Optimizer-Expected Metrics (in-sample, not realized)
 
-| Strategy | Expected Return | Volatility | Sharpe Ratio | Net Exposure |
+| Strategy | Expected Return (in-sample) | Expected Volatility | Expected Sharpe (in-sample) | Net Exposure |
 |----------|----------------|------------|--------------|--------------|
 | **Long-Only** | 31.47% | 18.25% | **1.50** | 100% |
 | **130/30** | 44.60% | 21.59% | **1.87** | 100% |
-| **Improvement** | +41.8% | +18.3% | **+24.7%** | Same |
+| **Δ (expected)** | +41.8% | +18.3% | **+24.7%** | Same |
 
-### Key Benefits
-- **32% Sharpe improvement** over long-only (1.87 vs 1.50)
-- **Exceeds 1.5:1 return-to-volatility target** (previously unachievable with long-only)
+### Key Differences (expected, in-sample)
+- **+24.7% expected-Sharpe improvement** over long-only (1.87 vs 1.50) — the optimizer's own
+  expectation, not a realized result
 - Maintains 100% net exposure (no leverage required for client accounts)
 
 ## Implementation Details
@@ -108,11 +115,13 @@ All existing constraints remain active in long/short mode:
 1. **Position Limits**: 30% maximum per stock (applies to both longs and shorts)
 2. **Sector Limits**: 35% maximum per sector (calculated on gross exposure)
 3. **Factor Views**: Black-Litterman views derived from Value/Quality/Momentum Z-scores
-4. **Minimum Sharpe**: 1.5 target (if specified via `--min-sharpe`)
+4. **Min-Sharpe target**: report-only (`--min-sharpe` prints achieved-vs-target; it does NOT constrain optimization)
 
 ## Strategy Variants Comparison
 
-| Strategy | Long | Short | Net | Sharpe | Return | Volatility | Use Case |
+All Sharpe/return figures below are **optimizer-expected, in-sample** — not realized:
+
+| Strategy | Long | Short | Net | Expected Sharpe | Expected Return | Expected Volatility | Use Case |
 |----------|------|-------|-----|--------|--------|------------|----------|
 | Long-Only | 100% | 0% | 100% | 1.50 | 31.47% | 18.25% | Conservative, traditional |
 | 120/20 | 120% | 20% | 100% | 1.86 | 39.77% | 19.25% | Moderate long/short |
@@ -128,14 +137,15 @@ Real-world implementation must account for stock borrowing fees:
 
 - **Typical borrow cost**: 2-4% annually for liquid large-caps
 - **Impact on 130/30**: 30% × 3% = 0.9% annual drag
-- **Adjusted return**: 44.60% - 0.9% = **43.7% net**
+- **Adjusted expected return**: 44.60% - 0.9% = **43.7% (in-sample expectation, net of borrow)**
 
-Still significantly outperforms long-only (31.47%).
+Still above the long-only *expected* figure (31.47%) — but both are in-sample optimizer
+expectations, not performance.
 
 ## Risk Considerations
 
 ### Advantages
-1. **Higher Sharpe ratio**: 1.87 vs 1.50 (long-only)
+1. **Higher expected Sharpe (in-sample)**: 1.87 vs 1.50 (long-only)
 2. **Market-neutral element**: Shorts offset some market risk
 3. **Factor-driven**: Systematic selection reduces emotional bias
 4. **Same net exposure**: 100% equity allocation (familiar to clients)
@@ -175,16 +185,16 @@ Still significantly outperforms long-only (31.47%).
 - [ ] Add short squeeze detection (high short interest + positive momentum)
 - [ ] Sector-neutral long/short (match sector exposure between longs and shorts)
 
-## Validation
+## Mechanics Check (not a performance validation)
 
 Tested on:
 - **Universe**: SP500 top 50 by market cap
 - **Date**: January 2026
 - **Factors**: Value (40%), Quality (40%), Momentum (20%)
-- **Result**: 1.87 Sharpe, 44.60% expected return, 21.59% volatility
+- **Result**: optimizer-expected 1.87 Sharpe / 44.60% return / 21.59% volatility (in-sample)
 
 Comparison with analysis tool results (tools/analyze_long_short.py):
-- ✅ Matches predicted 130/30 performance (1.99 Sharpe theoretical, 1.87 actual with constraints)
+- ✅ Matches predicted 130/30 expectations (1.99 expected Sharpe unconstrained, 1.87 with constraints)
 - ✅ Separates longs/shorts correctly (28 long candidates, 22 short candidates)
 - ✅ Respects 30% position limit (max single position: 39%)
 - ✅ Maintains 100% net exposure (130% - 30% = 100%)

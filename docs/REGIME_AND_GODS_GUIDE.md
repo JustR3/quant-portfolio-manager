@@ -1,5 +1,16 @@
 # Regime Detection & "The Gods" - User Guide
 
+> ⚠️ **LEGACY DOCUMENT — ALL PERFORMANCE CLAIMS RETRACTED (June 2026).**
+> Every "validated" number that used to appear in this guide (25-year backtest, 14,785% total
+> return, 22.16% CAGR, +17.59% Fama-French alpha, 75.51% win rate, …) predates the June 2026
+> integrity audit. Those numbers were produced on a price store later found corrupted (507/508
+> files held the wrong ticker's data) by a backtest that silently ran momentum-only. None of them
+> has been re-validated with the current harness, and the decoupled `signal-eval` gate has since
+> returned three pre-registered NEGATIVE results for the underlying factor set (see
+> `docs/research/`). This guide is kept as a **mechanism reference** for the `--use-regime`,
+> `--use-macro`, and `--use-french` flags. **No performance claim about these overlays should be
+> trusted.**
+
 ## Overview
 
 Your portfolio manager includes three advanced features for tactical risk management and factor timing:
@@ -8,7 +19,7 @@ Your portfolio manager includes three advanced features for tactical risk manage
 2. **Macro God (CAPE)** - Strategic return adjustment based on market valuation
 3. **Factor God (Fama-French)** - Factor timing based on recent factor performance
 
-These features were validated through comprehensive backtesting across 25 years (2000-2024) and multiple market cycles.
+None of these overlays has validated performance — legacy claims to the contrary are retracted (see the notice above). This guide documents the mechanisms only.
 
 ---
 
@@ -27,12 +38,8 @@ These features were validated through comprehensive backtesting across 25 years 
 - Automatically allocates to cash in defensive regimes
 - Protects against severe drawdowns during market crashes
 
-**Validated performance (25-year backtest, 2000-2024):**
-- Total return: 14,785% (100K → 14.9M)
-- CAGR: 22.16% vs SPY 7.2%
-- Sharpe ratio: 0.91
-- Max drawdown: -41.77% (2008 crisis)
-- Win rate: 75.51% (99 quarterly rebalances)
+**Performance:** unvalidated. The legacy "25-year backtest" numbers that used to appear here are
+retracted (see the notice at the top).
 
 **Trade-offs:**
 - ✅ Better risk management: Reduces exposure in bearish markets
@@ -84,10 +91,9 @@ REGIME_CAUTION_EXPOSURE: float = 0.75   # 75% equity in CAUTION
 - System reduces expected returns by ~30%
 - More conservative portfolio positioning
 
-**Validated performance (3-year test, 2022-2024):**
-- Minimal impact vs baseline in short-term tests
-- Theory: CAPE works over 5-10 year horizons, not 1-3 years
-- **Recommendation:** Disabled by default, pending long-term validation
+**Performance:** unvalidated. A legacy pre-audit 3-year test (2022-2024) showed minimal impact vs
+baseline — which is why this is disabled by default — but that test has not been re-run on the
+current harness. (In theory CAPE works over 5-10 year horizons, not 1-3 years; untested here.)
 
 **Trade-offs:**
 - ✅ Valuation discipline: Avoids excessive optimism in bubbles
@@ -127,10 +133,8 @@ CAPE_SCALAR_HIGH: float = 0.7          # -30% returns when expensive
   - **Cold factors** (weak performance): -15-30% weight
 - Adaptive factor timing strategy
 
-**Validated performance (25-year backtest, 2000-2024):**
-- **FF-only strategy:** 146.02% return, 1.44 Sharpe (3-year test)
-- **Alpha over baseline:** +17.59% (25-year test)
-- **Recommendation:** ENABLED by default (proven value)
+**Performance:** unvalidated. The legacy "+17.59% alpha over 25 years" claim is retracted (see the
+notice at the top). The flag remains available, but there is no evidence it adds value.
 
 **How it works:**
 ```
@@ -144,7 +148,7 @@ If Momentum factor returned -10% in last 12 months
 ```
 
 **Trade-offs:**
-- ✅ **Proven value:** +17.59% alpha over 25 years
+- ⚠️ **No proven value:** the legacy "+17.59% alpha" claim is retracted
 - ✅ Factor timing: Adapts to changing market regimes
 - ✅ Academic foundation: Based on Nobel Prize-winning research
 - ⚠️ Data dependency: Requires Fama-French data library
@@ -161,7 +165,7 @@ uv run ./main.py optimize --no-french
 
 **Configuration (config.py):**
 ```python
-ENABLE_FACTOR_REGIMES: bool = True  # ENABLED by default (validated with +17.59% alpha)
+ENABLE_FACTOR_REGIMES: bool = True  # ENABLED by default (legacy default; performance unvalidated)
 FF_TILT_STRENGTH: float = 0.5       # 0=no tilt, 1=full tilt
 FF_REGIME_WINDOW: int = 12          # Rolling window (months)
 ```
@@ -187,20 +191,18 @@ uv run ./main.py optimize \
 - Market environments with high uncertainty
 - Protecting capital during crises
 
-**Expected characteristics:**
-- Sharpe ratio: 0.9-1.1 (excellent risk-adjusted)
-- Max drawdown: -35% to -45% (vs -50%+ for SPY)
-- CAGR: 18-22% (long-term)
+**Expected characteristics:** unknown — the legacy pre-audit estimates that used to appear here
+are retracted (see the notice at the top).
 
 ---
 
 ### ⚖️ Balanced (Recommended Default)
 
-**Profile:** Good defense, proven factor timing, moderate cost
+**Profile:** Factor-timing overlay only (unvalidated)
 
 ```bash
 uv run ./main.py optimize \
-  --use-french       # Factor timing only (validated)
+  --use-french       # Factor timing only
 ```
 
 **Best for:**
@@ -209,10 +211,8 @@ uv run ./main.py optimize \
 - Trust in factor-based investing
 - Want 90% of upside with better risk management
 
-**Expected characteristics:**
-- Sharpe ratio: 1.2-1.5 (superior)
-- Alpha: +17% over baseline (validated)
-- CAGR: 20-25% (long-term)
+**Expected characteristics:** unknown — the legacy "+17% alpha" estimate that used to appear here
+is retracted (see the notice at the top).
 
 ---
 
@@ -231,10 +231,8 @@ uv run ./main.py optimize
 - Can stomach -50% drawdowns
 - Maximize compounding
 
-**Expected characteristics:**
-- Sharpe ratio: 0.7-0.9 (decent)
-- Max drawdown: -50%+ (severe in crises)
-- CAGR: 22-28% (highest, but volatile)
+**Expected characteristics:** unknown — legacy pre-audit estimates retracted. Note the underlying
+factor set has no validated cross-sectional edge (see `docs/research/`).
 
 ---
 
@@ -252,10 +250,8 @@ uv run ./main.py optimize --use-regime
 - Skeptical of factor timing
 - Comfortable with pure factor investing
 
-**Expected characteristics:**
-- Win rate: 75%+ (validated)
-- Max drawdown: -40% to -45%
-- CAGR: 20-22%
+**Expected characteristics:** unknown — the legacy "75%+ win rate (validated)" estimate that used
+to appear here is retracted (see the notice at the top).
 
 ---
 
@@ -363,20 +359,13 @@ When regime adjustment is active:
 
 ## Validation Results Summary
 
-### 25-Year Backtest (2000-2024, Quarterly Rebalance)
-
-| Configuration | Return | CAGR | Sharpe | Max DD | Alpha |
-|--------------|--------|------|--------|--------|-------|
-| **Baseline** | - | - | - | - | 0% |
-| **FF Only** (3yr) | 146% | 35% | 1.44 | -24% | - |
-| **Regime+FF** (25yr) | 14,785% | 22.16% | 0.91 | -41.77% | +17.59% |
-| **SPY Benchmark** (25yr) | 535% | 7.2% | - | -55% | - |
-
-**Key findings:**
-1. ✅ **Fama-French**: +17.59% alpha, ENABLED by default
-2. ⚠️ **CAPE**: No benefit in 3-year test, DISABLED pending long-term validation
-3. ✅ **Regime**: 75.51% win rate, OPTIONAL (use `--use-regime` flag)
-4. 🎯 **Best combo**: FF + Regime (validated over 25 years)
+**Retracted.** The results table that used to appear here (25-year backtest 2000-2024: 14,785%
+return / 22.16% CAGR / +17.59% FF alpha / 75.51% win rate vs 535% for SPY) was produced before the
+June 2026 integrity audit — on a corrupted price store, by a backtest that silently ran
+momentum-only — and was never re-validated. **No configuration of these overlays has validated
+performance on the current harness.** If you want real numbers, run the current walk-forward
+backtest and read its `EXPECTED vs REALIZED` block, keeping the data caveats in mind
+(short usable window, survivorship-biased universe).
 
 ---
 
@@ -384,7 +373,9 @@ When regime adjustment is active:
 
 ### Q: Should I enable all features?
 
-**A:** Start with **Fama-French only** (default). It's validated with +17.59% alpha. Add regime adjustment if you want tactical defense.
+**A:** There is no validated evidence that any of them helps. If you experiment, treat them as
+unvalidated overlays and judge the result with the current harness (the backtest's
+`EXPECTED vs REALIZED` block), not with this guide's legacy claims.
 
 ---
 
@@ -419,16 +410,15 @@ uv run ./main.py optimize --no-regime   # Disable regime (if enabled in config)
 
 ### Q: Why is CAPE disabled by default?
 
-**A:** 3-year validation showed no benefit. CAPE works over 5-10 year horizons. Pending long-term validation.
+**A:** A legacy pre-audit 3-year test showed no benefit. In theory CAPE works over 5-10 year
+horizons; that is untested here.
 
 ---
 
 ### Q: How does this compare to SPY buy-and-hold?
 
-**A:** 25-year backtest:
-- **SPY**: 535% return, 7.2% CAGR, -55% max drawdown
-- **This system**: 14,785% return, 22.16% CAGR, -41.77% max drawdown
-- **Outperformance**: 27x better returns with lower max drawdown
+**A:** Unknown. The legacy comparison that used to appear here ("14,785% vs 535% for SPY, 27x
+better") is retracted — see the notice at the top. No honest comparison currently exists.
 
 ---
 
@@ -444,18 +434,20 @@ uv run ./main.py optimize --no-regime   # Disable regime (if enabled in config)
 
 ---
 
-## Crisis Performance Analysis
+## Crisis Behavior (illustrative, not validated)
 
-### Historical validation across major crises:
+How the mechanism is *designed* to respond in stress periods. The "outcome" claims from legacy
+pre-audit runs have been removed:
 
-| Crisis Period | Regime | Strategy Action | Outcome |
-|--------------|--------|-----------------|---------|
-| **2008 Financial Crisis** | RISK_OFF | 50% cash allocation | Reduced drawdown vs SPY |
-| **2015-2016 Correction** | CAUTION | 75% equity | Protected downside |
-| **COVID Crash (2020)** | RISK_OFF → RISK_ON | 50% cash → 100% equity | Captured recovery |
-| **2022 Bear Market** | CAUTION | 75% equity | Smoother decline |
+| Crisis Period | Regime | Designed Action |
+|--------------|--------|-----------------|
+| **2008 Financial Crisis** | RISK_OFF | 50% cash allocation |
+| **2015-2016 Correction** | CAUTION | 75% equity |
+| **COVID Crash (2020)** | RISK_OFF → RISK_ON | 50% cash → 100% equity |
+| **2022 Bear Market** | CAUTION | 75% equity |
 
-**Lesson:** Regime adjustment doesn't avoid all losses, but reduces severity and captures recovery.
+Whether this reduces drawdowns net of whipsaw costs is an open question — not validated on the
+current harness.
 
 ---
 
@@ -491,12 +483,12 @@ FF_TILT_STRENGTH: float = 0.75  # Increase from 0.5 to 0.75
 
 ## Next Steps
 
-### 1. Start with recommended default:
+### 1. Example overlay run:
 ```bash
 uv run ./main.py optimize --use-french --top-n 20
 ```
 
-### 2. Run validation backtest:
+### 2. Run a walk-forward backtest (judge with its EXPECTED vs REALIZED block):
 ```bash
 uv run ./main.py backtest --start 2020-01-01 --end 2024-12-31 --use-french
 ```
@@ -515,19 +507,19 @@ uv run ./main.py optimize --use-french --use-regime --top-n 20
 
 ## Summary
 
-**Proven Features (ENABLED):**
-- ✅ **Fama-French**: +17.59% alpha, validated over 25 years
+**Validation status:** none of the three overlays has validated performance — all legacy claims
+are retracted (see the notice at the top).
 
-**Optional Features (Use flags):**
-- ⚖️ **Regime Adjustment**: 75.51% win rate, tactical defense
-- ⚠️ **CAPE**: Pending long-term validation, disabled by default
+- ⚠️ **Fama-French**: enabled by default for historical reasons; no validated alpha
+- ⚠️ **Regime Adjustment**: optional tactical defense; unvalidated
+- ⚠️ **CAPE**: disabled by default; unvalidated
 
-**Recommended Starting Point:**
+**Example (factor-timing overlay):**
 ```bash
 uv run ./main.py optimize --use-french --top-n 20
 ```
 
-**Conservative Alternative:**
+**Example (with regime overlay):**
 ```bash
 uv run ./main.py optimize --use-french --use-regime --top-n 20
 ```
@@ -536,14 +528,11 @@ uv run ./main.py optimize --use-french --use-regime --top-n 20
 
 ## Additional Resources
 
-- [Implementation Roadmap](IMPLEMENTATION_ROADMAP.md) - Development plan
-- [Phase 2 Validation Report](PHASE2_GODS_VALIDATION_REPORT.md) - Backtest results
-- [Backtest Audit Report](BACKTEST_AUDIT_REPORT.md) - Look-ahead bias analysis
-- [Historical Data Architecture](HISTORICAL_DATA_ARCHITECTURE.md) - Data infrastructure
-- [Project State Analysis](PROJECT_STATE_ANALYSIS.md) - System overview
+- [README.md](../README.md) - "Expected vs Realized" honest-framing section
+- [docs/research/](research/) - signal-isolation studies (three pre-registered negative results)
+- [REPOSITORY_OVERVIEW.md](REPOSITORY_OVERVIEW.md) - architecture and data flow
 
 ---
 
-**Last Updated:** December 28, 2025  
-**Validation Period:** 2000-2024 (25 years)  
-**Status:** Production-Ready ✅
+**Last Updated:** June 10, 2026 (all legacy performance claims retracted)  
+**Status:** Mechanism reference only — no validated performance
