@@ -34,9 +34,9 @@ a point-in-time Value/Quality/Momentum model, builds views, and optimizes with m
 - Factors are computed by the single source of truth `fundamentals.compute_pit_factors`
   (PIT/no-clamp: negatives allowed) for both live and backtest.
 
-## Edge status (validated-edge phase — FOUR honest NEGATIVES)
-No demonstrated edge on free data — cross-sectional (factor → BL → optimizer thesis, via the decoupled
-`signal-eval` gate) or time-series (timing rules, via the `ts-eval` gate):
+## Edge status (validated-edge phase — FIVE honest NEGATIVES; hunt CLOSED)
+No demonstrated edge on free data in any testable signal class — cross-sectional (`signal-eval`),
+time-series (`ts-eval`), or event-time (`pead-eval`):
 - **#1 Momentum** (~11yr): ~0 IC; 12-1/6-1/sector-neutral variants all fail (dead-end branch).
 - **#2 Value/Quality** on deep true-PIT SEC data: Value's thin lead was a small-sample mirage
   (IC +0.036/t=1.58 → +0.014/t=1.11); Quality flat. Closes "needs more data."
@@ -55,18 +55,25 @@ Closes the down-cap/survivorship lead until paid data is justified.
   as-documented combined **underperforms B&H** (its VIX leg was never even computable historically —
   `RegimeDetector` hard-codes `vix=None` for as_of_date). See
   `docs/research/2026-06-10-ts-timing-study-results.md`.
+- **#5 PEAD/SEC-event drift (iter-6, 2026-06-10):** three pre-registered measures (SUE-earnings,
+  SUE-revenue, EAR) on 21k–25k quarterly-filing events (2015–2026, new quarterly SEC cache in
+  `data/historical/fundamentals_sec_q/`) via `qpm pead-eval` — ALL FAIL (best p=0.745 vs 0.0167
+  bar). All three spreads are *negative* net of costs; EAR points to **reversal** (NW-t −2.04 in
+  the wrong direction); quintile drift U-shaped, not monotone. See
+  `docs/research/2026-06-10-pead-event-drift-results.md`.
 
-## Locked direction (2026-06-10 alignment) — stopping-rule counter: 1 of 2
-Free-data edge hunt, personal scale; **paid data unlocks only after a first validated edge.**
-- **Iter #5 (DONE, negative):** combined TS study — see above. Harness lives on: `ts_signals/ts_eval/
-  ts_results/ts_command` + `qpm ts-eval`, data via `tools/download_ts_universe.py` into
-  `data/historical/ts/` (separate base dir; signal-eval's universe glob untouched).
-- **Iter #6 (NEXT): PEAD/SEC-event drift** on the existing companyfacts cache — own brainstorm,
-  fresh pre-registration (event-time harness; filing dates are the events, PIT by construction).
-- **Stopping rule (pre-registered):** #5 AND #6 both negative → reframe as research-harness artifact,
-  automatically — no relitigating. #5 is negative, so **iter #6 is the last pre-registered shot.**
-  **Positive →** paper forward-test (~2 quarters, snapshot/forward validator) before any real money.
-- Do NOT re-tune iter-5 rule parameters — any variant is a new pre-registration nothing has earned.
+## Direction: REFRAME IN FORCE (stopping rule fired 2026-06-10, counter 2 of 2)
+The pre-registered stopping rule (iters #5 AND #6 both negative → reframe, no relitigating) has
+**fired**. The free-data edge hunt is CLOSED across all three signal classes; paid data is NOT
+justified (it was gated on a first validated edge).
+- **The project IS the artifact now:** an honest PIT research harness — `signal-eval` + `ts-eval` +
+  `pead-eval`, the SEC PIT pipelines (FY + quarterly), the price-store integrity guards, and five
+  pre-registered, documented negatives as the methodology showcase.
+- **Final workstream:** README/docs repositioning around the harness (the five negatives are the
+  product, not a failure to hide). No new edge studies without a genuinely new data tier AND a
+  fresh pre-registration.
+- Do NOT re-tune any iter-1–6 parameters; do NOT build BL view calibration, composites, or
+  automation — nothing earned them.
 
 ## Deferred (not built)
 - "Living strategy"/automation (daily refresh + scheduled rebalance) — parked; automating an edgeless
