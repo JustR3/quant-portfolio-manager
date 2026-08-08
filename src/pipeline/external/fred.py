@@ -15,6 +15,13 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional
 
+# Loads config/secrets.env into os.environ on import (no-op if already loaded).
+# Nothing else in the app imports this module, so without this line
+# FRED_API_KEY never reaches os.environ and every run silently falls back
+# to DEFAULT_RISK_FREE_RATE, even with a valid key sitting in secrets.env.
+import src.env_loader  # noqa: F401
+
+from src.constants import DEFAULT_RISK_FREE_RATE
 from src.logging_config import get_logger
 
 try:
@@ -61,8 +68,10 @@ class FredConnector:
     SERIES_CPI = "CPIAUCSL"  # Consumer Price Index for All Urban Consumers
     SERIES_REAL_GDP = "GDPC1"  # Real Gross Domestic Product
 
-    # Fallback values when API is unavailable
-    FALLBACK_RISK_FREE_RATE = 0.045  # 4.5%
+    # Fallback value when the API is unavailable. Shares the single source of
+    # truth in constants.py (DEFAULT_RISK_FREE_RATE) so this fallback and the
+    # one systematic_workflow.py uses on a hard FredConnector failure always agree.
+    FALLBACK_RISK_FREE_RATE = DEFAULT_RISK_FREE_RATE
     STALE_DATA_WARNING_DAYS = 7
 
     def __init__(self, api_key: Optional[str] = None, cache_hours: int = 24):
