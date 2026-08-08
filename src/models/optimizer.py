@@ -16,6 +16,7 @@ import yfinance as yf
 from pypfopt import BlackLittermanModel, risk_models, black_litterman
 from pypfopt.efficient_frontier import EfficientFrontier
 from pypfopt.discrete_allocation import DiscreteAllocation
+from pypfopt.exceptions import OptimizationError
 
 from src.logging_config import get_logger
 from src.constants import (
@@ -37,7 +38,9 @@ class OptimizationResult:
     sharpe_ratio: float
     performance: Dict[str, float]
     forecast_horizon: str = "1 year (annualized)"  # Explicit time horizon
-    
+    objective_used: str = "max_sharpe"  # Actual objective solved (may differ
+    # from what was requested — see optimize()'s max_sharpe-infeasible fallback)
+
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
         return {
@@ -46,7 +49,8 @@ class OptimizationResult:
             'volatility': self.volatility,
             'sharpe_ratio': self.sharpe_ratio,
             'performance': self.performance,
-            'forecast_horizon': self.forecast_horizon
+            'forecast_horizon': self.forecast_horizon,
+            'objective_used': self.objective_used,
         }
 
 
@@ -283,16 +287,57 @@ class BlackLittermanOptimizer:
         return black_litterman.market_implied_prior_returns(
             mc, delta, S, risk_free_rate=self.risk_free_rate)
 
-    def _max_sharpe_or_utility(self, ef: EfficientFrontier):
-        """max_sharpe, or max_quadratic_utility when no asset's expected return
-        exceeds the risk-free rate (the same infeasibility the long-only path guards)."""
+    def _absolute_views(self, market_returns: pd.Series) -> Dict[str, float]:
+        """Convert stored factor tilts into the absolute return levels
+        ``BlackLittermanModel``'s ``absolute_views`` expects.
+
+        ``generate_views_from_scores`` produces a small prior-RELATIVE tilt
+        (Total_Score * vol * factor_alpha_scalar, typically ~1-4%) — it's a
+        statement about how much better/worse a ticker should do than its
+        equilibrium return, not a statement of the ticker's whole expected
+        return. ``absolute_views`` needs the latter, so each tilt is added to
+        that ticker's market-implied prior here. Passing the tilt through
+        unmodified (the old behavior) makes every view collapse toward a
+        value far below the ~12-13% typical prior, which is what made
+        max_sharpe infeasible on nearly every run regardless of market
+        conditions.
+        """
+        return {
+            ticker: float(market_returns.get(ticker, 0.0)) + self.views.get(ticker, 0.0)
+            for ticker in self.tickers
+        }
+
+    def _max_sharpe_or_utility(
+        self, ef_factory
+    ) -> Tuple[Dict[str, float], bool, EfficientFrontier]:
+        """max_sharpe, or max_quadratic_utility when it can't be solved.
+
+        Two distinct failure modes land here, both surfaced by real runs:
+        pypfopt raises ValueError when no asset's expected return beats the
+        risk-free rate (the fractional Sharpe objective is undefined), and
+        raises the separate OptimizationError when the solver itself finds
+        the constraint set infeasible (e.g. sector caps combined with a small
+        universe) - a case with realistic, feasible-looking returns that has
+        nothing to do with the risk-free rate. Both need the same fallback.
+
+        ``ef_factory`` is a zero-arg callable building a fresh EfficientFrontier
+        (with whatever constraints already applied), not a pre-built instance:
+        on OptimizationError, pypfopt has already rewritten the failed
+        instance's constraints in place mid-solve and raises InstantiationError
+        on any further solve attempt against it, so the fallback must run on a
+        brand new instance.
+
+        Returns (weights, fell_back, solved_ef) - solved_ef is whichever
+        instance actually produced the weights, for the caller to run
+        clean_weights()/portfolio_performance() against.
+        """
+        ef = ef_factory()
         try:
-            return ef.max_sharpe(risk_free_rate=self.risk_free_rate)
-        except ValueError as e:
-            if "risk-free rate" in str(e):
-                logger.warning("max_sharpe infeasible in long/short leg; using max_quadratic_utility")
-                return ef.max_quadratic_utility()
-            raise
+            return ef.max_sharpe(risk_free_rate=self.risk_free_rate), False, ef
+        except (ValueError, OptimizationError) as e:
+            logger.warning("max_sharpe infeasible (%s); falling back to max_quadratic_utility", e)
+            fresh_ef = ef_factory()
+            return fresh_ef.max_quadratic_utility(), True, fresh_ef
 
     def optimize(
         self,
@@ -336,8 +381,10 @@ class BlackLittermanOptimizer:
                 print(f"  📉 Applying macro adjustment: {self.macro_return_scalar:.2f}x to equilibrium returns")
             market_returns = market_returns * self.macro_return_scalar
         
-        # Convert views dictionary to series aligned with tickers
-        viewdict = {ticker: self.views.get(ticker, 0) for ticker in self.tickers}
+        # Absolute views = each ticker's market-implied prior plus its factor
+        # tilt (see _absolute_views) — NOT the tilt alone, which BL would
+        # otherwise treat as the ticker's entire expected return.
+        viewdict = self._absolute_views(market_returns)
         
         # Use view confidences for Idzorek method
         # Higher confidence = views are more certain
@@ -375,6 +422,7 @@ class BlackLittermanOptimizer:
         # naive equal-weight.
         effective_objective = objective
         if objective == 'max_sharpe' and float(pd.Series(ret_bl).max()) <= self.risk_free_rate:
+            # Cheap pre-check: skip a solve attempt we already know is degenerate.
             effective_objective = 'max_quadratic_utility'
             logger.warning(
                 "max_sharpe infeasible (all posterior returns <= risk-free rate %.3f); "
@@ -382,20 +430,29 @@ class BlackLittermanOptimizer:
             if self.verbose:
                 print("  ⚠️  max_sharpe infeasible (posterior ≤ risk-free); using max_quadratic_utility")
 
-        # Optimize with minimum Sharpe constraint
-        ef = EfficientFrontier(ret_bl, S, weight_bounds=weight_bounds)
-
-        # Apply sector concentration constraints if provided
-        if sector_constraints:
-            self._apply_sector_constraints(ef, sector_constraints)
+        def _make_ef() -> EfficientFrontier:
+            fresh = EfficientFrontier(ret_bl, S, weight_bounds=weight_bounds)
+            if sector_constraints:
+                self._apply_sector_constraints(fresh, sector_constraints)
+            return fresh
 
         # Optimize against the BL posterior. min_target_sharpe is REPORT-ONLY
         # (surfaced in display_results); it does NOT constrain the optimization.
         if effective_objective == 'max_sharpe':
-            weights = ef.max_sharpe(risk_free_rate=self.risk_free_rate)
+            # The pre-check above only catches the "all posteriors <= rf" case.
+            # The solver can still find max_sharpe infeasible for unrelated
+            # reasons (e.g. sector constraints on a small universe) even with
+            # realistic returns - _max_sharpe_or_utility guards that too, and
+            # (re)builds a fresh EfficientFrontier for whichever objective
+            # actually ends up solved.
+            weights, fell_back, ef = self._max_sharpe_or_utility(_make_ef)
+            if fell_back:
+                effective_objective = 'max_quadratic_utility'
         elif effective_objective == 'min_volatility':
+            ef = _make_ef()
             weights = ef.min_volatility()
         elif effective_objective == 'max_quadratic_utility':
+            ef = _make_ef()
             weights = ef.max_quadratic_utility()
         else:
             raise ValueError(f"Unknown objective: {objective}")
@@ -416,9 +473,10 @@ class BlackLittermanOptimizer:
                 'annual_volatility': performance[1] * 100,
                 'sharpe_ratio': performance[2]
             },
-            forecast_horizon="1 year (annualized)"
+            forecast_horizon="1 year (annualized)",
+            objective_used=effective_objective,
         )
-        
+
         opt_elapsed = time.time() - opt_start
         if self.verbose:
             print("✅ Optimization complete!")
@@ -457,12 +515,15 @@ class BlackLittermanOptimizer:
         
         # Optimize longs
         weights_long = {}
+        long_fell_back = False
         if len(long_candidates) > 0:
             ret_long = ret_bl[ret_bl.index.isin(long_candidates)]
             S_long = S.loc[long_candidates, long_candidates]
-            
-            ef_long = EfficientFrontier(ret_long, S_long, weight_bounds=(0, weight_bounds[1]))
-            self._max_sharpe_or_utility(ef_long)
+
+            def _make_long_ef() -> EfficientFrontier:
+                return EfficientFrontier(ret_long, S_long, weight_bounds=(0, weight_bounds[1]))
+
+            _, long_fell_back, ef_long = self._max_sharpe_or_utility(_make_long_ef)
             weights_long = ef_long.clean_weights(cutoff=0.005)  # Keep smaller positions
             
             # Scale to target long exposure
@@ -472,15 +533,18 @@ class BlackLittermanOptimizer:
         
         # Optimize shorts
         weights_short = {}
+        short_fell_back = False
         if len(short_candidates) > 0:
             ret_short = ret_bl[ret_bl.index.isin(short_candidates)]
             S_short = S.loc[short_candidates, short_candidates]
-            
+
             # Invert returns for shorts (we want lowest expected returns)
             ret_short_inverted = -ret_short
-            
-            ef_short = EfficientFrontier(ret_short_inverted, S_short, weight_bounds=(0, weight_bounds[1]))
-            self._max_sharpe_or_utility(ef_short)
+
+            def _make_short_ef() -> EfficientFrontier:
+                return EfficientFrontier(ret_short_inverted, S_short, weight_bounds=(0, weight_bounds[1]))
+
+            _, short_fell_back, ef_short = self._max_sharpe_or_utility(_make_short_ef)
             weights_short = ef_short.clean_weights(cutoff=0.005)  # Keep smaller positions for shorts
             
             # Scale to target short exposure and make negative
@@ -516,7 +580,8 @@ class BlackLittermanOptimizer:
                 'gross_short': gross_short * 100,
                 'net_exposure': net_exposure * 100,
             },
-            forecast_horizon="1 year (annualized)"
+            forecast_horizon="1 year (annualized)",
+            objective_used="max_quadratic_utility" if (long_fell_back or short_fell_back) else "max_sharpe",
         )
         
         if self.verbose:

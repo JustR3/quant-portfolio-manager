@@ -33,6 +33,33 @@ from src.utils.regime_adjustment import apply_regime_adjustment
 logger = get_logger(__name__)
 
 
+# Always accompanies optimize() output: Value/Quality/Momentum views drive
+# every run's weights regardless of which flags were passed (--use-macro/
+# --use-french/--use-regime only add on top), and per docs/research/ none of
+# the three has demonstrated edge on free data (five pre-registered
+# negatives; see CLAUDE.md). This keeps the CLI from presenting a
+# discretionary construction tool as a validated recommendation.
+FACTOR_VALIDITY_DISCLAIMER = (
+    "Value/Quality/Momentum factor views have NOT demonstrated edge on free "
+    "data (see docs/research/ — five pre-registered negatives). This is a "
+    "discretionary portfolio-construction tool, not a backed recommendation."
+)
+
+
+def fallback_notice(opt_result) -> Optional[str]:
+    """Warning string when optimize() silently substituted a different
+    objective for the one requested (max_sharpe infeasible -> max_quadratic_utility),
+    else None. See BlackLittermanOptimizer._absolute_views for why this can happen."""
+    objective_used = getattr(opt_result, "objective_used", "max_sharpe")
+    if objective_used == "max_sharpe":
+        return None
+    return (
+        f"FALLBACK: max_sharpe was infeasible (no stock's Black-Litterman "
+        f"posterior return cleared the risk-free rate) — showing a "
+        f"{objective_used} portfolio instead of a Sharpe-optimal one."
+    )
+
+
 def display_factor_summary(factor_tilts: Dict) -> None:
     """Display Fama-French factor regime summary."""
     if not factor_tilts:
@@ -498,6 +525,13 @@ def display_portfolio_summary(results: Dict) -> None:
     print(f"   Expected Annual Return: {opt_result.expected_return*100:>6.2f}%")
     print(f"   Annual Volatility:      {opt_result.volatility*100:>6.2f}%")
     print(f"   Sharpe Ratio:           {opt_result.sharpe_ratio:>6.2f}")
+    print()
+
+    notice = fallback_notice(opt_result)
+    if notice:
+        print(f"⚠️  {notice}")
+        print()
+    print(f"ℹ️  {FACTOR_VALIDITY_DISCLAIMER}")
     print()
     
     # Portfolio composition

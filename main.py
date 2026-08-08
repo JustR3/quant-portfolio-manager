@@ -24,7 +24,10 @@ except ImportError:
 
 from src.logging_config import setup_logging, get_logger
 from src.models.factor_engine import FactorEngine
-from src.pipeline.systematic_workflow import run_systematic_portfolio, display_portfolio_summary
+from src.pipeline.systematic_workflow import (
+    run_systematic_portfolio, display_portfolio_summary,
+    fallback_notice, FACTOR_VALIDITY_DISCLAIMER,
+)
 from src.backtesting.engine import BacktestEngine
 from src.research.command import run_signal_eval
 from src.research.pead_command import run_pead_eval
@@ -407,7 +410,13 @@ def main():
                     metrics_text += f"  Momentum: {tilt_data['momentum_tilt']:.2f}x"
                 
                 console.print(Panel(metrics_text, title="Performance Metrics", box=box.DOUBLE))
-                
+
+                notice = fallback_notice(opt_result)
+                if notice:
+                    console.print(Panel(f"[bold yellow]⚠️  {notice}[/bold yellow]",
+                                         title="Fallback", box=box.DOUBLE, border_style="yellow"))
+                console.print(f"[dim]ℹ️  {FACTOR_VALIDITY_DISCLAIMER}[/dim]\n")
+
             else:
                 # Fallback to simple display
                 display_portfolio_summary(results)
