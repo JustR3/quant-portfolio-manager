@@ -93,10 +93,14 @@ uv run main.py optimize --universe sp500 --long-short --long-exposure 1.0 --shor
 uv run main.py optimize --universe sp500 --long-short --use-french
 ```
 
-### Backtesting
-```bash
-uv run main.py backtest --start 2020-01-01 --end 2024-12-31 --universe sp500 --long-short
-```
+### Backtesting — NOT IMPLEMENTED
+`backtest` has no `--long-short` flag; long/short only exists in the live `optimize` command. There is
+no historical long/short backtest in this repo, and (as of 2026-08-10) building one isn't planned: a
+long/short portfolio on Value/Quality/Momentum is mechanically a bet on the long-minus-short spread of
+those factors, which is exactly what `signal-eval`'s rank-IC/quintile-spread methodology already tested,
+with proper PIT data and pre-registration — see the five-negatives table in the top-level `CLAUDE.md`.
+Reopening this would need to clear the same bar as anything else here: a new data tier plus a fresh
+pre-registration, not a backtest-engine extension for a factor set already closed out.
 
 ## CLI Parameters
 
