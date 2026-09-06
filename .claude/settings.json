@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath // empty' | { read -r f; case \"$f\" in *.py) uv run ruff check --fix \"$f\" 2>&1; uv run ruff format \"$f\" 2>&1;; esac; } || true",
+            "timeout": 30,
+            "statusMessage": "Linting with ruff..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run pytest -q --tb=short 2>&1 | tail -30",
+            "timeout": 300,
+            "statusMessage": "Running full test suite..."
+          }
+        ]
+      }
+    ]
+  }
+}
