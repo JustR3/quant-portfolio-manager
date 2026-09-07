@@ -38,6 +38,5 @@ config/secrets.env
 # Backtest results
 data/backtests/
 
-# GitHub instructions
-/.github
+# GitHub instructions (kept locally for AI-assistant context only, not published)
 /.github/copilot-instructions.md

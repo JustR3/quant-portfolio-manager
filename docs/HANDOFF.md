@@ -21,3 +21,16 @@ One line per checkpoint. Newest at the bottom.
   despite the global CLAUDE.md "Data Freshness" rule. Wired into `shiller.get_shiller_data` as a
   warning only (CAPE already has `FALLBACK_CAPE`) on both the cache-hit and fresh-fetch paths.
   253/253 tests pass, ruff clean.
+- task 4: added `.github/workflows/self-harden.yml` — monthly adversarial-QA CI job (1st,
+  05:00 UTC; no other scheduled workflow in this repo to avoid colliding with, and the repo is
+  PARKED). Fuzzes the two SEC-facts invariants from tasks 1/3, dry-runs
+  signal-eval/ts-eval/pead-eval/verify_price_store.py against the synthetic fixture with the
+  exact flags validated manually, checks FRED/French/Damodaran for a staleness gap, independent
+  pytest+ruff gate before PR, `id-token: write`. YAML parses clean. **Found mid-task: `.gitignore`
+  had a blanket `/.github` rule (Jan 2026, commit 61ed774) that silently blocked the whole
+  `.github/` directory from ever being tracked — the workflow file would never have actually
+  reached GitHub. Asked the user; narrowed the rule to just `/.github/copilot-instructions.md`
+  (the one file it was actually meant to keep local), preserving that original intent while
+  letting the workflow be tracked.** **Cannot run for real yet — `CLAUDE_CODE_OAUTH_TOKEN` is not
+  set as a repo secret** (confirmed via `gh secret list`); the user needs to run `claude
+  setup-token` + `gh secret set` themselves. 253/253 tests pass, ruff clean.
