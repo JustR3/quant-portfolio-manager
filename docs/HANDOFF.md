@@ -16,3 +16,8 @@ One line per checkpoint. Newest at the bottom.
   `pead-eval`, and `tools/verify_price_store.py --spot 0` all run for real against it with exit
   0 and a non-degenerate JSON/table (exact flags recorded in the self-harden workflow, task 4).
   245/245 tests pass, ruff clean.
+- task 3: added `src/pipeline/external/freshness.py` (`stale_data_warning`, frozen-date tested)
+  since no live feed (Shiller CAPE, FRED, French, Damodaran) had a staleness check anywhere,
+  despite the global CLAUDE.md "Data Freshness" rule. Wired into `shiller.get_shiller_data` as a
+  warning only (CAPE already has `FALLBACK_CAPE`) on both the cache-hit and fresh-fetch paths.
+  253/253 tests pass, ruff clean.
