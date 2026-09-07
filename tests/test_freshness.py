@@ -62,6 +62,39 @@ def test_accepts_string_dates():
     assert msg is not None
 
 
+def test_tz_aware_latest_date_never_crashes_against_a_tz_naive_as_of():
+    """Adversarial-review finding: FRED/French/Damodaran may hand back a tz-aware date;
+    subtracting it from a tz-naive as_of raised TypeError before this test existed."""
+    latest = pd.Timestamp("2020-01-01", tz="UTC")
+    as_of = pd.Timestamp("2026-01-01")  # naive
+    msg = stale_data_warning(
+        latest, as_of, cadence_days=30, tolerance_days=15, source_name="Test Feed"
+    )
+    assert msg is not None  # ~6 years old either way
+
+
+def test_tz_aware_as_of_never_crashes_against_a_tz_naive_latest_date():
+    latest = pd.Timestamp("2026-01-01")  # naive
+    as_of = pd.Timestamp("2026-01-15", tz="UTC")
+    msg = stale_data_warning(
+        latest, as_of, cadence_days=30, tolerance_days=15, source_name="Test Feed"
+    )
+    assert msg is None  # 14 days, within cadence+tolerance
+
+
+def test_unparseable_latest_date_never_raises():
+    """Docstring promises 'never raises' -- a garbage date must be reported, not crash."""
+    msg = stale_data_warning(
+        "not-a-date",
+        "2026-06-15",
+        cadence_days=30,
+        tolerance_days=15,
+        source_name="Test Feed",
+    )
+    assert msg is not None
+    assert "Test Feed" in msg
+
+
 def test_none_latest_date_is_reported_as_stale_not_a_crash():
     """No data at all is the most degenerate staleness case there is -- must warn, never raise."""
     msg = stale_data_warning(
@@ -99,3 +132,22 @@ def test_get_shiller_data_does_not_warn_when_cached_snapshot_is_fresh(
     with caplog.at_level("WARNING"):
         shiller.get_shiller_data()
     assert not any("Shiller CAPE" in r.message for r in caplog.records)
+
+
+def test_get_shiller_data_warns_on_the_live_download_path_too(monkeypatch, caplog):
+    """Adversarial-review finding: only the cache-hit branch had coverage -- a regression in
+    the fresh-download branch's own _warn_if_stale call would have gone undetected."""
+    from src.pipeline.external import shiller
+
+    stale = pd.DataFrame(
+        {"Date": [pd.Timestamp.now() - pd.Timedelta(days=400)], "CAPE": [30.0]}
+    )
+    monkeypatch.setattr(
+        shiller.default_cache, "get", lambda *a, **k: None
+    )  # cache miss
+    monkeypatch.setattr(shiller.default_cache, "set", lambda *a, **k: None)
+    monkeypatch.setattr(shiller, "download_shiller_data", lambda: stale)
+    with caplog.at_level("WARNING"):
+        df = shiller.get_shiller_data()
+    assert df is stale
+    assert any("Shiller CAPE" in r.message for r in caplog.records)

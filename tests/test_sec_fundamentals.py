@@ -342,3 +342,30 @@ def test_fetch_facts_drops_non_finite_values(monkeypatch):
     assert (facts["period_end"] == pd.Timestamp("2019-12-31")).sum() == len(
         sf.CONCEPT_MAP
     )
+
+
+class _FakeCompanyNonNumeric(_FakeCompany):
+    """Adversarial-review finding: np.isfinite on a mixed dtype (object) column crashes
+    instead of dropping the bad row -- a filer could plausibly send a non-numeric tag value."""
+
+    _df = pd.DataFrame(
+        {
+            "numeric_value": [100.0, "N/A", float("-inf")],
+            "fiscal_period": ["FY", "FY", "FY"],
+            "period_end": pd.to_datetime(["2019-12-31", "2020-12-31", "2021-12-31"]),
+            "filing_date": pd.to_datetime(["2020-02-15", "2021-02-15", "2022-02-15"]),
+        }
+    )
+
+
+def test_fetch_facts_drops_non_numeric_values_without_crashing(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _FakeCompanyNonNumeric)
+    facts = sf.fetch_facts("FAKE")  # must not raise
+    assert not facts.empty
+    assert (facts["period_end"] == pd.Timestamp("2019-12-31")).sum() == len(
+        sf.CONCEPT_MAP
+    )
+    assert (facts["period_end"] == pd.Timestamp("2020-12-31")).sum() == 0
+    assert (facts["period_end"] == pd.Timestamp("2021-12-31")).sum() == 0

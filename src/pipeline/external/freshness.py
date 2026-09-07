@@ -26,13 +26,28 @@ def stale_data_warning(
 
     `latest_date=None` (no data at all) is the most degenerate staleness case there is and is
     always reported. A `latest_date` in the future relative to `as_of` (clock skew, bad input)
-    is never treated as stale. Never raises — a warning check must not become a new crash.
+    is never treated as stale. Never raises — a warning check must not become a new crash: an
+    unparseable date is reported as a warning (can't confirm freshness), and tz-aware/tz-naive
+    inputs are normalized before comparing (a caller like FRED/French/Damodaran may hand back
+    either).
     """
-    as_of_ts = pd.Timestamp(as_of)
+    try:
+        as_of_ts = pd.Timestamp(as_of)
+    except (ValueError, TypeError):
+        return f"{source_name}: could not parse as_of date {as_of!r}"
+    if getattr(as_of_ts, "tz", None) is not None:
+        as_of_ts = as_of_ts.tz_convert("UTC").tz_localize(None)
+
     if latest_date is None:
         return f"{source_name}: no data available as of {as_of_ts.date()}"
 
-    latest_ts = pd.Timestamp(latest_date)
+    try:
+        latest_ts = pd.Timestamp(latest_date)
+    except (ValueError, TypeError):
+        return f"{source_name}: could not parse latest date {latest_date!r}"
+    if getattr(latest_ts, "tz", None) is not None:
+        latest_ts = latest_ts.tz_convert("UTC").tz_localize(None)
+
     gap_days = (as_of_ts - latest_ts).days
     limit_days = cadence_days + tolerance_days
     if gap_days <= limit_days:

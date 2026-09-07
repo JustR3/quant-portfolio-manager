@@ -34,3 +34,17 @@ One line per checkpoint. Newest at the bottom.
   letting the workflow be tracked.** **Cannot run for real yet — `CLAUDE_CODE_OAUTH_TOKEN` is not
   set as a repo secret** (confirmed via `gh secret list`); the user needs to run `claude
   setup-token` + `gh secret set` themselves. 253/253 tests pass, ruff clean.
+- task 5: adversarial-review subagent (spec + diff only, fresh worktree, no implementation
+  memory) found 5 real issues, all fixed: (1) `stale_data_warning` crashed (`TypeError`) on a
+  tz-aware vs tz-naive timestamp mismatch — normalized both to naive UTC before comparing; (2)
+  it also crashed (`DateParseError`) on an unparseable date despite its own "never raises"
+  docstring — now caught and reported as a warning; (3) `shiller.py`'s live-download path for
+  `_warn_if_stale` had zero test coverage (only the cache-hit branch was tested) — added a test
+  that actually exercises it; (4) `np.isfinite` on a mixed-dtype (non-numeric) `numeric_value`
+  column crashed instead of dropping the bad row in both `fetch_facts` and
+  `fetch_facts_quarterly` — fixed with `pd.to_numeric(..., errors="coerce")` before the
+  finiteness check; (5) the self-harden.yml prompt's directory-setup wording for the CLI dry-run
+  was ambiguous, and the wrong-but-plausible reading silently produces a clean exit code with an
+  empty/degenerate JSON — rewrote it as an exact, copy-pasteable script and added an explicit
+  "open the JSON and check N obs/events > 0" bar so a wrong-directory run can't pass as a
+  legitimate small-universe result. 259/259 tests pass, ruff clean.

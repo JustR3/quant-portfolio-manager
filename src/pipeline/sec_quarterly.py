@@ -63,7 +63,8 @@ def fetch_facts_quarterly(ticker: str) -> pd.DataFrame:
                 continue
             if df is None or len(df) == 0 or "fiscal_period" not in df.columns:
                 continue
-            sub = df[np.isfinite(df["numeric_value"])]
+            numeric = pd.to_numeric(df["numeric_value"], errors="coerce")
+            sub = df[np.isfinite(numeric)]
             sub = sub[sub["fiscal_period"].isin(KEEP_PERIODS)]
             for _, r in sub.iterrows():
                 pe = pd.Timestamp(r["period_end"])

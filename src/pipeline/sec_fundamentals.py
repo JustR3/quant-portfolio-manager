@@ -366,7 +366,8 @@ def fetch_facts(ticker: str) -> pd.DataFrame:
                 continue
             if df is None or len(df) == 0 or "fiscal_period" not in df.columns:
                 continue
-            sub = df[np.isfinite(df["numeric_value"])].copy()
+            numeric = pd.to_numeric(df["numeric_value"], errors="coerce")
+            sub = df[np.isfinite(numeric)].copy()
             if field in FY_ONLY_FIELDS:
                 sub = sub[sub["fiscal_period"] == "FY"]
             for _, r in sub.iterrows():

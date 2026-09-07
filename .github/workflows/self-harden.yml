@@ -83,37 +83,46 @@ jobs:
                path and add a regression test. If a case already behaves correctly, add the test
                without changing working code.
 
-            2. Build a scratch data store with `tests/fixtures/synthetic_store.py`'s
-               `build_synthetic_store(base_dir)` at a temp directory (never inside this repo
-               checkout), matching the exact layout `data/historical/` would have —
-               `base_dir/prices/`, `base_dir/fundamentals_sec/`, `base_dir/fundamentals_sec_q/`,
-               `base_dir/ts/prices/`. Then, with that temp directory's PARENT as the working
-               directory and a scratch export directory also outside this checkout, run all
-               four, using the exact flags below (validated manually this session — do not
-               invent different ones without checking they still work first):
+            2. `signal-eval`/`ts-eval`/`pead-eval` hardcode relative paths like
+               `Path("data/historical")` — there is no `--data-dir` flag. So the scratch
+               directory's data MUST live at a path literally ending in `data/historical`, and
+               the working directory when you run each command MUST be that path's parent.
+               Concretely, run exactly this (adjust only the mktemp target, nothing else):
 
-               `uv run --project <repo> python <repo>/main.py signal-eval --factors
-               momentum,value,quality --fundamentals sec --start 2018-03-01 --end 2019-01-01
-               --frequency monthly --horizon 1 --quantiles 2 --min-names-per-bucket 2 --t-gate
-               0.5 --export <scratch-export>`
+               ```
+               SCRATCH=$(mktemp -d)
+               mkdir -p "$SCRATCH/export"
+               python -c "
+               from pathlib import Path
+               from tests.fixtures.synthetic_store import build_synthetic_store
+               build_synthetic_store(Path('$SCRATCH/data/historical'))
+               "
+               cd "$SCRATCH"
+               uv run --project <repo> python <repo>/main.py signal-eval --factors \
+                 momentum,value,quality --fundamentals sec --start 2018-03-01 \
+                 --end 2019-01-01 --frequency monthly --horizon 1 --quantiles 2 \
+                 --min-names-per-bucket 2 --t-gate 0.5 --export "$SCRATCH/export"
+               uv run --project <repo> python <repo>/main.py ts-eval --start 2015-12-22 \
+                 --end 2019-01-01 --bootstrap-n 200 --export "$SCRATCH/export"
+               uv run --project <repo> python <repo>/main.py pead-eval --min-leg 1 \
+                 --bootstrap-n 200 --export "$SCRATCH/export"
+               uv run --project <repo> python <repo>/tools/verify_price_store.py \
+                 --dir "$SCRATCH/data/historical/prices" --spot 0
+               ```
 
-               `uv run --project <repo> python <repo>/main.py ts-eval --start 2015-12-22 --end
-               2019-01-01 --bootstrap-n 200 --export <scratch-export>`
-
-               `uv run --project <repo> python <repo>/main.py pead-eval --min-leg 1
-               --bootstrap-n 200 --export <scratch-export>`
-
-               `uv run --project <repo> python <repo>/tools/verify_price_store.py --dir
-               <scratch>/prices --spot 0`
-
-               Confirm each exits 0, and that the three harness commands each write a JSON
-               artifact to the scratch export directory with the keys their own `results.py` /
-               `ts_results.py` / `pead_results.py` module documents. It is CORRECT and expected
-               for the harnesses to report FAIL/degenerate verdicts on this tiny synthetic
-               universe (house rule: "degenerate cases fail loudly") — that is not a bug; a
-               genuine bug here is a non-zero exit code, an unhandled traceback, or a missing
-               artifact. Never touch this repo's own `data/historical/`, `data/research/`, or
-               `data/backtests/` — everything above runs against the scratch directories only.
+               Confirm each exits 0 AND open each JSON artifact written to `$SCRATCH/export`:
+               `signal-eval`'s must show `N obs` > 0 for every factor (not `range ...  (N obs=0)`
+               and not an empty `factors` list); `ts-eval`'s must show a real `window` with
+               non-null `sharpe_strat`/`sharpe_bench` for every rule; `pead-eval`'s must show
+               `events` > 0 for every measure. A clean exit code with an empty/degenerate JSON
+               means the scratch directory convention above was NOT followed correctly (most
+               likely: `data/historical` wasn't literally in the path) — that is a failure of
+               THIS check, not a legitimate "degenerate small-universe" result, and must be
+               fixed by correcting the paths, not by treating it as a pass. Once the paths are
+               right, it IS correct and expected for verdicts themselves to read FAIL on this
+               tiny synthetic universe (house rule: "degenerate cases fail loudly") — that part
+               is not a bug. Never touch this repo's own `data/historical/`, `data/research/`,
+               or `data/backtests/` — everything above runs against `$SCRATCH` only.
 
             3. Check whether `src/pipeline/external/fred.py`, `french.py`, and `damodaran.py`
                have a staleness check comparable to `shiller.py`'s (added this session — do not
