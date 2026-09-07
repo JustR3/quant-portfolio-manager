@@ -9,11 +9,13 @@ only (as-first-reported; see pead_events.first_filed).
 
 Spec: docs/superpowers/specs/2026-06-10-pead-event-drift-design.md §2.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 from src.pipeline.sec_fundamentals import CONCEPT_MAP
@@ -33,7 +35,9 @@ def cache_path(ticker: str, base_dir: Path = SEC_FUND_Q_DIR) -> Path:
     return Path(base_dir) / f"{ticker}.parquet"
 
 
-def load_facts_q(ticker: str, base_dir: Path = SEC_FUND_Q_DIR) -> Optional[pd.DataFrame]:
+def load_facts_q(
+    ticker: str, base_dir: Path = SEC_FUND_Q_DIR
+) -> Optional[pd.DataFrame]:
     p = cache_path(ticker, base_dir)
     return pd.read_parquet(p) if p.exists() else None
 
@@ -45,10 +49,13 @@ def fetch_facts_quarterly(ticker: str) -> pd.DataFrame:
     {Q1, Q2, Q3, FY} and stores it (Q4 is imputed downstream from FY minus siblings).
     """
     from edgar import Company  # local import: heavy dep, keeps module import light
+
     facts_obj = Company(ticker).facts
     rows = []
     for field, concepts in QUARTERLY_CONCEPT_MAP.items():
-        seen = set()  # (period_end, fiscal_period, filed) taken by a higher-priority concept
+        seen = (
+            set()
+        )  # (period_end, fiscal_period, filed) taken by a higher-priority concept
         for concept in concepts:
             try:
                 df = facts_obj.query().by_concept(concept, exact=True).to_dataframe()
@@ -56,7 +63,7 @@ def fetch_facts_quarterly(ticker: str) -> pd.DataFrame:
                 continue
             if df is None or len(df) == 0 or "fiscal_period" not in df.columns:
                 continue
-            sub = df[df["numeric_value"].notna()]
+            sub = df[np.isfinite(df["numeric_value"])]
             sub = sub[sub["fiscal_period"].isin(KEEP_PERIODS)]
             for _, r in sub.iterrows():
                 pe = pd.Timestamp(r["period_end"])
@@ -66,7 +73,15 @@ def fetch_facts_quarterly(ticker: str) -> pd.DataFrame:
                 if key in seen:
                     continue
                 seen.add(key)
-                rows.append({"field": field, "period_end": pe, "fiscal_period": fp,
-                             "filed": fd, "value": float(r["numeric_value"])})
+                rows.append(
+                    {
+                        "field": field,
+                        "period_end": pe,
+                        "fiscal_period": fp,
+                        "filed": fd,
+                        "value": float(r["numeric_value"]),
+                    }
+                )
     return pd.DataFrame(rows, columns=COLUMNS).astype(
-        {"period_end": "datetime64[ns]", "filed": "datetime64[ns]", "value": "float"})
+        {"period_end": "datetime64[ns]", "filed": "datetime64[ns]", "value": "float"}
+    )
