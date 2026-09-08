@@ -151,3 +151,59 @@ def test_get_shiller_data_warns_on_the_live_download_path_too(monkeypatch, caplo
         df = shiller.get_shiller_data()
     assert df is stale
     assert any("Shiller CAPE" in r.message for r in caplog.records)
+
+
+# --- wiring: french.get_ff_factors warns (never raises/fails) on stale data --------
+
+
+def test_get_ff_factors_warns_when_cached_snapshot_is_stale(monkeypatch, caplog):
+    from src.pipeline.external import french
+
+    stale = pd.DataFrame(
+        {
+            "Date": [pd.Timestamp.now() - pd.Timedelta(days=400)],
+            "Mkt_RF": [0.01],
+        }
+    )
+    monkeypatch.setattr(french.default_cache, "get", lambda *a, **k: stale)
+    with caplog.at_level("WARNING"):
+        df = french.get_ff_factors()
+    assert df is stale  # never blocks/replaces the data -- warning only
+    assert any("Fama-French" in r.message for r in caplog.records)
+
+
+def test_get_ff_factors_does_not_warn_when_cached_snapshot_is_fresh(
+    monkeypatch, caplog
+):
+    from src.pipeline.external import french
+
+    fresh = pd.DataFrame(
+        {
+            "Date": [pd.Timestamp.now() - pd.Timedelta(days=5)],
+            "Mkt_RF": [0.01],
+        }
+    )
+    monkeypatch.setattr(french.default_cache, "get", lambda *a, **k: fresh)
+    with caplog.at_level("WARNING"):
+        french.get_ff_factors()
+    assert not any("Fama-French" in r.message for r in caplog.records)
+
+
+def test_get_ff_factors_warns_on_the_live_download_path_too(monkeypatch, caplog):
+    """Mirrors the shiller live-download-path coverage above -- a regression in the
+    fresh-download branch's own _warn_if_stale call must not go undetected."""
+    from src.pipeline.external import french
+
+    stale = pd.DataFrame(
+        {
+            "Date": [pd.Timestamp.now() - pd.Timedelta(days=400)],
+            "Mkt_RF": [0.01],
+        }
+    )
+    monkeypatch.setattr(french.default_cache, "get", lambda *a, **k: None)  # cache miss
+    monkeypatch.setattr(french.default_cache, "set", lambda *a, **k: None)
+    monkeypatch.setattr(french, "download_ff_factors", lambda factor_set: stale)
+    with caplog.at_level("WARNING"):
+        df = french.get_ff_factors()
+    assert df is stale
+    assert any("Fama-French" in r.message for r in caplog.records)

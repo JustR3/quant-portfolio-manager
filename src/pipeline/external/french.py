@@ -18,6 +18,7 @@ import requests
 from src.logging_config import get_logger
 from src.core import default_cache, retry_with_backoff
 from src.constants import FF_CACHE_EXPIRY_HOURS
+from src.pipeline.external.freshness import stale_data_warning
 
 logger = get_logger(__name__)
 
@@ -31,6 +32,32 @@ FF_5_FACTOR_URL = (
     "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/"
     "ftp/F-F_Research_Data_5_Factors_2x3_CSV.zip"
 )
+
+# Ken French's library publishes monthly, same cadence/lag pattern as Shiller (see
+# CAPE_CACHE_EXPIRY_HOURS / FF_CACHE_EXPIRY_HOURS both being 1 week). Warning-only
+# (self-harden Check #3) — a stale reading should be visible, never a hard failure.
+FF_UPDATE_CADENCE_DAYS = 35
+FF_STALENESS_TOLERANCE_DAYS = 35
+
+
+def _warn_if_stale(df: pd.DataFrame) -> None:
+    """Log (never raise) if the newest Date in `df` is older than French's own update
+    cadence. Warning-only per self-harden Check #3."""
+    latest = (
+        df["Date"].max()
+        if (df is not None and "Date" in df.columns and not df.empty)
+        else None
+    )
+    msg = stale_data_warning(
+        latest,
+        pd.Timestamp.now(),
+        cadence_days=FF_UPDATE_CADENCE_DAYS,
+        tolerance_days=FF_STALENESS_TOLERANCE_DAYS,
+        source_name="Fama-French factors (Dartmouth)",
+    )
+    if msg:
+        logger.warning(msg)
+
 
 # Factor regime thresholds
 Z_SCORE_STRONG_POSITIVE = 1.5
@@ -82,9 +109,7 @@ def download_ff_factors(factor_set: str = "3factor") -> Optional[pd.DataFrame]:
             # Find where monthly data ends
             data_end = len(lines)
             for i, line in enumerate(lines[data_start:], start=data_start):
-                if "Annual" in line or (
-                    line.strip() and not line.strip()[0].isdigit()
-                ):
+                if "Annual" in line or (line.strip() and not line.strip()[0].isdigit()):
                     if i > data_start + 10:
                         data_end = i
                         break
@@ -105,7 +130,16 @@ def download_ff_factors(factor_set: str = "3factor") -> Optional[pd.DataFrame]:
                 col_upper = col.upper()
                 if any(
                     x in col_upper
-                    for x in ["MKT-RF", "MKT_RF", "MKTRF", "SMB", "HML", "RMW", "CMA", "RF"]
+                    for x in [
+                        "MKT-RF",
+                        "MKT_RF",
+                        "MKTRF",
+                        "SMB",
+                        "HML",
+                        "RMW",
+                        "CMA",
+                        "RF",
+                    ]
                 ):
                     factor_cols.append(col)
 
@@ -176,12 +210,14 @@ def get_ff_factors(
             logger.debug(
                 f"Loaded Fama-French {factor_set} data from cache ({len(cached)} rows)"
             )
+            _warn_if_stale(cached)
             return cached
 
     df = download_ff_factors(factor_set)
 
     if df is not None:
         default_cache.set(cache_key, df)
+        _warn_if_stale(df)
 
     return df
 
