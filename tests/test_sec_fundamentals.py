@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 from src.pipeline import sec_fundamentals as sf
@@ -369,3 +370,178 @@ def test_fetch_facts_drops_non_numeric_values_without_crashing(monkeypatch):
     )
     assert (facts["period_end"] == pd.Timestamp("2020-12-31")).sum() == 0
     assert (facts["period_end"] == pd.Timestamp("2021-12-31")).sum() == 0
+
+
+# --- adversarial fuzz: duplicate keys, concept-priority collisions, extreme
+# magnitudes, and impossible dates. Each of these already behaves correctly
+# (verified by hand before writing these) -- they are regression tests, not
+# fixes, for the dedup-by-key and PIT-selection invariants.
+
+
+class _FakeCompanyDuplicateRows:
+    """Same concept returns two rows for the identical (period_end, filed) key with
+    different values -- the dedup-by-key `seen` set must keep the first (100.0),
+    never blend/average/overwrite with the second (999.0)."""
+
+    _df = pd.DataFrame(
+        {
+            "numeric_value": [100.0, 999.0],
+            "fiscal_period": ["FY", "FY"],
+            "period_end": pd.to_datetime(["2020-12-31", "2020-12-31"]),
+            "filing_date": pd.to_datetime(["2021-02-15", "2021-02-15"]),
+        }
+    )
+
+    def __init__(self, ticker):
+        self.facts = _FakeFacts(self._df)
+
+
+def test_fetch_facts_duplicate_key_within_concept_keeps_first(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _FakeCompanyDuplicateRows)
+    facts = sf.fetch_facts("FAKE")
+    rev = facts[facts["field"] == "revenue"]
+    assert len(rev) == 1
+    assert rev.iloc[0]["value"] == 100.0
+
+
+class _FakeQueryPerConcept:
+    def __init__(self, per_concept):
+        self._per_concept = per_concept
+        self._concept = None
+
+    def by_concept(self, concept, exact=True):
+        self._concept = concept
+        return self
+
+    def to_dataframe(self):
+        return self._per_concept.get(self._concept, pd.DataFrame())
+
+
+class _FakeFactsPerConcept:
+    def __init__(self, per_concept):
+        self._per_concept = per_concept
+
+    def query(self):
+        return _FakeQueryPerConcept(self._per_concept)
+
+
+def test_fetch_facts_concept_priority_keeps_first_on_value_collision(monkeypatch):
+    """A lower-priority concept returns a row for a (period_end, filed) pair the
+    higher-priority concept already claimed, under a DIFFERENT value. The
+    higher-priority concept's value (100.0) must win, not be overwritten or
+    blended with the lower-priority concept's value (999.0)."""
+    import edgar
+
+    high, low = sf.CONCEPT_MAP["revenue"][0], sf.CONCEPT_MAP["revenue"][1]
+    per_concept = {
+        high: pd.DataFrame(
+            {
+                "numeric_value": [100.0],
+                "fiscal_period": ["FY"],
+                "period_end": pd.to_datetime(["2020-12-31"]),
+                "filing_date": pd.to_datetime(["2021-02-15"]),
+            }
+        ),
+        low: pd.DataFrame(
+            {
+                "numeric_value": [999.0],
+                "fiscal_period": ["FY"],
+                "period_end": pd.to_datetime(["2020-12-31"]),
+                "filing_date": pd.to_datetime(["2021-02-15"]),
+            }
+        ),
+    }
+
+    class _FakeCompanyPriority:
+        def __init__(self, ticker):
+            self.facts = _FakeFactsPerConcept(per_concept)
+
+    monkeypatch.setattr(edgar, "Company", _FakeCompanyPriority)
+    facts = sf.fetch_facts("FAKE")
+    rev = facts[facts["field"] == "revenue"]
+    assert len(rev) == 1
+    assert rev.iloc[0]["value"] == 100.0
+
+
+class _FakeCompanyExtremeMagnitude:
+    """A finite but extreme-magnitude value (1e18) must be kept, not dropped --
+    only NaN/+-inf are excluded per the fetch_facts contract."""
+
+    _df = pd.DataFrame(
+        {
+            "numeric_value": [1e18],
+            "fiscal_period": ["FY"],
+            "period_end": pd.to_datetime(["2020-12-31"]),
+            "filing_date": pd.to_datetime(["2021-02-15"]),
+        }
+    )
+
+    def __init__(self, ticker):
+        self.facts = _FakeFacts(self._df)
+
+
+def test_fetch_facts_extreme_magnitude_value_kept(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _FakeCompanyExtremeMagnitude)
+    facts = sf.fetch_facts("FAKE")
+    rev = facts[facts["field"] == "revenue"]
+    assert len(rev) == 1
+    assert rev.iloc[0]["value"] == 1e18
+
+
+class _FakeCompanyFiledBeforePeriodEnd:
+    """A filed date earlier than its own period_end is impossible in reality (a
+    filer error) -- fetch_facts does not validate filed >= period_end, so the row
+    must simply pass through unmodified, never crash."""
+
+    _df = pd.DataFrame(
+        {
+            "numeric_value": [50.0],
+            "fiscal_period": ["FY"],
+            "period_end": pd.to_datetime(["2020-12-31"]),
+            "filing_date": pd.to_datetime(["2020-01-01"]),  # before period_end
+        }
+    )
+
+    def __init__(self, ticker):
+        self.facts = _FakeFacts(self._df)
+
+
+def test_fetch_facts_filed_before_period_end_does_not_crash(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _FakeCompanyFiledBeforePeriodEnd)
+    facts = sf.fetch_facts("FAKE")  # must not raise
+    rev = facts[facts["field"] == "revenue"]
+    assert len(rev) == 1
+    assert rev.iloc[0]["filed"] == pd.Timestamp("2020-01-01")
+    assert rev.iloc[0]["period_end"] == pd.Timestamp("2020-12-31")
+
+
+def test_pit_factors_extreme_magnitude_value_stays_finite_and_paths_agree():
+    facts = _full_facts()
+    facts.loc[facts["field"] == "ebit", "value"] = 1e18
+    as_of = pd.Timestamp("2021-06-30")
+    slow = sf.pit_factors_from_facts(facts, as_of, price=100.0)
+    fast = sf.pit_factors_from_prepared(sf.prepare_facts(facts), as_of, price=100.0)
+    assert not slow.excluded and not fast.excluded
+    assert np.isfinite(slow.value_raw) and np.isfinite(slow.quality_raw)
+    assert fast.value_raw == pytest.approx(slow.value_raw)
+    assert fast.quality_raw == pytest.approx(slow.quality_raw)
+
+
+def test_pit_factors_filed_before_period_end_does_not_crash_and_paths_agree():
+    """A filed date earlier than its own period_end is impossible in reality (a
+    filer error), but nothing in the selection logic validates filed >= period_end
+    -- as_of-visibility is governed purely by `filed`. Must not crash and must
+    still agree between the pandas and prepared paths."""
+    facts = _full_facts(period_end="2020-12-31", filed="2020-01-01")
+    as_of = pd.Timestamp("2021-06-30")
+    slow = sf.pit_factors_from_facts(facts, as_of, price=100.0)
+    fast = sf.pit_factors_from_prepared(sf.prepare_facts(facts), as_of, price=100.0)
+    assert not slow.excluded and not fast.excluded
+    assert fast.value_raw == pytest.approx(slow.value_raw)
+    assert fast.quality_raw == pytest.approx(slow.quality_raw)
