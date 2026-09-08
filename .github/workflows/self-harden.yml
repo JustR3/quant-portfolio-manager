@@ -1,0 +1,161 @@
+name: self-harden
+
+# Monthly adversarial-QA sweep, tailored to this repo (see docs/superpowers/specs/
+# 2026-09-07-self-harden-ci-design.md for the full rationale — this is NOT a copy of any other
+# repo's self-harden job):
+#   1. Fuzz the SEC-facts parsing seam in src/pipeline/sec_fundamentals.py / sec_quarterly.py.
+#   2. Run signal-eval / ts-eval / pead-eval / tools/verify_price_store.py for real, against a
+#      synthetic scratch data store (tests/fixtures/synthetic_store.py) — data/historical/ is
+#      entirely gitignored, so there is no real store to dry-run against, and optimize/backtest/
+#      verify pull live yfinance prices (out of scope for a scheduled job, same as the live
+#      --refresh path is out of scope for the equivalent job in other repos).
+#   3. Check the remaining live feeds (FRED, French, Damodaran) for a staleness gap; Shiller CAPE
+#      already got one this session (src/pipeline/external/freshness.py).
+# Opens a PR if anything changed. Never writes to data/historical/, data/research/, or
+# data/backtests/ for real.
+# Monthly (1st, 05:00 UTC), not weekly — no other scheduled workflow exists in this repo to avoid
+# colliding with, and the repo is PARKED (README "Status: PARKED") — no active development to
+# keep pace with.
+# Auth: CLAUDE_CODE_OAUTH_TOKEN (generated via `claude setup-token`) must be set as a repo secret
+# before this can run for real — confirmed via `gh secret list` that it is NOT set yet as of
+# 2026-09-07. Draws from the Claude subscription instead of separate API billing.
+on:
+  schedule:
+    - cron: "0 5 1 * *" # 1st of the month, ~05:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+  id-token: write # required by anthropics/claude-code-action's own OIDC token exchange
+
+concurrency:
+  group: self-harden
+  cancel-in-progress: false
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install (locked)
+        run: uv sync --frozen
+
+      - name: Run self-harden pass
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Read tests/test_sec_fundamentals.py, tests/test_sec_quarterly.py, and
+            tests/test_synthetic_store.py first. Do not repeat coverage that already exists
+            there.
+
+            1. Fuzz `pit_factors_from_facts` / `pit_factors_from_prepared` (both must always
+               agree — see `test_prepared_fast_path_matches_pandas_path`'s convention) and
+               `fetch_facts` / `fetch_facts_quarterly` in src/pipeline/sec_fundamentals.py and
+               src/pipeline/sec_quarterly.py. Two invariants are already enforced and MUST NOT
+               regress: `shares` must be a finite, positive number or `market_cap` is None
+               (excluded), never a corrupted number; a fact `value` must be finite or it is
+               dropped before caching, never NaN or +-inf. Push further, adversarial cases
+               beyond those: duplicate (period_end, filed) rows with different values for the
+               same concept, an extreme-magnitude value (e.g. 1e18) that would blow up a ratio
+               downstream, a `filed` date earlier than its own `period_end` (impossible in
+               reality — a filer error), and a concept-priority walk where a lower-priority
+               concept in CONCEPT_MAP/QUARTERLY_CONCEPT_MAP returns rows for a (period_end,
+               filed) pair the higher-priority concept already claimed under a DIFFERENT value
+               (dedup-by-key must keep the first, not silently blend them). If a case produces
+               an unhandled exception instead of a graceful None/excluded/dropped result, or
+               silently corrupts a number instead of excluding the name, fix the smallest code
+               path and add a regression test. If a case already behaves correctly, add the test
+               without changing working code.
+
+            2. `signal-eval`/`ts-eval`/`pead-eval` hardcode relative paths like
+               `Path("data/historical")` — there is no `--data-dir` flag. So the scratch
+               directory's data MUST live at a path literally ending in `data/historical`, and
+               the working directory when you run each command MUST be that path's parent.
+               Concretely, run exactly this (adjust only the mktemp target, nothing else):
+
+               ```
+               SCRATCH=$(mktemp -d)
+               mkdir -p "$SCRATCH/export"
+               python -c "
+               from pathlib import Path
+               from tests.fixtures.synthetic_store import build_synthetic_store
+               build_synthetic_store(Path('$SCRATCH/data/historical'))
+               "
+               cd "$SCRATCH"
+               uv run --project <repo> python <repo>/main.py signal-eval --factors \
+                 momentum,value,quality --fundamentals sec --start 2018-03-01 \
+                 --end 2019-01-01 --frequency monthly --horizon 1 --quantiles 2 \
+                 --min-names-per-bucket 2 --t-gate 0.5 --export "$SCRATCH/export"
+               uv run --project <repo> python <repo>/main.py ts-eval --start 2015-12-22 \
+                 --end 2019-01-01 --bootstrap-n 200 --export "$SCRATCH/export"
+               uv run --project <repo> python <repo>/main.py pead-eval --min-leg 1 \
+                 --bootstrap-n 200 --export "$SCRATCH/export"
+               uv run --project <repo> python <repo>/tools/verify_price_store.py \
+                 --dir "$SCRATCH/data/historical/prices" --spot 0
+               ```
+
+               Confirm each exits 0 AND open each JSON artifact written to `$SCRATCH/export`:
+               `signal-eval`'s must show `N obs` > 0 for every factor (not `range ...  (N obs=0)`
+               and not an empty `factors` list); `ts-eval`'s must show a real `window` with
+               non-null `sharpe_strat`/`sharpe_bench` for every rule; `pead-eval`'s must show
+               `events` > 0 for every measure. A clean exit code with an empty/degenerate JSON
+               means the scratch directory convention above was NOT followed correctly (most
+               likely: `data/historical` wasn't literally in the path) — that is a failure of
+               THIS check, not a legitimate "degenerate small-universe" result, and must be
+               fixed by correcting the paths, not by treating it as a pass. Once the paths are
+               right, it IS correct and expected for verdicts themselves to read FAIL on this
+               tiny synthetic universe (house rule: "degenerate cases fail loudly") — that part
+               is not a bug. Never touch this repo's own `data/historical/`, `data/research/`,
+               or `data/backtests/` — everything above runs against `$SCRATCH` only.
+
+            3. Check whether `src/pipeline/external/fred.py`, `french.py`, and `damodaran.py`
+               have a staleness check comparable to `shiller.py`'s (added this session — do not
+               touch Shiller's). If one is genuinely missing a check on its own live data (not
+               its local on-disk cache validity, which is a different concept already handled by
+               `_is_cache_valid`), add one using `src.pipeline.external.freshness
+               .stale_data_warning`, frozen-date tested, wired in as a warning only (never a
+               hard failure) — matching Shiller's pattern exactly.
+
+            Never touch a pre-registered threshold, gate, spec, or the five-negatives verdicts in
+            the README. Never weaken test_no_lookahead.py, test_pit_integration.py, or any other
+            PIT/leakage adversarial test to make the suite pass. Only ever change files under
+            src/ and tests/.
+
+            Run `uv run pytest -q` and `uv run ruff check src/ tests/` before finishing — both
+            must pass clean. An empty diff is a valid outcome; do not manufacture a change to
+            justify the run. Summarize what you found and fixed, or state plainly that you found
+            nothing.
+          claude_args: '--allowedTools "Read,Edit,Bash"'
+
+      - name: Verify tests and lint pass
+        run: |
+          uv run pytest -q
+          uv run ruff check src/ tests/
+
+      - name: Open PR if anything changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore(self-harden): fuzz fixes and regression tests"
+          title: "self-harden: automated adversarial-QA fixes"
+          branch: self-harden/auto-fix
+          base: main
+          delete-branch: true
+          add-paths: |
+            src/**
+            tests/**

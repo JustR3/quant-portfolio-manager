@@ -23,6 +23,7 @@ from src.constants import (
     CAPE_SCALAR_HIGH,
     CAPE_CACHE_EXPIRY_HOURS,
 )
+from src.pipeline.external.freshness import stale_data_warning
 
 logger = get_logger(__name__)
 
@@ -32,6 +33,12 @@ SHILLER_DATA_URL = "https://www.econ.yale.edu/~shiller/data/ie_data.xls"
 
 # Fallback CAPE value if all sources fail
 FALLBACK_CAPE = 36.5
+
+# Yale publishes CAPE monthly; the tolerance covers their typical few-week publication lag
+# after month-end. Warning-only (self-harden Check #3) — CAPE already has FALLBACK_CAPE, so a
+# stale reading should be visible, never a hard failure.
+SHILLER_UPDATE_CADENCE_DAYS = 35
+SHILLER_STALENESS_TOLERANCE_DAYS = 35
 
 
 def _create_fallback_cape_data() -> pd.DataFrame:
@@ -45,10 +52,12 @@ def _create_fallback_cape_data() -> pd.DataFrame:
 
     logger.warning(f"Using fallback CAPE estimate: {FALLBACK_CAPE}")
 
-    return pd.DataFrame({
-        "Date": [pd.Timestamp(datetime.now().replace(day=1))],
-        "CAPE": [FALLBACK_CAPE],
-    })
+    return pd.DataFrame(
+        {
+            "Date": [pd.Timestamp(datetime.now().replace(day=1))],
+            "CAPE": [FALLBACK_CAPE],
+        }
+    )
 
 
 def download_shiller_data() -> Optional[pd.DataFrame]:
@@ -102,8 +111,8 @@ def download_shiller_data() -> Optional[pd.DataFrame]:
 
             # Convert fractional year to datetime (1871.01 -> Jan 1871)
             df["Year"] = df["Date"].astype(float).apply(lambda x: int(x))
-            df["Month"] = df["Date"].astype(float).apply(
-                lambda x: int((x % 1) * 12) + 1
+            df["Month"] = (
+                df["Date"].astype(float).apply(lambda x: int((x % 1) * 12) + 1)
             )
             df["Date"] = pd.to_datetime(df[["Year", "Month"]].assign(day=1))
 
@@ -149,6 +158,7 @@ def get_shiller_data(
         cached = default_cache.get(cache_key, expiry_hours=cache_expiry_hours)
         if cached is not None:
             logger.debug(f"Loaded Shiller data from cache ({len(cached)} rows)")
+            _warn_if_stale(cached)
             return cached
 
     df = download_shiller_data()
@@ -159,8 +169,28 @@ def get_shiller_data(
 
     if df is not None:
         default_cache.set(cache_key, df)
+        _warn_if_stale(df)
 
     return df
+
+
+def _warn_if_stale(df: pd.DataFrame) -> None:
+    """Log (never raise) if the newest Date in `df` is older than Shiller's own update
+    cadence. Warning-only per self-harden Check #3 — CAPE already has a fallback value."""
+    latest = (
+        df["Date"].max()
+        if (df is not None and "Date" in df.columns and not df.empty)
+        else None
+    )
+    msg = stale_data_warning(
+        latest,
+        pd.Timestamp.now(),
+        cadence_days=SHILLER_UPDATE_CADENCE_DAYS,
+        tolerance_days=SHILLER_STALENESS_TOLERANCE_DAYS,
+        source_name="Shiller CAPE (Yale)",
+    )
+    if msg:
+        logger.warning(msg)
 
 
 def get_current_cape() -> Optional[float]:
@@ -279,8 +309,10 @@ def display_cape_summary(macro: dict) -> None:
     """Print a one-line CAPE / risk-scalar summary for the macro adjustment."""
     cape = macro.get("current_cape")
     cape_str = f"{cape:.1f}" if cape is not None else "n/a"
-    print(f"   CAPE: {cape_str} | Regime: {macro.get('regime', 'UNKNOWN')} | "
-          f"Risk scalar: {macro.get('risk_scalar', 1.0):.2f}x")
+    print(
+        f"   CAPE: {cape_str} | Regime: {macro.get('regime', 'UNKNOWN')} | "
+        f"Risk scalar: {macro.get('risk_scalar', 1.0):.2f}x"
+    )
     desc = macro.get("description")
     if desc:
         print(f"   {desc}")

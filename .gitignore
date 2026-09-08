@@ -38,6 +38,8 @@ config/secrets.env
 # Backtest results
 data/backtests/
 
-# GitHub instructions
-/.github
+# GitHub instructions (kept locally for AI-assistant context only, not published)
 /.github/copilot-instructions.md
+
+# Claude Code agent worktrees (local scratch, not part of the repo)
+/.claude/worktrees/
