@@ -4,6 +4,14 @@ Lightweight working manual. Detail lives in `docs/` (specs in `docs/superpowers/
 plans in `docs/superpowers/plans/`, investigations in `docs/research/`). Full audit history is
 in the agent auto-memory (`memory/audit-findings-2026-06.md`).
 
+## Process rules
+This repo follows the global `~/.claude/CLAUDE.md` process rules as-is. No overrides here
+(unlike some sibling repos). Two rules matter most for this repo's own recent work:
+- Confirm the GitHub token's write-scope before any push.
+- Update docs in the same PR as the code change, and add a regression test that proves each
+  documented command actually runs. `tests/test_cli_help.py` is the existing example of this
+  pattern (added for the `qpm`-doesn't-exist fix) — keep doing that, it is not a new burden.
+
 ## What this is
 An **honest point-in-time equity research harness** — three decoupled evaluation gates
 (`signal-eval` cross-sectional, `ts-eval` time-series, `pead-eval` event-time), two SEC PIT data

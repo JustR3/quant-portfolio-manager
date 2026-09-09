@@ -1,0 +1,88 @@
+name: doc-drift
+
+# Monthly sweep that checks every command shown in README.md/docs still runs, and fixes stale
+# YAML front-matter headers. Opens a PR if anything changed.
+# Auth: CLAUDE_CODE_OAUTH_TOKEN (generated via `claude setup-token`), so runs draw from the
+# Claude subscription instead of separate API billing — same as self-harden.yml.
+#
+# No `pull_request` trigger: GitHub requires manual approval for any workflow run triggered by
+# a pull_request whose author is github-actions[bot] (github.blog/changelog/2026-06-11). Since
+# this job's own auto-fix PR is opened by that bot via the default GITHUB_TOKEN, a pull_request
+# trigger here would get stuck as `action_required` on every run of its own PR and never
+# actually execute — the exact bug hit and fixed in the sibling "Dynamic DCA" repo's
+# doc-drift.yml (see its own file for the PR reference). self-harden.yml never had this problem
+# because it was never given a pull_request trigger in the first place — this file matches that
+# same pattern.
+#
+# Monthly (1st, ~06:00 UTC), matching self-harden.yml's cadence family (1st of month) — offset
+# one hour so the two jobs don't start at the exact same minute. This repo is PARKED (README
+# "Status: PARKED" / this file's own CLAUDE.md "Direction: PARKED") — deliberately low-frequency,
+# not actively developed. This is a markdown/docs hygiene check only: it does not run backtests,
+# optimization, or any live/refresh cycle, and does not touch data/historical/, data/research/,
+# or data/backtests/.
+on:
+  schedule:
+    - cron: "0 6 1 * *" # 1st of the month, ~06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+  id-token: write # required by anthropics/claude-code-action's own OIDC token exchange
+
+concurrency:
+  group: doc-drift
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install (locked)
+        run: uv sync --frozen
+
+      - name: Run doc-drift check
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Check every command shown in README.md and docs/ actually runs (this repo is run via
+            `uv run ./main.py ...` — there is no installed `qpm` binary; see CLAUDE.md).
+            Fix stale YAML front-matter headers. Never touch a pre-registered threshold, gate,
+            spec, or the five-negatives verdicts in the README. Never run anything that writes to
+            data/historical/, data/research/, or data/backtests/. Summarize what you changed and
+            why, or state plainly that you found nothing.
+          claude_args: '--allowedTools "Read,Edit,Bash"'
+
+      - name: Verify tests and lint pass
+        run: |
+          uv run pytest -q
+          uv run ruff check .
+
+      - name: Open PR if anything changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore(doc-drift): fix stale docs and examples"
+          title: "doc-drift: automated doc/example fixes"
+          branch: doc-drift/auto-fix
+          base: main
+          delete-branch: true
+          add-paths: |
+            README.md
+            docs/**
+            *.md
