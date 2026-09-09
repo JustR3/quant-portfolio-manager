@@ -154,7 +154,7 @@ If a test merely asserts non-None, it is wrong — delete it.
 
 ## 9. Deliverable
 
-Run `qpm ts-eval --rules a1_sma,a2_combined,a3_vix,b1_voltarget,b2_volfilter` over the
+Run `uv run ./main.py ts-eval --rules a1_sma,a2_combined,a3_vix,b1_voltarget,b2_volfilter` over the
 pre-registered windows (offline, from the extended store). Record in
 `docs/research/2026-06-10-ts-timing-study-results.md`: probe output (window pins), per-rule
 full-window + sub-window excess Sharpes (strategy vs benchmark), turnover, total cost drag, timing

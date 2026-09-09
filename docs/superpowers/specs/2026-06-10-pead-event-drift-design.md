@@ -139,7 +139,7 @@ next workstream.
 
 ## 8. Deliverable
 
-Run `qpm pead-eval` (all three measures, pre-registered defaults) after Tasks pass. Record in
+Run `uv run ./main.py pead-eval` (all three measures, pre-registered defaults) after Tasks pass. Record in
 `docs/research/2026-06-10-pead-event-drift-results.md`: probe + build coverage stats, per-measure
 verdict table (spread mean/ann., thirds, monotonicity, alpha, p_boot, NW-t, turnover, cost drag,
 events used), H=20 diagnostic, caveats, and the stopping-rule consequence. Update CLAUDE.md

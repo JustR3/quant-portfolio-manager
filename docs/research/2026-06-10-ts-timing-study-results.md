@@ -6,7 +6,7 @@
 - **Code:** `src/research/ts_signals.py` / `ts_eval.py` / `ts_results.py` / `ts_command.py`;
   `qpm ts-eval`; data via `tools/download_ts_universe.py` into `data/historical/ts/` (separate
   base dir; signal-eval's universe glob untouched).
-- **Run:** `qpm ts-eval` (all five rules, pre-registered defaults: shift-1, 10 bps/side, ^IRX cash,
+- **Run:** `uv run ./main.py ts-eval` (all five rules, pre-registered defaults: shift-1, 10 bps/side, ^IRX cash,
   B=10,000, seed 42, p<0.01 Bonferroni k=5). Artifact `data/research/ts-eval-20260610_142220.json`
   (shift-2 diagnostic: `ts-eval-20260610_142252.json`).
 
