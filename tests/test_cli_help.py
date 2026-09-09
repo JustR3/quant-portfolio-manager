@@ -12,6 +12,7 @@ so a regression is caught by executing the help text's own advice, not by
 inspecting source strings.
 """
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -19,15 +20,31 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).parent.parent
+MAIN_PY = PROJECT_ROOT / "main.py"
 WORKING_PROG = "uv run ./main.py"
 
+# Every top-level subcommand main.py's parser defines. Kept as an explicit
+# list (rather than introspected from argparse) so a newly added subcommand
+# fails this suite until someone adds it here and confirms its help text.
+ALL_SUBCOMMANDS = [
+    "optimize",
+    "verify",
+    "backtest",
+    "signal-eval",
+    "ts-eval",
+    "pead-eval",
+    "portfolio",
+]
 
-def run_cli(*args: str) -> subprocess.CompletedProcess:
+
+def run_cli(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
     """Run main.py the same way `uv run ./main.py <args>` would, without
-    depending on `uv` being on PATH in the test environment."""
+    depending on `uv` being on PATH in the test environment. `main.py` is
+    given as an absolute path so this works even when `cwd` is a scratch
+    directory that doesn't contain a copy of the script."""
     return subprocess.run(
-        [sys.executable, "main.py", *args],
-        cwd=PROJECT_ROOT,
+        [sys.executable, str(MAIN_PY), *args],
+        cwd=cwd or PROJECT_ROOT,
         capture_output=True,
         text=True,
         timeout=30,
@@ -35,7 +52,8 @@ def run_cli(*args: str) -> subprocess.CompletedProcess:
 
 
 @pytest.mark.parametrize(
-    "args", [("--help",), ("optimize", "--help"), ("backtest", "--help")]
+    "args",
+    [("--help",), *[(cmd, "--help") for cmd in ALL_SUBCOMMANDS]],
 )
 def test_help_never_shows_the_broken_qpm_command(args):
     result = run_cli(*args)
@@ -94,3 +112,34 @@ def test_every_example_in_help_is_actually_runnable_as_dash_dash_help():
         assert check.returncode == 0, (
             f"`{WORKING_PROG} {subcommand} --help` failed:\n{check.stderr}"
         )
+
+
+def test_portfolio_list_hint_uses_the_real_command_when_no_snapshots_exist(tmp_path):
+    """`portfolio list` prints a "Create one with: ..." hint when
+    data/portfolios/ has no snapshots. That hint is a separate f-string
+    from the --help text and was not covered by the tests above."""
+    (tmp_path / "data" / "portfolios").mkdir(parents=True)
+
+    result = run_cli("portfolio", "list", cwd=tmp_path)
+
+    assert result.returncode == 0
+    assert "qpm" not in result.stdout
+    assert f"Create one with: {WORKING_PROG} optimize --export" in result.stdout
+
+
+def test_portfolio_list_hint_uses_the_real_command_when_snapshots_exist(tmp_path):
+    """With at least one snapshot present, `portfolio list` instead prints a
+    "Validate with: ..." hint. Also not covered by the --help-only tests."""
+    portfolios_dir = tmp_path / "data" / "portfolios"
+    portfolios_dir.mkdir(parents=True)
+    snapshot = {
+        "metadata": {"snapshot_date": "2026-01-01T00:00:00", "capital": 10000},
+        "positions": [{"ticker": "AAPL", "weight": 1.0}],
+    }
+    (portfolios_dir / "sample_snapshot.json").write_text(json.dumps(snapshot))
+
+    result = run_cli("portfolio", "list", cwd=tmp_path)
+
+    assert result.returncode == 0
+    assert "qpm" not in result.stdout
+    assert f"Validate with: {WORKING_PROG} portfolio validate" in result.stdout
