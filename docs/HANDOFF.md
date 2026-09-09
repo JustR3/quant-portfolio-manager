@@ -48,3 +48,16 @@ One line per checkpoint. Newest at the bottom.
   empty/degenerate JSON — rewrote it as an exact, copy-pasteable script and added an explicit
   "open the JSON and check N obs/events > 0" bar so a wrong-directory run can't pass as a
   legitimate small-universe result. 259/259 tests pass, ruff clean.
+- fix (branch `fix-cli-prog-name`, off `main`): `main.py`'s `--help` output and its runtime hints
+  (no-args screen, `portfolio list`'s "Create one with"/"Validate with" lines) all told users to
+  run `qpm ...`, but nothing in this repo's setup installs a `qpm` binary — the only command that
+  runs here is `uv run ./main.py ...` (what README.md already documents everywhere else). Root
+  cause: argparse's `prog="qpm"` plus 8 hardcoded `"qpm ..."` literals. Fixed by introducing one
+  `PROG = "uv run ./main.py"` constant and using it everywhere the CLI prints its own invocation.
+  Added `tests/test_cli_help.py` (13 tests): runs the real CLI as a subprocess and asserts no
+  `--help` screen (all 7 subcommands + top-level) or runtime hint contains `qpm`, and that every
+  example line in the epilog is runnable. A fresh adversarial-review subagent (spec + diff only)
+  found the first version of that test file only checked 3 of 7 subcommands' `--help` and never
+  exercised the two `portfolio list` runtime hints — both fixed by parametrizing over every
+  subcommand and adding two isolated-`tmp_path` tests for the no-snapshots/has-snapshots hint
+  paths. 285/285 tests pass, ruff clean.

@@ -18,6 +18,7 @@ try:
     from rich.table import Table
     from rich.panel import Panel
     from rich import box
+
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
@@ -25,8 +26,10 @@ except ImportError:
 from src.logging_config import setup_logging, get_logger
 from src.models.factor_engine import FactorEngine
 from src.pipeline.systematic_workflow import (
-    run_systematic_portfolio, display_portfolio_summary,
-    fallback_notice, FACTOR_VALIDITY_DISCLAIMER,
+    run_systematic_portfolio,
+    display_portfolio_summary,
+    fallback_notice,
+    FACTOR_VALIDITY_DISCLAIMER,
 )
 from src.backtesting.engine import BacktestEngine
 from src.research.command import run_signal_eval
@@ -38,6 +41,11 @@ setup_logging()
 logger = get_logger(__name__)
 
 console = Console() if HAS_RICH else None
+
+# The command shown in help text and hints. It must be the command that
+# actually runs in this repo. This repo has no installed `qpm` binary.
+# The only command that works here is `uv run ./main.py`.
+PROG = "uv run ./main.py"
 
 
 def print_msg(msg: str, style: str = "info"):
@@ -60,245 +68,484 @@ def print_header(title: str):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        prog="qpm",
+        prog=PROG,
         description="Systematic Quantitative Portfolio Manager",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=f"""
 Examples:
-  qpm optimize --universe sp500 --top-n 50          Build portfolio from large-cap stocks
-  qpm optimize --universe russell2000 --top-n 100   Build portfolio from small-cap stocks
-  qpm optimize --universe nasdaq100 --top-n 50      Build portfolio from tech/growth stocks
-  qpm optimize --universe combined --top-n 150      Build from full market (large + small cap)
-  qpm optimize --use-macro --use-french             Enable macro & factor adjustments
-  qpm verify NVDA                                    Verify stock factor ranking
-  qpm backtest --start 2023-01-01 --end 2023-12-31 --top-n 20   Test strategy
-        """
+  {PROG} optimize --universe sp500 --top-n 50          Build portfolio from large-cap stocks
+  {PROG} optimize --universe russell2000 --top-n 100   Build portfolio from small-cap stocks
+  {PROG} optimize --universe nasdaq100 --top-n 50      Build portfolio from tech/growth stocks
+  {PROG} optimize --universe combined --top-n 150      Build from full market (large + small cap)
+  {PROG} optimize --use-macro --use-french             Enable macro & factor adjustments
+  {PROG} verify NVDA                                    Verify stock factor ranking
+  {PROG} backtest --start 2023-01-01 --end 2023-12-31 --top-n 20   Test strategy
+        """,
     )
     sub = parser.add_subparsers(
         dest="module",
         title="commands",
         metavar="COMMAND",
-        description="Available commands"
+        description="Available commands",
     )
-    
+
     # Optimize command - systematic factor-based
     opt = sub.add_parser(
         "optimize",
         aliases=["opt"],
         help="Systematic portfolio optimization using factor-based Black-Litterman",
-        description="Build optimized portfolios using multi-factor stock ranking"
+        description="Build optimized portfolios using multi-factor stock ranking",
     )
-    opt.add_argument("--universe", type=str, default="sp500", 
-                     choices=["sp500", "russell2000", "nasdaq100", "combined", "custom"],
-                     help="Stock universe: sp500 (large-cap), russell2000 (small-cap), nasdaq100 (tech/growth), combined (sp500+russell2000), custom (default: sp500)")
-    opt.add_argument("--tickers", type=str, nargs="+", metavar="TICKER",
-                     help="Custom ticker list (requires --universe custom). Example: --universe custom --tickers AAPL MSFT NVDA")
-    opt.add_argument("--top-n", type=int, default=50, metavar="N",
-                     help="Number of top stocks by market cap to analyze (default: 50)")
-    opt.add_argument("--optimize-top", type=int, default=None, metavar="N",
-                     help="Number of top-ranked stocks for optimization (default: same as --top-n)")
-    opt.add_argument("--objective", type=str, default="max_sharpe",
-                     choices=["max_sharpe", "min_volatility", "max_quadratic_utility"],
-                     help="Optimization objective (default: max_sharpe)")
-    opt.add_argument("--use-macro", action="store_true",
-                     help="Apply Shiller CAPE-based equity risk adjustment")
-    opt.add_argument("--use-french", action="store_true",
-                     help="Apply Fama-French factor regime tilts")
-    opt.add_argument("--use-regime", action="store_true",
-                     help="Apply regime-based portfolio exposure adjustment")
-    opt.add_argument("--regime-method", type=str, default="combined",
-                     choices=["sma", "vix", "combined"],
-                     help="Regime detection method (default: combined)")
-    opt.add_argument("--regime-risk-off", type=float, default=0.50,
-                     help="Equity exposure in RISK_OFF regime (default: 0.50)")
-    opt.add_argument("--regime-caution", type=float, default=0.75,
-                     help="Equity exposure in CAUTION regime (default: 0.75)")
-    opt.add_argument("--export", type=str, metavar="FILE",
-                     help="Export portfolio weights to CSV")
-    opt.add_argument("--batch-size", type=int, default=50,
-                     help="Batch size for data fetching (default: 50)")
-    opt.add_argument("--min-sharpe", type=float, default=None, metavar="RATIO",
-                     help="Minimum target Sharpe ratio (e.g., 1.5 for 1.5:1 return-to-volatility). Default: 1.5")
-    opt.add_argument("--long-short", action="store_true",
-                     help="Enable long/short strategy (130/30 by default)")
-    opt.add_argument("--long-exposure", type=float, default=1.3, metavar="PCT",
-                     help="Long exposure as decimal (default: 1.3 for 130%%)")
-    opt.add_argument("--short-exposure", type=float, default=0.3, metavar="PCT",
-                     help="Short exposure as decimal (default: 0.3 for 30%%)")
-    
+    opt.add_argument(
+        "--universe",
+        type=str,
+        default="sp500",
+        choices=["sp500", "russell2000", "nasdaq100", "combined", "custom"],
+        help="Stock universe: sp500 (large-cap), russell2000 (small-cap), nasdaq100 (tech/growth), combined (sp500+russell2000), custom (default: sp500)",
+    )
+    opt.add_argument(
+        "--tickers",
+        type=str,
+        nargs="+",
+        metavar="TICKER",
+        help="Custom ticker list (requires --universe custom). Example: --universe custom --tickers AAPL MSFT NVDA",
+    )
+    opt.add_argument(
+        "--top-n",
+        type=int,
+        default=50,
+        metavar="N",
+        help="Number of top stocks by market cap to analyze (default: 50)",
+    )
+    opt.add_argument(
+        "--optimize-top",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Number of top-ranked stocks for optimization (default: same as --top-n)",
+    )
+    opt.add_argument(
+        "--objective",
+        type=str,
+        default="max_sharpe",
+        choices=["max_sharpe", "min_volatility", "max_quadratic_utility"],
+        help="Optimization objective (default: max_sharpe)",
+    )
+    opt.add_argument(
+        "--use-macro",
+        action="store_true",
+        help="Apply Shiller CAPE-based equity risk adjustment",
+    )
+    opt.add_argument(
+        "--use-french",
+        action="store_true",
+        help="Apply Fama-French factor regime tilts",
+    )
+    opt.add_argument(
+        "--use-regime",
+        action="store_true",
+        help="Apply regime-based portfolio exposure adjustment",
+    )
+    opt.add_argument(
+        "--regime-method",
+        type=str,
+        default="combined",
+        choices=["sma", "vix", "combined"],
+        help="Regime detection method (default: combined)",
+    )
+    opt.add_argument(
+        "--regime-risk-off",
+        type=float,
+        default=0.50,
+        help="Equity exposure in RISK_OFF regime (default: 0.50)",
+    )
+    opt.add_argument(
+        "--regime-caution",
+        type=float,
+        default=0.75,
+        help="Equity exposure in CAUTION regime (default: 0.75)",
+    )
+    opt.add_argument(
+        "--export", type=str, metavar="FILE", help="Export portfolio weights to CSV"
+    )
+    opt.add_argument(
+        "--batch-size",
+        type=int,
+        default=50,
+        help="Batch size for data fetching (default: 50)",
+    )
+    opt.add_argument(
+        "--min-sharpe",
+        type=float,
+        default=None,
+        metavar="RATIO",
+        help="Minimum target Sharpe ratio (e.g., 1.5 for 1.5:1 return-to-volatility). Default: 1.5",
+    )
+    opt.add_argument(
+        "--long-short",
+        action="store_true",
+        help="Enable long/short strategy (130/30 by default)",
+    )
+    opt.add_argument(
+        "--long-exposure",
+        type=float,
+        default=1.3,
+        metavar="PCT",
+        help="Long exposure as decimal (default: 1.3 for 130%%)",
+    )
+    opt.add_argument(
+        "--short-exposure",
+        type=float,
+        default=0.3,
+        metavar="PCT",
+        help="Short exposure as decimal (default: 0.3 for 30%%)",
+    )
+
     # Verify command
     verify = sub.add_parser(
         "verify",
         help="Audit stock rankings using multi-factor model",
-        description="Analyze a stock's quantitative ranking across value, quality, and momentum"
+        description="Analyze a stock's quantitative ranking across value, quality, and momentum",
     )
     verify.add_argument("ticker", help="Ticker symbol to verify")
-    verify.add_argument("--universe", nargs="+", metavar="TICKER",
-                       help="Custom universe of tickers (default: predefined)")
-    
+    verify.add_argument(
+        "--universe",
+        nargs="+",
+        metavar="TICKER",
+        help="Custom universe of tickers (default: predefined)",
+    )
+
     # Backtest command
     backtest = sub.add_parser(
         "backtest",
         aliases=["bt"],
         help="Backtest systematic strategy with walk-forward validation",
-        description="Test portfolio performance on historical data with monthly/quarterly rebalancing"
+        description="Test portfolio performance on historical data with monthly/quarterly rebalancing",
     )
-    backtest.add_argument("--start", type=str, required=True, metavar="YYYY-MM-DD",
-                         help="Backtest start date")
-    backtest.add_argument("--end", type=str, required=True, metavar="YYYY-MM-DD",
-                         help="Backtest end date")
-    backtest.add_argument("--frequency", type=str, default="monthly", 
-                         choices=["monthly", "quarterly"],
-                         help="Rebalancing frequency (default: monthly)")
-    backtest.add_argument("--universe", type=str, default="sp500",
-                         choices=["sp500", "russell2000", "nasdaq100", "combined", "custom"],
-                         help="Stock universe: sp500 (large-cap), russell2000 (small-cap), nasdaq100 (tech/growth), combined (sp500+russell2000)")
-    backtest.add_argument("--tickers", type=str, nargs="+", metavar="TICKER",
-                         help="Custom ticker list (requires --universe custom). Example: --universe custom --tickers AAPL MSFT NVDA")
-    backtest.add_argument("--top-n", type=int, default=50, metavar="N",
-                         help="Number of top stocks by market cap (default: 50)")
-    backtest.add_argument("--optimize-top", type=int, default=None, metavar="N",
-                         help="Number of top-ranked stocks for optimization (default: same as --top-n)")
-    backtest.add_argument("--capital", type=float, default=10000.0, metavar="AMOUNT",
-                         help="Initial capital for backtest (default: 10000)")
-    backtest.add_argument("--transaction-cost-bps", type=float, default=10.0, metavar="BPS",
-                         help="Per-side transaction cost (bps) charged on turnover (default: 10)")
-    backtest.add_argument("--use-macro", action="store_true",
-                         help="Apply Shiller CAPE-based equity risk adjustment")
-    backtest.add_argument("--use-french", action="store_true",
-                         help="Apply Fama-French factor regime tilts")
-    backtest.add_argument("--use-regime", action="store_true",
-                         help="Apply regime-based portfolio exposure adjustment")
-    backtest.add_argument("--regime-method", type=str, default="combined",
-                         choices=["sma", "vix", "combined"],
-                         help="Regime detection method (default: combined)")
-    backtest.add_argument("--regime-risk-off", type=float, default=0.50,
-                         help="Equity exposure in RISK_OFF regime (default: 0.50)")
-    backtest.add_argument("--regime-caution", type=float, default=0.75,
-                         help="Equity exposure in CAUTION regime (default: 0.75)")
-    backtest.add_argument("--export", type=str, metavar="DIR",
-                         help="Export results to directory (default: data/backtests/)")
-    backtest.add_argument("--min-sharpe", type=float, default=None, metavar="RATIO",
-                         help="Minimum target Sharpe ratio (e.g., 1.5 for 1.5:1 return-to-volatility). Default: 1.5")
-    
+    backtest.add_argument(
+        "--start",
+        type=str,
+        required=True,
+        metavar="YYYY-MM-DD",
+        help="Backtest start date",
+    )
+    backtest.add_argument(
+        "--end", type=str, required=True, metavar="YYYY-MM-DD", help="Backtest end date"
+    )
+    backtest.add_argument(
+        "--frequency",
+        type=str,
+        default="monthly",
+        choices=["monthly", "quarterly"],
+        help="Rebalancing frequency (default: monthly)",
+    )
+    backtest.add_argument(
+        "--universe",
+        type=str,
+        default="sp500",
+        choices=["sp500", "russell2000", "nasdaq100", "combined", "custom"],
+        help="Stock universe: sp500 (large-cap), russell2000 (small-cap), nasdaq100 (tech/growth), combined (sp500+russell2000)",
+    )
+    backtest.add_argument(
+        "--tickers",
+        type=str,
+        nargs="+",
+        metavar="TICKER",
+        help="Custom ticker list (requires --universe custom). Example: --universe custom --tickers AAPL MSFT NVDA",
+    )
+    backtest.add_argument(
+        "--top-n",
+        type=int,
+        default=50,
+        metavar="N",
+        help="Number of top stocks by market cap (default: 50)",
+    )
+    backtest.add_argument(
+        "--optimize-top",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Number of top-ranked stocks for optimization (default: same as --top-n)",
+    )
+    backtest.add_argument(
+        "--capital",
+        type=float,
+        default=10000.0,
+        metavar="AMOUNT",
+        help="Initial capital for backtest (default: 10000)",
+    )
+    backtest.add_argument(
+        "--transaction-cost-bps",
+        type=float,
+        default=10.0,
+        metavar="BPS",
+        help="Per-side transaction cost (bps) charged on turnover (default: 10)",
+    )
+    backtest.add_argument(
+        "--use-macro",
+        action="store_true",
+        help="Apply Shiller CAPE-based equity risk adjustment",
+    )
+    backtest.add_argument(
+        "--use-french",
+        action="store_true",
+        help="Apply Fama-French factor regime tilts",
+    )
+    backtest.add_argument(
+        "--use-regime",
+        action="store_true",
+        help="Apply regime-based portfolio exposure adjustment",
+    )
+    backtest.add_argument(
+        "--regime-method",
+        type=str,
+        default="combined",
+        choices=["sma", "vix", "combined"],
+        help="Regime detection method (default: combined)",
+    )
+    backtest.add_argument(
+        "--regime-risk-off",
+        type=float,
+        default=0.50,
+        help="Equity exposure in RISK_OFF regime (default: 0.50)",
+    )
+    backtest.add_argument(
+        "--regime-caution",
+        type=float,
+        default=0.75,
+        help="Equity exposure in CAUTION regime (default: 0.75)",
+    )
+    backtest.add_argument(
+        "--export",
+        type=str,
+        metavar="DIR",
+        help="Export results to directory (default: data/backtests/)",
+    )
+    backtest.add_argument(
+        "--min-sharpe",
+        type=float,
+        default=None,
+        metavar="RATIO",
+        help="Minimum target Sharpe ratio (e.g., 1.5 for 1.5:1 return-to-volatility). Default: 1.5",
+    )
+
     # Signal-eval command (factor-isolation research study)
     sig = sub.add_parser(
         "signal-eval",
         help="Measure raw factor predictive power (rank-IC + quantile spreads), no optimizer",
         description="Signal-isolation study: rank-IC and long-short quantile spreads per factor",
     )
-    sig.add_argument("--factors", type=str, default="momentum,value,quality",
-                     help="Comma-separated subset of: momentum,value,quality,"
-                          "gross_profitability,net_issuance,asset_growth")
-    sig.add_argument("--frequency", type=str, default="monthly",
-                     choices=["monthly", "quarterly"], help="Observation cadence (default: monthly)")
-    sig.add_argument("--horizon", type=int, default=1, metavar="MONTHS",
-                     help="Forward-return horizon in months (default: 1; non-overlapping with monthly)")
-    sig.add_argument("--quantiles", type=int, default=10, help="Number of quantile buckets (default: 10)")
-    sig.add_argument("--min-names-per-bucket", type=int, default=10,
-                     help="Skip dates with fewer measurable names than this (default: 10)")
-    sig.add_argument("--start", type=str, default="2016-01-01", help="Study start (YYYY-MM-DD)")
-    sig.add_argument("--end", type=str, default="2026-06-01", help="Study end (YYYY-MM-DD)")
-    sig.add_argument("--transaction-cost-bps", type=float, default=10.0,
-                     help="Per-side cost bps on leg turnover for the NET spread (default: 10)")
-    sig.add_argument("--fundamentals", type=str, default="yfinance",
-                     choices=["yfinance", "sec"],
-                     help="Fundamentals source for Value/Quality (default: yfinance)")
-    sig.add_argument("--t-gate", dest="t_gate", type=float, default=2.0, metavar="T",
-                     help="|t|-stat gate for PASS (default 2.0; pre-registered k=3 set uses 2.4)")
-    sig.add_argument("--export", type=str, metavar="DIR", help="Directory for the JSON artifact")
+    sig.add_argument(
+        "--factors",
+        type=str,
+        default="momentum,value,quality",
+        help="Comma-separated subset of: momentum,value,quality,"
+        "gross_profitability,net_issuance,asset_growth",
+    )
+    sig.add_argument(
+        "--frequency",
+        type=str,
+        default="monthly",
+        choices=["monthly", "quarterly"],
+        help="Observation cadence (default: monthly)",
+    )
+    sig.add_argument(
+        "--horizon",
+        type=int,
+        default=1,
+        metavar="MONTHS",
+        help="Forward-return horizon in months (default: 1; non-overlapping with monthly)",
+    )
+    sig.add_argument(
+        "--quantiles",
+        type=int,
+        default=10,
+        help="Number of quantile buckets (default: 10)",
+    )
+    sig.add_argument(
+        "--min-names-per-bucket",
+        type=int,
+        default=10,
+        help="Skip dates with fewer measurable names than this (default: 10)",
+    )
+    sig.add_argument(
+        "--start", type=str, default="2016-01-01", help="Study start (YYYY-MM-DD)"
+    )
+    sig.add_argument(
+        "--end", type=str, default="2026-06-01", help="Study end (YYYY-MM-DD)"
+    )
+    sig.add_argument(
+        "--transaction-cost-bps",
+        type=float,
+        default=10.0,
+        help="Per-side cost bps on leg turnover for the NET spread (default: 10)",
+    )
+    sig.add_argument(
+        "--fundamentals",
+        type=str,
+        default="yfinance",
+        choices=["yfinance", "sec"],
+        help="Fundamentals source for Value/Quality (default: yfinance)",
+    )
+    sig.add_argument(
+        "--t-gate",
+        dest="t_gate",
+        type=float,
+        default=2.0,
+        metavar="T",
+        help="|t|-stat gate for PASS (default 2.0; pre-registered k=3 set uses 2.4)",
+    )
+    sig.add_argument(
+        "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
+    )
 
     # TS-eval command (iter-5 time-series timing study)
     tse = sub.add_parser(
         "ts-eval",
         help="Evaluate pre-registered time-series timing rules vs buy-and-hold (iter-5)",
         description="TS timing study: net-of-cost timing rules vs B&H with bootstrapped "
-                    "timing alpha (spec: docs/superpowers/specs/2026-06-10-ts-timing-study-design.md)",
+        "timing alpha (spec: docs/superpowers/specs/2026-06-10-ts-timing-study-design.md)",
     )
-    tse.add_argument("--rules", type=str,
-                     default="a1_sma,a2_combined,a3_vix,b1_voltarget,b2_volfilter",
-                     help="Comma-separated subset of: a1_sma,a2_combined,a3_vix,"
-                          "b1_voltarget,b2_volfilter (default: all five)")
-    tse.add_argument("--start", type=str, default=None,
-                     help="Optional window start (YYYY-MM-DD); only NARROWS the "
-                          "availability-derived pre-registered windows")
-    tse.add_argument("--end", type=str, default="2026-05-31",
-                     help="Window end (default 2026-05-31, pre-registered)")
-    tse.add_argument("--cost-bps", dest="cost_bps", type=float, default=10.0,
-                     help="Per-side cost bps on exposure turnover (default: 10)")
-    tse.add_argument("--bootstrap-n", dest="bootstrap_n", type=int, default=10000,
-                     help="Stationary-bootstrap resamples (default: 10000)")
-    tse.add_argument("--seed", type=int, default=42, help="Bootstrap seed (default: 42)")
-    tse.add_argument("--shift", type=int, default=1,
-                     help="Execution lag in days (default 1 = pre-registered; 2 = robustness "
-                          "diagnostic, NOT gated)")
-    tse.add_argument("--export", type=str, metavar="DIR", help="Directory for the JSON artifact")
+    tse.add_argument(
+        "--rules",
+        type=str,
+        default="a1_sma,a2_combined,a3_vix,b1_voltarget,b2_volfilter",
+        help="Comma-separated subset of: a1_sma,a2_combined,a3_vix,"
+        "b1_voltarget,b2_volfilter (default: all five)",
+    )
+    tse.add_argument(
+        "--start",
+        type=str,
+        default=None,
+        help="Optional window start (YYYY-MM-DD); only NARROWS the "
+        "availability-derived pre-registered windows",
+    )
+    tse.add_argument(
+        "--end",
+        type=str,
+        default="2026-05-31",
+        help="Window end (default 2026-05-31, pre-registered)",
+    )
+    tse.add_argument(
+        "--cost-bps",
+        dest="cost_bps",
+        type=float,
+        default=10.0,
+        help="Per-side cost bps on exposure turnover (default: 10)",
+    )
+    tse.add_argument(
+        "--bootstrap-n",
+        dest="bootstrap_n",
+        type=int,
+        default=10000,
+        help="Stationary-bootstrap resamples (default: 10000)",
+    )
+    tse.add_argument(
+        "--seed", type=int, default=42, help="Bootstrap seed (default: 42)"
+    )
+    tse.add_argument(
+        "--shift",
+        type=int,
+        default=1,
+        help="Execution lag in days (default 1 = pre-registered; 2 = robustness "
+        "diagnostic, NOT gated)",
+    )
+    tse.add_argument(
+        "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
+    )
 
     # PEAD-eval command (iter-6 SEC-event drift study)
     pead = sub.add_parser(
         "pead-eval",
         help="Evaluate pre-registered post-SEC-filing drift measures (iter-6)",
         description="PEAD event study: calendar-time long-short quintile spreads on SUE/EAR "
-                    "(spec: docs/superpowers/specs/2026-06-10-pead-event-drift-design.md)",
+        "(spec: docs/superpowers/specs/2026-06-10-pead-event-drift-design.md)",
     )
-    pead.add_argument("--measures", type=str, default="sue_e,sue_r,ear",
-                      help="Comma-separated subset of: sue_e,sue_r,ear (default: all three)")
-    pead.add_argument("--horizon", type=int, default=60,
-                      help="Holding horizon in trading days (default 60, pre-registered)")
-    pead.add_argument("--min-leg", dest="min_leg", type=int, default=10,
-                      help="Min names per leg, else the day is excluded (default: 10)")
-    pead.add_argument("--cost-bps", dest="cost_bps", type=float, default=10.0,
-                      help="Per-side cost bps on daily weight changes (default: 10)")
-    pead.add_argument("--bootstrap-n", dest="bootstrap_n", type=int, default=10000,
-                      help="Stationary-bootstrap resamples (default: 10000)")
-    pead.add_argument("--seed", type=int, default=42, help="Bootstrap seed (default: 42)")
-    pead.add_argument("--export", type=str, metavar="DIR", help="Directory for the JSON artifact")
+    pead.add_argument(
+        "--measures",
+        type=str,
+        default="sue_e,sue_r,ear",
+        help="Comma-separated subset of: sue_e,sue_r,ear (default: all three)",
+    )
+    pead.add_argument(
+        "--horizon",
+        type=int,
+        default=60,
+        help="Holding horizon in trading days (default 60, pre-registered)",
+    )
+    pead.add_argument(
+        "--min-leg",
+        dest="min_leg",
+        type=int,
+        default=10,
+        help="Min names per leg, else the day is excluded (default: 10)",
+    )
+    pead.add_argument(
+        "--cost-bps",
+        dest="cost_bps",
+        type=float,
+        default=10.0,
+        help="Per-side cost bps on daily weight changes (default: 10)",
+    )
+    pead.add_argument(
+        "--bootstrap-n",
+        dest="bootstrap_n",
+        type=int,
+        default=10000,
+        help="Stationary-bootstrap resamples (default: 10000)",
+    )
+    pead.add_argument(
+        "--seed", type=int, default=42, help="Bootstrap seed (default: 42)"
+    )
+    pead.add_argument(
+        "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
+    )
 
     # Portfolio command - snapshot validation
     portfolio = sub.add_parser(
         "portfolio",
         help="Manage and validate portfolio snapshots",
-        description="Validate forward performance of portfolio snapshots"
+        description="Validate forward performance of portfolio snapshots",
     )
     portfolio_sub = portfolio.add_subparsers(dest="portfolio_action", required=True)
-    
+
     # portfolio validate subcommand
     validate_cmd = portfolio_sub.add_parser(
         "validate",
         help="Validate a portfolio snapshot against current prices",
-        description="Compare expected vs realized returns for a portfolio snapshot"
+        description="Compare expected vs realized returns for a portfolio snapshot",
     )
     validate_cmd.add_argument("snapshot", help="Path to portfolio snapshot JSON file")
-    
+
     # portfolio list subcommand
     portfolio_sub.add_parser(
         "list",
         help="List all available portfolio snapshots",
-        description="Show all portfolio snapshots in data/portfolios/"
+        description="Show all portfolio snapshots in data/portfolios/",
     )
-    
+
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    
+
     if args.module is None:
         print("\nSystematic Quantitative Portfolio Manager")
         print("==========================================")
         print("\nCommands:")
-        print("  qpm optimize    - Build systematic factor-based portfolio")
-        print("  qpm verify TICK - Verify stock factor ranking")
-        print("  qpm backtest    - Test strategy on historical data")
-        print("  qpm portfolio   - Manage and validate portfolio snapshots")
+        print(f"  {PROG} optimize    - Build systematic factor-based portfolio")
+        print(f"  {PROG} verify TICK - Verify stock factor ranking")
+        print(f"  {PROG} backtest    - Test strategy on historical data")
+        print(f"  {PROG} portfolio   - Manage and validate portfolio snapshots")
         print("\nFor DCF analysis: uv run python dcf_cli.py")
-        print("\nUse 'qpm COMMAND -h' for detailed help\n")
+        print(f"\nUse '{PROG} COMMAND -h' for detailed help\n")
         return
-    
+
     # Optimize command
     if args.module in ("optimize", "opt"):
         print_header("Systematic Portfolio Optimization")
-        
+
         try:
             # Run the systematic workflow
             results = run_systematic_portfolio(
@@ -317,165 +564,198 @@ def main():
                 min_target_sharpe=args.min_sharpe,
                 long_short_mode=args.long_short,
                 long_exposure=args.long_exposure,
-                short_exposure=args.short_exposure
+                short_exposure=args.short_exposure,
             )
-            
+
             # Display results
             if HAS_RICH and console:
                 # Use rich table for better display
-                weights_df = results['weights_df']
-                
+                weights_df = results["weights_df"]
+
                 # Separate long and short positions
-                long_positions = weights_df[weights_df['weight'] > 0].copy()
-                short_positions = weights_df[weights_df['weight'] < 0].copy()
-                
+                long_positions = weights_df[weights_df["weight"] > 0].copy()
+                short_positions = weights_df[weights_df["weight"] < 0].copy()
+
                 # Long positions table
                 if len(long_positions) > 0:
-                    table_long = Table(title="Portfolio Weights (Long Positions)", box=box.ROUNDED, show_lines=True)
+                    table_long = Table(
+                        title="Portfolio Weights (Long Positions)",
+                        box=box.ROUNDED,
+                        show_lines=True,
+                    )
                     table_long.add_column("Rank", justify="center", style="cyan")
                     table_long.add_column("Ticker", style="bold")
                     table_long.add_column("Weight", justify="right", style="green")
                     table_long.add_column("Score", justify="right")
                     table_long.add_column("Sector", style="dim")
-                    
+
                     top_long = long_positions.head(15).reset_index(drop=True)
                     for idx in range(len(top_long)):
                         row = top_long.iloc[idx]
                         table_long.add_row(
                             str(idx + 1),
-                            row['ticker'],
-                            f"{row['weight']*100:.2f}%",
+                            row["ticker"],
+                            f"{row['weight'] * 100:.2f}%",
                             f"{row['total_score']:.3f}",
-                            row.get('sector', 'N/A')
+                            row.get("sector", "N/A"),
                         )
-                    
+
                     console.print("\n")
                     console.print(table_long)
-                
+
                 # Short positions table
                 if len(short_positions) > 0:
-                    table_short = Table(title="Portfolio Weights (Short Positions)", box=box.ROUNDED, show_lines=True)
+                    table_short = Table(
+                        title="Portfolio Weights (Short Positions)",
+                        box=box.ROUNDED,
+                        show_lines=True,
+                    )
                     table_short.add_column("Rank", justify="center", style="cyan")
                     table_short.add_column("Ticker", style="bold")
                     table_short.add_column("Weight", justify="right", style="red")
                     table_short.add_column("Score", justify="right")
                     table_short.add_column("Sector", style="dim")
-                    
+
                     # Sort by absolute weight
-                    short_sorted = short_positions.reindex(short_positions['weight'].abs().sort_values(ascending=False).index)
+                    short_sorted = short_positions.reindex(
+                        short_positions["weight"]
+                        .abs()
+                        .sort_values(ascending=False)
+                        .index
+                    )
                     top_short = short_sorted.head(15).reset_index(drop=True)
                     for idx in range(len(top_short)):
                         row = top_short.iloc[idx]
                         table_short.add_row(
                             str(idx + 1),
-                            row['ticker'],
-                            f"{row['weight']*100:.2f}%",
+                            row["ticker"],
+                            f"{row['weight'] * 100:.2f}%",
                             f"{row['total_score']:.3f}",
-                            row.get('sector', 'N/A')
+                            row.get("sector", "N/A"),
                         )
-                    
+
                     console.print("\n")
                     console.print(table_short)
-                
+
                 # Performance metrics panel
-                opt_result = results['optimization_result']
+                opt_result = results["optimization_result"]
                 metrics_text = (
-                    f"[green]Expected Return:[/green] {opt_result.expected_return*100:.2f}%\n"
-                    f"[yellow]Volatility:[/yellow] {opt_result.volatility*100:.2f}%\n"
+                    f"[green]Expected Return:[/green] {opt_result.expected_return * 100:.2f}%\n"
+                    f"[yellow]Volatility:[/yellow] {opt_result.volatility * 100:.2f}%\n"
                     f"[cyan]Sharpe Ratio:[/cyan] {opt_result.sharpe_ratio:.2f}\n"
                     f"[dim]Positions:[/dim] {len(weights_df)}"
                 )
-                
+
                 # Add long/short exposure metrics if applicable
-                if 'gross_long' in opt_result.performance:
+                if "gross_long" in opt_result.performance:
                     metrics_text += (
                         f"\n\n[bold cyan]Exposure:[/bold cyan]\n"
                         f"  Gross Long: {opt_result.performance['gross_long']:.2f}%\n"
                         f"  Gross Short: {opt_result.performance['gross_short']:.2f}%\n"
                         f"  Net: {opt_result.performance['net_exposure']:.2f}%"
                     )
-                
+
                 # Add macro/factor adjustments if enabled
-                if results.get('macro_adjustment'):
-                    cape_data = results['macro_adjustment']
+                if results.get("macro_adjustment"):
+                    cape_data = results["macro_adjustment"]
                     metrics_text += "\n\n[bold cyan]Macro Adjustment:[/bold cyan]\n"
                     metrics_text += f"  CAPE: {cape_data['current_cape']:.2f} ({cape_data['regime']})\n"
                     metrics_text += f"  Risk Scalar: {cape_data['risk_scalar']:.2f}x"
-                
-                if results.get('factor_tilts'):
-                    tilt_data = results['factor_tilts']
+
+                if results.get("factor_tilts"):
+                    tilt_data = results["factor_tilts"]
                     metrics_text += "\n\n[bold cyan]Factor Tilts:[/bold cyan]\n"
                     metrics_text += f"  Value: {tilt_data['value_tilt']:.2f}x\n"
                     metrics_text += f"  Quality: {tilt_data['quality_tilt']:.2f}x\n"
                     metrics_text += f"  Momentum: {tilt_data['momentum_tilt']:.2f}x"
-                
-                console.print(Panel(metrics_text, title="Performance Metrics", box=box.DOUBLE))
+
+                console.print(
+                    Panel(metrics_text, title="Performance Metrics", box=box.DOUBLE)
+                )
 
                 notice = fallback_notice(opt_result)
                 if notice:
-                    console.print(Panel(f"[bold yellow]⚠️  {notice}[/bold yellow]",
-                                         title="Fallback", box=box.DOUBLE, border_style="yellow"))
+                    console.print(
+                        Panel(
+                            f"[bold yellow]⚠️  {notice}[/bold yellow]",
+                            title="Fallback",
+                            box=box.DOUBLE,
+                            border_style="yellow",
+                        )
+                    )
                 console.print(f"[dim]ℹ️  {FACTOR_VALIDITY_DISCLAIMER}[/dim]\n")
 
             else:
                 # Fallback to simple display
                 display_portfolio_summary(results)
-            
+
             # Export if requested
             if args.export:
                 from src.portfolio_snapshot import create_and_save_snapshot
                 from src.constants import DEFAULT_CAPITAL
-                
+
                 # Create comprehensive snapshot
                 json_path, csv_path = create_and_save_snapshot(
-                    optimization_result=results['optimization_result'],
-                    factor_scores=results['factor_scores'],
-                    universe_data=results['universe'],
-                    engine_data=results['factor_engine'].data,
-                    config=results['config'],
+                    optimization_result=results["optimization_result"],
+                    factor_scores=results["factor_scores"],
+                    universe_data=results["universe"],
+                    engine_data=results["factor_engine"].data,
+                    config=results["config"],
                     export_path=args.export,
-                    capital=DEFAULT_CAPITAL
+                    capital=DEFAULT_CAPITAL,
                 )
-                
+
                 print_msg("Portfolio snapshot saved:", "success")
                 print(f"  📄 CSV:  {csv_path}")
                 print(f"  📸 JSON: {json_path}")
                 print(f"  💰 Capital: ${DEFAULT_CAPITAL:,.2f}")
                 print()
-        
+
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             import traceback
+
             traceback.print_exc()
             sys.exit(1)
-        
+
         return
-    
+
     # Verify command
     if args.module == "verify":
         print_header("Factor Engine - Stock Verification")
-        
+
         ticker = args.ticker.upper().strip()
-        
+
         # Use default mini-universe or custom universe
         if args.universe:
             universe = [t.upper().strip() for t in args.universe]
         else:
             # Default mini-universe (must include the ticker being verified)
-            universe = ["NVDA", "XOM", "JPM", "PFE", "TSLA", "AAPL", "MSFT", "GOOG", "META", "AMZN"]
+            universe = [
+                "NVDA",
+                "XOM",
+                "JPM",
+                "PFE",
+                "TSLA",
+                "AAPL",
+                "MSFT",
+                "GOOG",
+                "META",
+                "AMZN",
+            ]
             if ticker not in universe:
                 universe.append(ticker)
-        
+
         if ticker not in universe:
             print_msg(f"Adding {ticker} to universe...", "info")
             universe.append(ticker)
-        
+
         print_msg(f"Ranking {len(universe)} stocks in universe...", "info")
-        
+
         # Initialize and run factor engine
         engine = FactorEngine(tickers=universe)
         rankings = engine.rank_universe()
-        
+
         # Display full rankings
         if HAS_RICH and console:
             table = Table(title="Universe Rankings", box=box.ROUNDED)
@@ -485,57 +765,63 @@ def main():
             table.add_column("Quality Z", justify="right")
             table.add_column("Momentum Z", justify="right")
             table.add_column("Total Score", justify="right")
-            
+
             # Use iloc instead of iterrows for better performance
             top_10 = rankings.head(10).reset_index(drop=True)
             for idx in range(len(top_10)):
                 row = top_10.iloc[idx]
                 rank = idx + 1
                 # Highlight the target ticker
-                ticker_style = "bold green" if row['Ticker'] == ticker else ""
+                ticker_style = "bold green" if row["Ticker"] == ticker else ""
                 table.add_row(
                     str(rank),
-                    f"[{ticker_style}]{row['Ticker']}[/{ticker_style}]" if ticker_style else row['Ticker'],
+                    f"[{ticker_style}]{row['Ticker']}[/{ticker_style}]"
+                    if ticker_style
+                    else row["Ticker"],
                     f"{row['Value_Z']:.2f}",
                     f"{row['Quality_Z']:.2f}",
                     f"{row['Momentum_Z']:.2f}",
-                    f"{row['Total_Score']:.2f}"
+                    f"{row['Total_Score']:.2f}",
                 )
-            
+
             console.print(table)
         else:
             print("\nTop 10 Rankings:")
             top_10 = rankings.head(10).reset_index(drop=True)
             for idx in range(len(top_10)):
                 row = top_10.iloc[idx]
-                print(f"  {idx+1}. {row['Ticker']}: {row['Total_Score']:.2f}")
-        
+                print(f"  {idx + 1}. {row['Ticker']}: {row['Total_Score']:.2f}")
+
         # Display detailed audit report for the requested ticker
         engine.display_audit_report(ticker)
-        
+
         return
-    
+
     # Backtest command
     if args.module in ("backtest", "bt"):
         print_header("Backtesting Systematic Strategy")
-        
+
         try:
             # Parse dates
             start_date = datetime.strptime(args.start, "%Y-%m-%d")
             end_date = datetime.strptime(args.end, "%Y-%m-%d")
-            
+
             # Validate date range
             if start_date >= end_date:
                 print_msg("Error: Start date must be before end date", "error")
                 sys.exit(1)
-            
+
             # Set up export directory
             export_dir = Path(args.export) if args.export else Path("data/backtests")
             export_dir.mkdir(parents=True, exist_ok=True)
-            
-            print_msg(f"Backtesting {args.universe} from {args.start} to {args.end}", "info")
-            print_msg(f"Rebalancing: {args.frequency}, Capital: ${args.capital:,.0f}", "info")
-            
+
+            print_msg(
+                f"Backtesting {args.universe} from {args.start} to {args.end}", "info"
+            )
+            print_msg(
+                f"Rebalancing: {args.frequency}, Capital: ${args.capital:,.0f}", "info"
+            )
+
             # Initialize backtest engine
             engine = BacktestEngine(
                 start_date=args.start,
@@ -552,28 +838,32 @@ def main():
                 regime_method=args.regime_method,
                 regime_risk_off_exposure=args.regime_risk_off,
                 regime_caution_exposure=args.regime_caution,
-                custom_tickers=args.tickers
+                custom_tickers=args.tickers,
             )
-            
+
             # Run backtest
             print()
             result = engine.run()
-            
+
             # Display results
             print()
             result.display_summary()
-            
+
             # Export results
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             result_file = export_dir / f"backtest_{args.frequency}_{timestamp}"
             result.save(str(result_file))
-            
+
             print()
-            print_msg(f"Results saved to {result_file}.json and {result_file}_equity.csv", "success")
-        
+            print_msg(
+                f"Results saved to {result_file}.json and {result_file}_equity.csv",
+                "success",
+            )
+
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             import traceback
+
             traceback.print_exc()
             sys.exit(1)
 
@@ -587,6 +877,7 @@ def main():
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             import traceback
+
             traceback.print_exc()
             sys.exit(1)
         return
@@ -599,6 +890,7 @@ def main():
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             import traceback
+
             traceback.print_exc()
             sys.exit(1)
         return
@@ -611,6 +903,7 @@ def main():
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             import traceback
+
             traceback.print_exc()
             sys.exit(1)
         return
@@ -619,74 +912,76 @@ def main():
     if args.module == "portfolio":
         if args.portfolio_action == "validate":
             print_header("Portfolio Snapshot Validation")
-            
+
             try:
                 from src.forward_testing.validator import validate_snapshot
-                
+
                 # Run validation
                 results = validate_snapshot(args.snapshot)
-                
+
             except FileNotFoundError as e:
                 print_msg(f"Error: {e}", "error")
                 sys.exit(1)
             except Exception as e:
                 print_msg(f"Error: {e}", "error")
                 import traceback
+
                 traceback.print_exc()
                 sys.exit(1)
-        
+
         elif args.portfolio_action == "list":
             print_header("Portfolio Snapshots")
 
             snapshots_dir = Path("data/portfolios")
-            
+
             if not snapshots_dir.exists():
                 print_msg("No snapshots directory found", "error")
                 return
-            
+
             # Find all JSON snapshots
             json_files = sorted(snapshots_dir.glob("*.json"), reverse=True)
-            
+
             if not json_files:
                 print_msg("No portfolio snapshots found", "info")
-                print("Create one with: qpm optimize --export my_portfolio")
+                print(f"Create one with: {PROG} optimize --export my_portfolio")
                 return
-            
+
             print(f"\nFound {len(json_files)} snapshot(s):\n")
-            
+
             if HAS_RICH and console:
                 table = Table(title="Portfolio Snapshots", box=box.ROUNDED)
                 table.add_column("File", style="cyan")
                 table.add_column("Created", style="dim")
                 table.add_column("Positions", justify="right")
                 table.add_column("Capital", justify="right")
-                
+
                 for snapshot_file in json_files:
                     try:
                         import json
-                        with open(snapshot_file, 'r') as f:
+
+                        with open(snapshot_file, "r") as f:
                             snapshot = json.load(f)
-                        
-                        created = snapshot['metadata']['snapshot_date'].split('T')[0]
-                        positions = len(snapshot['positions'])
-                        capital = snapshot['metadata']['capital']
-                        
+
+                        created = snapshot["metadata"]["snapshot_date"].split("T")[0]
+                        positions = len(snapshot["positions"])
+                        capital = snapshot["metadata"]["capital"]
+
                         table.add_row(
                             snapshot_file.name,
                             created,
                             str(positions),
-                            f"${capital:,.0f}"
+                            f"${capital:,.0f}",
                         )
                     except Exception as e:
                         logger.warning(f"Could not read {snapshot_file.name}: {e}")
-                
+
                 console.print(table)
             else:
                 for snapshot_file in json_files:
                     print(f"  - {snapshot_file.name}")
-            
-            print("\nValidate with: qpm portfolio validate <filename>\n")
-        
+
+            print(f"\nValidate with: {PROG} portfolio validate <filename>\n")
+
         return
 
 
