@@ -78,3 +78,14 @@ One line per checkpoint. Newest at the bottom.
   confirm GitHub token write-scope before any push, and update docs + add a regression test in
   the same PR as the code change (`tests/test_cli_help.py` cited as the existing example). No
   other section touched. 285/285 tests pass, ruff clean.
+- task 2: added `.github/workflows/doc-drift.yml` — monthly doc/example-drift check, modeled on
+  the "Dynamic DCA" repo's already-fixed reference file. `schedule` + `workflow_dispatch` only,
+  deliberately no `pull_request` trigger (same GitHub bot-PR `action_required` bug that file's
+  own comments document). Cron `0 6 1 * *` — same cadence family as this repo's `self-harden.yml`
+  (1st of month), offset one hour so the two scheduled jobs don't start at the same minute.
+  `permissions:` block copied verbatim from the already-approved `self-harden.yml` baseline
+  (`contents: write`, `pull-requests: write`, `issues: read`, `id-token: write`) — nothing
+  broader requested. Markdown/doc hygiene only: does not run backtests, optimization, or any
+  live/refresh cycle, and never touches `data/historical/`, `data/research/`, or
+  `data/backtests/`, honoring the repo's PARKED/deferred-automation decision. 285/285 tests
+  pass, ruff clean, YAML parses.
