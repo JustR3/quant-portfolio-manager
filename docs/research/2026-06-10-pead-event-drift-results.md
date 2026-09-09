@@ -7,7 +7,7 @@
   `pead_results.py` / `pead_command.py`; `qpm pead-eval`; quarterly cache via
   `tools/build_sec_q_cache.py` into `data/historical/fundamentals_sec_q/` (separate dir; the
   phase #2/#3 FY cache untouched).
-- **Run:** `qpm pead-eval` (all three measures, pre-registered defaults: H=60td, quintile legs,
+- **Run:** `uv run ./main.py pead-eval` (all three measures, pre-registered defaults: H=60td, quintile legs,
   min 10/leg, 10 bps/side, B=10,000, seed 42, p<0.05/3). Artifact
   `data/research/pead-eval-20260610_171149.json`.
 

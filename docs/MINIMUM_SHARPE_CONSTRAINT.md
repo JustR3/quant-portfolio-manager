@@ -176,6 +176,6 @@ Potential improvements:
 
 If the constraint isn't behaving as expected:
 1. Check current market conditions (high volatility → lower Sharpe)
-2. Verify factor scores are reasonable (`qpm verify TICKER`)
+2. Verify factor scores are reasonable (`uv run ./main.py verify TICKER`)
 3. Try different universes or factor configurations
 4. Review backtest results to understand historical achievability

@@ -61,3 +61,14 @@ One line per checkpoint. Newest at the bottom.
   exercised the two `portfolio list` runtime hints — both fixed by parametrizing over every
   subcommand and adding two isolated-`tmp_path` tests for the no-snapshots/has-snapshots hint
   paths. 285/285 tests pass, ruff clean.
+- docs: same `qpm`-doesn't-exist bug also lived in 5 doc files' actionable "run this" instructions
+  — `docs/MINIMUM_SHARPE_CONSTRAINT.md`'s troubleshooting step 2, and the `**Run:**`/`Run` lines in
+  `docs/research/2026-06-10-{pead-event-drift,ts-timing-study}-results.md` and
+  `docs/superpowers/specs/2026-06-10-{pead-event-drift,ts-timing-study}-design.md`. Fixed all five
+  to `uv run ./main.py ...`. Deliberately left untouched: plain narrative mentions of `qpm` in
+  CLAUDE.md / other research write-ups (describe past events, not instructions to run), and two
+  literal git commit-message quotes in `docs/superpowers/plans/2026-06-10-*.md` (verified against
+  `git log`: commits `17bc9b0`, `c62c251` really were titled that) — rewriting either would
+  misrepresent the historical record rather than fix a bug. 285/285 tests pass, ruff clean
+  (note: the F401 in `tools/build_sec_q_cache.py` flagged here was fixed separately on `main` via
+  PR #5 before this branch merged forward).
