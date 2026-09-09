@@ -70,5 +70,5 @@ One line per checkpoint. Newest at the bottom.
   literal git commit-message quotes in `docs/superpowers/plans/2026-06-10-*.md` (verified against
   `git log`: commits `17bc9b0`, `c62c251` really were titled that) — rewriting either would
   misrepresent the historical record rather than fix a bug. 285/285 tests pass, ruff clean
-  (one pre-existing, unrelated F401 in `tools/build_sec_q_cache.py` flagged separately, not fixed
-  here).
+  (note: the F401 in `tools/build_sec_q_cache.py` flagged here was fixed separately on `main` via
+  PR #5 before this branch merged forward).
