@@ -72,3 +72,9 @@ One line per checkpoint. Newest at the bottom.
   misrepresent the historical record rather than fix a bug. 285/285 tests pass, ruff clean
   (note: the F401 in `tools/build_sec_q_cache.py` flagged here was fixed separately on `main` via
   PR #5 before this branch merged forward).
+- task 1: added a short "Process rules" section to the top of `CLAUDE.md` stating this repo
+  follows the global `~/.claude/CLAUDE.md` rules as-is with no overrides (unlike some sibling
+  repos), and naming the two newest global rules most relevant to this repo's own recent work —
+  confirm GitHub token write-scope before any push, and update docs + add a regression test in
+  the same PR as the code change (`tests/test_cli_help.py` cited as the existing example). No
+  other section touched. 285/285 tests pass, ruff clean.
