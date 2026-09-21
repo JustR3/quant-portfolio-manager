@@ -89,3 +89,4 @@ One line per checkpoint. Newest at the bottom.
   live/refresh cycle, and never touches `data/historical/`, `data/research/`, or
   `data/backtests/`, honoring the repo's PARKED/deferred-automation decision. 285/285 tests
   pass, ruff clean, YAML parses.
+- task 0 (diag-1): added `tools/download_div_universe.py` (11 yfinance tickers + 2 FRED rate series into gitignored `data/historical/div/`, fail-fast on missing FRED_API_KEY, availability probe). Ran it for real: all first dates match the spec probe, RYMFX 2017-04-21 bad print round-trips through the identity guard. 285/285 tests pass, ruff clean.
