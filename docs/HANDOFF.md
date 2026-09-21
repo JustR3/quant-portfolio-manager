@@ -90,3 +90,4 @@ One line per checkpoint. Newest at the bottom.
   `data/backtests/`, honoring the repo's PARKED/deferred-automation decision. 285/285 tests
   pass, ruff clean, YAML parses.
 - task 0 (diag-1): added `tools/download_div_universe.py` (11 yfinance tickers + 2 FRED rate series into gitignored `data/historical/div/`, fail-fast on missing FRED_API_KEY, availability probe). Ran it for real: all first dates match the spec probe, RYMFX 2017-04-21 bad print round-trips through the identity guard. 285/285 tests pass, ruff clean.
+- task 1 (diag-1): added `src/research/div_data.py` (spike detector + pre-registered adjudication list, freshness/coverage asserts, one-month-lagged risk-free, CHF conversion, weekly resample, loaders) with 22 adversarial tests. Real-data spike scan flagged only RYMFX 2017-04-21, as pre-registered. 307/307 tests pass, ruff clean.
