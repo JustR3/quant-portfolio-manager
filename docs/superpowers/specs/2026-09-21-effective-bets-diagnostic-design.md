@@ -247,3 +247,21 @@ would change Part A's rule after the fact. **→ DECIDED: excluded from the gate
 Weight optimisation of any kind; parameter sweeps; any timing or regime overlay; True Wealth's
 own return series (2.9 years, user export required — belongs to the measurement question, not
 this one); single-stock anything; implementation in the user's accounts.
+
+## Amendment 1 — 2026-09-21, pre-run (committed with the plan, before any result exists)
+
+Clarifications found while writing the plan's tests. **No gate threshold, instrument, window or
+weight changes.** Each item removes a judgment call the implementer would otherwise make.
+
+1. **Staleness rule, by series type.** The 7-calendar-day rule in §4 applies to **daily** price
+   and FX series, measured against the run date. **Monthly** FRED series cannot meet a 7-day rule
+   by construction; they must instead contain the month **preceding** the month of the window's
+   final week (for the pinned end 2026-09-18: August 2026). USD rate series probed 2026-09-21:
+   `IR3TIB01USM156N` 1964-06 → 2026-08.
+2. **Satellite weights are exactly `0.20 / 3` each.** "6.67%" in §5 is display rounding.
+3. **Spike detector scope.** It runs on the **full daily history of every loaded series** —
+   gated, diagnostic and FX — before any windowing or resampling. A flag in **any** series that
+   is not on the adjudication list halts the run (literal reading of §8). "The first 63 trading
+   days are not tested" means the first 63 daily **returns** (they have no complete trailing σ).
+4. **Daily diagnostic mode** uses 252 periods per year for the risk-free conversion and for
+   Sharpe annualisation.
