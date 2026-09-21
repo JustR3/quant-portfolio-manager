@@ -32,6 +32,7 @@ ALL_SUBCOMMANDS = [
     "backtest",
     "signal-eval",
     "ts-eval",
+    "div-eval",
     "pead-eval",
     "portfolio",
 ]

@@ -33,6 +33,7 @@ from src.pipeline.systematic_workflow import (
 )
 from src.backtesting.engine import BacktestEngine
 from src.research.command import run_signal_eval
+from src.research.div_command import run_div_eval, exit_code as div_exit_code
 from src.research.pead_command import run_pead_eval
 from src.research.ts_command import run_ts_eval
 
@@ -451,6 +452,42 @@ Examples:
         "diagnostic, NOT gated)",
     )
     tse.add_argument(
+        "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
+    )
+
+    # Div-eval command (diag-1 effective-bets diagnostic, research branch)
+    dive = sub.add_parser(
+        "div-eval",
+        help="Effective-bets diagnostic: CHF N_eff + fixed-weight core-satellite "
+        "(research branch, diag-1)",
+        description="Effective-bets diagnostic: correlation-eigenvalue N_eff and a fixed-weight "
+        "core-satellite Sharpe comparison in CHF, judged against a locked three-part gate "
+        "(spec: docs/superpowers/specs/2026-09-21-effective-bets-diagnostic-design.md). "
+        "With no arguments this runs exactly the gated configuration.",
+    )
+    dive.add_argument(
+        "--frequency",
+        type=str,
+        default="weekly",
+        choices=["weekly", "daily"],
+        help="Return frequency (default weekly; daily = UN-GATED diagnostic)",
+    )
+    dive.add_argument(
+        "--currency",
+        type=str,
+        default="unhedged",
+        choices=["unhedged", "hedged"],
+        help="CHF view (default unhedged; hedged = UN-GATED diagnostic)",
+    )
+    dive.add_argument(
+        "--base-dir",
+        dest="base_dir",
+        type=str,
+        default="data/historical/div",
+        help="Price/rate store built by tools/download_div_universe.py "
+        "(default: data/historical/div)",
+    )
+    dive.add_argument(
         "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
     )
 
@@ -893,6 +930,22 @@ def main():
 
             traceback.print_exc()
             sys.exit(1)
+        return
+
+    # Div-eval command (diag-1 effective-bets diagnostic)
+    if args.module == "div-eval":
+        print_header("Effective-Bets Diagnostic")
+        try:
+            result = run_div_eval(args)
+        except Exception as e:
+            print_msg(f"Error: {e}", "error")
+            import traceback
+
+            traceback.print_exc()
+            sys.exit(1)
+        code = div_exit_code(result)
+        if code:
+            sys.exit(code)
         return
 
     # PEAD-eval command (iter-6 SEC-event drift study)
