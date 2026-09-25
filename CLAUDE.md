@@ -28,6 +28,8 @@ strategy claim through an honest, costed, PIT-correct gate.
   backtest: `uv run ./main.py backtest --start 2023-07-01 --end 2025-06-01 --top-n 20 --frequency quarterly`
 - Tests: `uv run pytest -q` (network/integration tests are opt-in: `-m integration`)
 - Price store integrity: `uv run python tools/verify_price_store.py`
+- SEC cache 3-month-vs-YTD contamination: `uv run python tools/check_sec_duration_contamination.py`
+  (see `docs/research/2026-09-25-sec-duration-contamination-check.md`)
 
 ## Key flags
 - `--transaction-cost-bps` (default 10): per-side cost on turnover; backtest reports net of costs.
