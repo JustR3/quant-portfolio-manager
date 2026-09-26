@@ -60,24 +60,32 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            Read tests/test_sec_fundamentals.py, tests/test_sec_quarterly.py, and
+            Read tests/test_sec_fundamentals.py, tests/test_sec_quarterly.py,
+            tests/test_sec_durations.py, tests/test_splits.py, and
             tests/test_synthetic_store.py first. Do not repeat coverage that already exists
             there.
 
             1. Fuzz `pit_factors_from_facts` / `pit_factors_from_prepared` (both must always
                agree — see `test_prepared_fast_path_matches_pandas_path`'s convention) and
                `fetch_facts` / `fetch_facts_quarterly` in src/pipeline/sec_fundamentals.py and
-               src/pipeline/sec_quarterly.py. Two invariants are already enforced and MUST NOT
-               regress: `shares` must be a finite, positive number or `market_cap` is None
+               src/pipeline/sec_quarterly.py. Four invariants are already enforced and MUST
+               NOT regress: `shares` must be a finite, positive number or `market_cap` is None
                (excluded), never a corrupted number; a fact `value` must be finite or it is
-               dropped before caching, never NaN or +-inf. Push further, adversarial cases
+               dropped before caching, never NaN or +-inf; a duration fact is kept only if its
+               period_start..period_end span matches its fiscal_period (`duration_mask`: Q1-Q3
+               ~3 months, FY ~12 months), so a 3-month vs YTD (or 3-month Q4 vs annual) pair
+               under one key is resolved by DURATION, never by row order — see
+               tests/test_sec_durations.py; and SEC share counts are put on the price store's
+               split basis (`splits.SplitAdjuster`) before any `shares x price`, a name without
+               a split cache being excluded — see tests/test_splits.py. Push further, adversarial cases
                beyond those: duplicate (period_end, filed) rows with different values for the
                same concept, an extreme-magnitude value (e.g. 1e18) that would blow up a ratio
                downstream, a `filed` date earlier than its own `period_end` (impossible in
                reality — a filer error), and a concept-priority walk where a lower-priority
                concept in CONCEPT_MAP/QUARTERLY_CONCEPT_MAP returns rows for a (period_end,
                filed) pair the higher-priority concept already claimed under a DIFFERENT value
-               (dedup-by-key must keep the first, not silently blend them). If a case produces
+               AND the same duration (after the duration filter, the higher-priority concept's
+               value must win, not be blended). If a case produces
                an unhandled exception instead of a graceful None/excluded/dropped result, or
                silently corrupts a number instead of excluding the name, fix the smallest code
                path and add a regression test. If a case already behaves correctly, add the test

@@ -1,8 +1,9 @@
 # SEC Duration Contamination (3-month vs YTD) — Diagnostic
 
 - **Date:** 2026-09-25
-- **Status:** diagnostic built; **awaiting a local run** against the real caches (they are gitignored,
-  and SEC is not reachable from the environment that wrote this).
+- **Status:** diagnostic built (2026-09-25); **fetchers fixed 2026-09-26** (see "Fix" below).
+  Awaiting a local run against the real caches (they are gitignored, and SEC is not reachable from
+  the environment that wrote this), then the errata re-run of #2/#3/#5.
 - **Tool:** `tools/check_sec_duration_contamination.py` (offline, read-only).
 - **Affects:** study #2/#3 (FY cache → Value/Quality/q-legs) and study #5 (quarterly cache → PEAD SUE).
 
@@ -52,3 +53,37 @@ Exit code 0 = clean, 1 = contamination found, 2 = no cache found (run from the r
 - **Any CONTAMINATED:** the affected study's verdict is unreliable. Fix the fetchers (filter on
   `period_start` duration), rebuild the caches, and re-run the study with its **locked** parameters under
   the errata protocol. That is a correctness fix, not a re-tune.
+
+## Fix (2026-09-26)
+
+- `sec_fundamentals.duration_mask`: a duration fact (revenue, gross profit, EBIT, CFO, capex,
+  net income) is kept only if `period_end − period_start` matches its `fp`. Q1–Q3 must be 80–100 days
+  (13/14-week quarters) and FY 350–380 days (52/53-week years). Instants (balance sheet, share
+  counts) are exempt. A duration fact **without** `period_start` is dropped because it can't be verified.
+  Both fetchers apply it before the concept-priority/key dedup, so 3-month vs YTD and 3-month Q4 vs
+  annual collisions resolve by duration, never by row order (`tests/test_sec_durations.py`).
+- Both caches now store `period_start`. A cache without it is **legacy**: `signal-eval --fundamentals
+  sec` and `pead-eval` refuse it (`LegacyCacheError`) unless `--allow-legacy-cache` is passed, which
+  reproduces the pre-errata numbers and stamps the artifact "NOT a canonical verdict".
+- The PEAD Q4 method is unchanged (FY − (Q1+Q2+Q3), now over true 3-month quarters). Using 10-Ks'
+  directly tagged 3-month Q4 facts would be a method change, which needs a new pre-registration, not errata.
+
+## Errata re-run (on the machine with the data; errata protocol, CLAUDE.md)
+
+```bash
+# 0. split cache first (network: yfinance) — every SEC signal-eval run needs it
+uv run python tools/build_split_cache.py
+uv run python tools/check_split_consistency.py
+# 1. keep the pre-errata numbers reproducible for the side-by-side (run BEFORE rebuilding):
+uv run python tools/check_sec_duration_contamination.py --json data/research/duration_check_legacy.json
+uv run ./main.py pead-eval --allow-legacy-cache
+# 2. rebuild both SEC caches with durations (network: SEC)
+EDGAR_IDENTITY="you@example.com" uv run python tools/build_sec_fundamentals_cache.py
+EDGAR_IDENTITY="you@example.com" uv run python tools/build_sec_q_cache.py
+uv run python tools/check_sec_duration_contamination.py   # rebuilt caches should be CLEAN
+# 3. re-run with the ORIGINAL locked commands
+uv run ./main.py pead-eval
+#    + studies #2/#3: see docs/research/2026-09-26-split-basis-errata.md
+```
+
+The same `--allow-legacy-cache` works for the #2/#3 `signal-eval` commands (step 1, legacy FY cache).

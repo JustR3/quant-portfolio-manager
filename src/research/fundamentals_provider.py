@@ -40,14 +40,19 @@ class SECFundamentals:
     """
 
     def __init__(self, splits_dir: Path = splits.SPLITS_DIR,
-                 price_dir: Path = hstore.DEFAULT_BASE_DIR):
+                 price_dir: Path = hstore.DEFAULT_BASE_DIR, allow_legacy: bool = False):
         self.splits_dir, self.price_dir = Path(splits_dir), Path(price_dir)
+        # False: a pre-duration-fix cache (no period_start) raises LegacyCacheError. True only to
+        # reproduce pre-errata numbers (errata protocol, CLAUDE.md).
+        self.allow_legacy = allow_legacy
         self._prep_cache: dict = {}   # ticker -> prepared numpy facts (or None)
         self._adj_cache: dict = {}    # ticker -> SplitAdjuster (or None)
 
     def pit_factors(self, ticker: str, as_of: pd.Timestamp, price: Optional[float]) -> PITFactors:
         if ticker not in self._prep_cache:
             facts = sf.load_facts(ticker)
+            if facts is not None and sf.is_legacy_cache(facts) and not self.allow_legacy:
+                raise sf.LegacyCacheError(f"{ticker}: SEC FY {sf.LEGACY_CACHE_HINT}")
             self._prep_cache[ticker] = (sf.prepare_facts(facts)
                                         if facts is not None and not facts.empty else None)
         prep = self._prep_cache[ticker]

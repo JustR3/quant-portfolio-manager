@@ -26,6 +26,8 @@ strategy claim through an honest, costed, PIT-correct gate.
   JSON artifacts to `data/research/`). Every artifact carries a report-only `power` block
   (SE / 95% CI / MDE80 / power@reference); `signal-eval --power-sim N --workers K` runs injected-signal
   positive/negative controls (`docs/research/2026-09-26-harness-power-and-positive-controls.md`).
+  SEC caches without `period_start` (pre-duration-fix) are refused; `--allow-legacy-cache`
+  (signal-eval/pead-eval) reproduces pre-errata numbers, stamped non-canonical.
 - Legacy tool: `uv run ./main.py optimize --universe sp500 --top-n 50`;
   backtest: `uv run ./main.py backtest --start 2023-07-01 --end 2025-06-01 --top-n 20 --frequency quarterly`
 - Tests: `uv run pytest -q` (network/integration tests are opt-in: `-m integration`)

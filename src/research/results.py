@@ -71,10 +71,17 @@ def evaluate_factor(panel: pd.DataFrame, factor: str, q: int, min_names: int,
     )
 
 
+LEGACY_CACHE_CAVEAT = (
+    "LEGACY SEC CACHE (--allow-legacy-cache): pre-2026-09-26 cache without period_start; "
+    "3-month vs YTD durations unverified. Pre-errata reproduction only — NOT a canonical verdict."
+)
+
+
 def build_caveats(frequency: str, horizon_months: int, factors: list,
-                  fundamentals_source: str = "yfinance") -> list:
+                  fundamentals_source: str = "yfinance", legacy_cache: bool = False) -> list:
     """Honest caveats attached to every run."""
-    cav = [
+    cav = [LEGACY_CACHE_CAVEAT] if (legacy_cache and fundamentals_source == "sec") else []
+    cav += [
         "SURVIVORSHIP: universe = CURRENT index membership (price store) for all dates; "
         "delisted/removed names are absent. Results are biased upward.",
     ]

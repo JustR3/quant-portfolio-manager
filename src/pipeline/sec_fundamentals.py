@@ -59,6 +59,46 @@ STATEMENT_LABELS = {
 }
 SEC_FUND_DIR = Path("data/historical/fundamentals_sec")
 
+# Duration filter (errata 2026-09-26, docs/research/2026-09-25-sec-duration-contamination-check.md).
+# companyfacts' `fp` is the fiscal period of the FILING, not the fact: a Q2 10-Q carries 3-month AND
+# 6-month YTD values under the same (period_end, fp, filed) key; pre-2021 10-Ks carry 3-month Q4
+# values beside the annual ones. Duration facts are kept only if (period_end - period_start) matches
+# their fp; instants (balance sheet, share counts) have no period_start and are exempt.
+QUARTER_DAYS = (80, 100)  # 13/14-week quarters: 84-98 days
+ANNUAL_DAYS = (350, 380)  # 52/53-week years: 364/371 days
+DURATION_FIELDS = {"revenue", "gross_profit", "ebit", "cfo", "capex", "net_income"}
+LEGACY_CACHE_HINT = (
+    "cache predates the 2026-09-26 duration fix (no period_start column): rebuild it "
+    "(tools/build_sec_fundamentals_cache.py / tools/build_sec_q_cache.py), or pass "
+    "--allow-legacy-cache to reproduce the pre-errata numbers"
+)
+
+
+class LegacyCacheError(RuntimeError):
+    """A cached fact table without period_start: its durations cannot be verified."""
+
+
+def is_legacy_cache(facts: pd.DataFrame) -> bool:
+    return "period_start" not in facts.columns
+
+
+def duration_mask(df: pd.DataFrame, field: str) -> pd.Series:
+    """True where a fact's duration matches its fiscal_period (Q1-Q3 ~3 months, FY ~12 months).
+    Instant fields always pass; a duration fact without period_start fails (unverifiable)."""
+    if field not in DURATION_FIELDS:
+        return pd.Series(True, index=df.index)
+    if "period_start" not in df.columns:
+        return pd.Series(False, index=df.index)
+    days = (pd.to_datetime(df["period_end"]) - pd.to_datetime(df["period_start"])).dt.days
+    fp = df["fiscal_period"].astype(str)
+    quarter = fp.isin(["Q1", "Q2", "Q3"]) & days.between(*QUARTER_DAYS)
+    annual = (fp == "FY") & days.between(*ANNUAL_DAYS)
+    return (quarter | annual).fillna(False).astype(bool)
+
+
+def start_or_nat(v) -> pd.Timestamp:
+    return pd.Timestamp(v) if v is not None and pd.notna(v) else pd.NaT
+
 # Phase #3 (new factor inputs): prior-year lookup + net-issuance split adjustment.
 PRIOR_YEAR_MIN_GAP_DAYS = 300  # prior-FY period must be at least this much older
 SIMPLE_SPLIT_MULTIPLES = [1.5, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20]
@@ -356,7 +396,8 @@ def fetch_facts(ticker: str) -> pd.DataFrame:
 
     For each field, walk candidate concepts in priority order; a (period_end, filed)
     already captured by a higher-priority concept is not overwritten. Financial fields
-    are FY-only; shares keeps all cover-page rows.
+    are FY-only; shares keeps all cover-page rows. Duration facts must span ~12 months
+    (duration_mask), so a 3-month Q4 tagged in a 10-K can never stand in for the year.
     """
     from edgar import Company  # local import: heavy dep, keeps module import light
 
@@ -373,6 +414,7 @@ def fetch_facts(ticker: str) -> pd.DataFrame:
                 continue
             numeric = pd.to_numeric(df["numeric_value"], errors="coerce")
             sub = df[np.isfinite(numeric)].copy()
+            sub = sub[duration_mask(sub, field)]
             if field in FY_ONLY_FIELDS:
                 sub = sub[sub["fiscal_period"] == "FY"]
             for _, r in sub.iterrows():
@@ -386,10 +428,18 @@ def fetch_facts(ticker: str) -> pd.DataFrame:
                     {
                         "field": field,
                         "period_end": pe,
+                        "period_start": start_or_nat(r.get("period_start")),
                         "filed": fd,
                         "value": float(r["numeric_value"]),
                     }
                 )
-    return pd.DataFrame(rows, columns=["field", "period_end", "filed", "value"]).astype(
-        {"period_end": "datetime64[ns]", "filed": "datetime64[ns]", "value": "float"}
+    return pd.DataFrame(
+        rows, columns=["field", "period_end", "period_start", "filed", "value"]
+    ).astype(
+        {
+            "period_end": "datetime64[ns]",
+            "period_start": "datetime64[ns]",
+            "filed": "datetime64[ns]",
+            "value": "float",
+        }
     )

@@ -295,6 +295,19 @@ def test_shares_negative_excludes_both_paths():
 # infinite value that flows silently into factor math downstream.
 
 
+
+def _edgar_like(df: pd.DataFrame) -> pd.DataFrame:
+    """Real edgartools frames always carry period_start; fakes that omit it get the standard
+    duration for their fiscal_period (FY ~364d, quarters ~90d). Tests of non-standard durations
+    pass period_start explicitly."""
+    if df is None or len(df) == 0 or "period_start" in df.columns:
+        return df
+    df = df.copy()
+    pe = pd.to_datetime(df["period_end"])
+    days = df["fiscal_period"].map(lambda fp: 364 if fp == "FY" else 90)
+    df["period_start"] = pe - pd.to_timedelta(days, unit="D")
+    return df
+
 class _FakeQuery:
     def __init__(self, df):
         self._df = df
@@ -303,7 +316,7 @@ class _FakeQuery:
         return self
 
     def to_dataframe(self):
-        return self._df
+        return _edgar_like(self._df)
 
 
 class _FakeFacts:
@@ -416,7 +429,7 @@ class _FakeQueryPerConcept:
         return self
 
     def to_dataframe(self):
-        return self._per_concept.get(self._concept, pd.DataFrame())
+        return _edgar_like(self._per_concept.get(self._concept, pd.DataFrame()))
 
 
 class _FakeFactsPerConcept:

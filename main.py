@@ -415,6 +415,13 @@ Examples:
         "--seed", type=int, default=42, help="Seed for --power-sim (default: 42)"
     )
     sig.add_argument(
+        "--allow-legacy-cache",
+        dest="allow_legacy_cache",
+        action="store_true",
+        help="Accept a pre-2026-09-26 SEC cache without period_start (reproduces pre-errata "
+        "numbers; the artifact is marked non-canonical)",
+    )
+    sig.add_argument(
         "--workers",
         type=int,
         default=1,
@@ -521,6 +528,13 @@ Examples:
     )
     pead.add_argument(
         "--seed", type=int, default=42, help="Bootstrap seed (default: 42)"
+    )
+    pead.add_argument(
+        "--allow-legacy-cache",
+        dest="allow_legacy_cache",
+        action="store_true",
+        help="Accept a pre-2026-09-26 quarterly SEC cache without period_start (reproduces "
+        "pre-errata numbers; the artifact is marked non-canonical)",
     )
     pead.add_argument(
         "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"

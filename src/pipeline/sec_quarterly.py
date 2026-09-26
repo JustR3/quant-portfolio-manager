@@ -18,7 +18,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from src.pipeline.sec_fundamentals import CONCEPT_MAP
+from src.pipeline.sec_fundamentals import CONCEPT_MAP, start_or_nat, duration_mask
 
 QUARTERLY_CONCEPT_MAP = {
     # ProfitLoss fallback: some filers (e.g. CMI, IRM) switched tags ~2011; probe-driven,
@@ -28,7 +28,7 @@ QUARTERLY_CONCEPT_MAP = {
 }
 KEEP_PERIODS = {"Q1", "Q2", "Q3", "FY"}
 SEC_FUND_Q_DIR = Path("data/historical/fundamentals_sec_q")
-COLUMNS = ["field", "period_end", "fiscal_period", "filed", "value"]
+COLUMNS = ["field", "period_end", "period_start", "fiscal_period", "filed", "value"]
 
 
 def cache_path(ticker: str, base_dir: Path = SEC_FUND_Q_DIR) -> Path:
@@ -47,6 +47,9 @@ def fetch_facts_quarterly(ticker: str) -> pd.DataFrame:
 
     Same concept-priority walk as sec_fundamentals.fetch_facts, but KEEPS fiscal_period in
     {Q1, Q2, Q3, FY} and stores it (Q4 is imputed downstream from FY minus siblings).
+    Q1-Q3 facts must span ~3 months and FY ~12 months (sec_fundamentals.duration_mask): the
+    6-/9-month YTD values a 10-Q also reports under the same key are dropped, never kept by
+    row order.
     """
     from edgar import Company  # local import: heavy dep, keeps module import light
 
@@ -66,6 +69,7 @@ def fetch_facts_quarterly(ticker: str) -> pd.DataFrame:
             numeric = pd.to_numeric(df["numeric_value"], errors="coerce")
             sub = df[np.isfinite(numeric)]
             sub = sub[sub["fiscal_period"].isin(KEEP_PERIODS)]
+            sub = sub[duration_mask(sub, field)]
             for _, r in sub.iterrows():
                 pe = pd.Timestamp(r["period_end"])
                 fd = pd.Timestamp(r["filing_date"])
@@ -78,11 +82,17 @@ def fetch_facts_quarterly(ticker: str) -> pd.DataFrame:
                     {
                         "field": field,
                         "period_end": pe,
+                        "period_start": start_or_nat(r.get("period_start")),
                         "fiscal_period": fp,
                         "filed": fd,
                         "value": float(r["numeric_value"]),
                     }
                 )
     return pd.DataFrame(rows, columns=COLUMNS).astype(
-        {"period_end": "datetime64[ns]", "filed": "datetime64[ns]", "value": "float"}
+        {
+            "period_end": "datetime64[ns]",
+            "period_start": "datetime64[ns]",
+            "filed": "datetime64[ns]",
+            "value": "float",
+        }
     )

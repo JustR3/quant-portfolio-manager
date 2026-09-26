@@ -7,9 +7,11 @@ def _full_facts():
     vals = {"revenue": 200.0, "gross_profit": 80.0, "ebit": 50.0,
             "total_assets": 300.0, "current_liabilities": 100.0,
             "cfo": 60.0, "capex": 20.0, "shares": 10.0}
-    return pd.DataFrame([(k, "2020-12-31", "2021-02-15", v) for k, v in vals.items()],
-                        columns=["field", "period_end", "filed", "value"]).astype(
-        {"period_end": "datetime64[ns]", "filed": "datetime64[ns]", "value": "float"})
+    return pd.DataFrame([(k, "2020-12-31", "2020-01-01", "2021-02-15", v)
+                         for k, v in vals.items()],
+                        columns=["field", "period_end", "period_start", "filed", "value"]).astype(
+        {"period_end": "datetime64[ns]", "period_start": "datetime64[ns]",
+         "filed": "datetime64[ns]", "value": "float"})
 
 
 def _no_split_adjuster(monkeypatch, splits=None):
@@ -81,3 +83,14 @@ def test_sec_provider_value_is_split_invariant(monkeypatch):
     pf = fp.SECFundamentals().pit_factors("AAA", pd.Timestamp("2021-06-30"), price=25.0)
     assert not pf.excluded
     assert pf.value_raw == pytest.approx(0.5 * (40.0 / 1000.0) + 0.5 * (50.0 / 1000.0))
+
+
+def test_sec_provider_refuses_legacy_cache_unless_allowed(monkeypatch):
+    legacy = _full_facts().drop(columns="period_start")
+    monkeypatch.setattr(fp.sf, "load_facts", lambda t, **k: legacy)
+    _no_split_adjuster(monkeypatch)
+    with pytest.raises(fp.sf.LegacyCacheError, match="period_start"):
+        fp.SECFundamentals().pit_factors("AAA", pd.Timestamp("2021-06-30"), price=100.0)
+    pf = fp.SECFundamentals(allow_legacy=True).pit_factors("AAA", pd.Timestamp("2021-06-30"),
+                                                           price=100.0)
+    assert not pf.excluded

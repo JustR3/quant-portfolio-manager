@@ -15,7 +15,9 @@ def _build_panel_for_args(args):
     tickers = sp.universe_tickers()
     obs = sp.observation_dates(args.start, args.end, args.frequency)
     close, adj = sp.load_inputs(tickers)
-    provider = _PROVIDERS[getattr(args, "fundamentals", "yfinance")]()
+    source = getattr(args, "fundamentals", "yfinance")
+    provider = (fpv.SECFundamentals(allow_legacy=getattr(args, "allow_legacy_cache", False))
+                if source == "sec" else _PROVIDERS[source]())
     return sp.build_panel(
         tickers=list(close.keys()), obs_dates=obs, horizon_months=args.horizon,
         close_prices=close, adj_prices=adj, fundamentals=provider)
@@ -50,7 +52,8 @@ def run_signal_eval(args) -> R.SignalEvalResult:
             for f in factors
         ]
     caveats = R.build_caveats(args.frequency, args.horizon, factors,
-                              fundamentals_source=getattr(args, "fundamentals", "yfinance"))
+                              fundamentals_source=getattr(args, "fundamentals", "yfinance"),
+                              legacy_cache=getattr(args, "allow_legacy_cache", False))
     result = R.SignalEvalResult(
         factors=factor_results, caveats=caveats,
         params={"factors": factors, "frequency": args.frequency, "horizon_months": args.horizon,
@@ -58,7 +61,8 @@ def run_signal_eval(args) -> R.SignalEvalResult:
                 "start": args.start, "end": args.end,
                 "transaction_cost_bps": args.transaction_cost_bps,
                 "fundamentals": getattr(args, "fundamentals", "yfinance"),
-                "t_gate": t_gate, "power_sim_n": n_sims},
+                "t_gate": t_gate, "power_sim_n": n_sims,
+                "allow_legacy_cache": getattr(args, "allow_legacy_cache", False)},
         power_sim=power_sim,
     )
     print(result.render())

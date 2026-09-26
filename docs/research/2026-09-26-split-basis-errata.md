@@ -51,8 +51,10 @@ uv run python tools/check_split_consistency.py      # offline; lists heuristic m
 
 Re-run `build_split_cache.py --refresh` whenever the price store is re-downloaded.
 
-Then, **after** the duration fix (priority 4) has rebuilt the FY cache, re-run with the ORIGINAL
-locked commands:
+Then, **after** the duration fix has rebuilt the FY cache (full order:
+`docs/research/2026-09-25-sec-duration-contamination-check.md`, "Errata re-run"), re-run with the
+ORIGINAL locked commands (append `--allow-legacy-cache` and run *before* rebuilding to capture the
+pre-errata side of the comparison; note that it still applies the split fix):
 
 ```bash
 # study #2 (docs/superpowers/plans/2026-06-08-deep-pit-fundamentals.md, Task 10)
