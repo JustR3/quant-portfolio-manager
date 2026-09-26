@@ -101,11 +101,12 @@ the drop is a **duration-fix** effect, not a split-fix one. Study #3 is the clea
 (identical window): N obs 22,642 published = 22,642 pre → 19,833 post (−12.4%, ~181 → ~159
 names/period). Pre equals published, so the split fix removed nothing. `SplitAdjuster` cannot exclude
 per date either; it only excludes whole tickers with no cache (0 here). The reduction happens when the
-duration filter is applied. Leading hypothesis, **unverified**: names whose only fiscal-year-end XBRL
-fact for a required income item (most likely `GrossProfit`) was a 3-month Reg S-K Item 302 "selected
-quarterly data" value. The legacy cache counted them as measurable using a quarter-sized input; the
-duration filter correctly excludes them. Pending: a per-ticker diagnosis of which names dropped and
-the exclusion reason. (CTRA/HOLX FY-cache fetch failures account for ≤2 names.)
+duration filter is applied. **Hypothesis confirmed (see "Review follow-up" below):** for the large
+majority of affected names, the only fiscal-year-end fact the legacy fetcher ever captured for
+`gross_profit` was a quarterly (91–92 day cadence) Reg S-K Item 302 "selected quarterly data" value,
+never a true annual one — the duration fix correctly drops all of it, leaving the ticker with zero
+valid Gross Profit for every date, not a partial gap. (CTRA/HOLX FY-cache fetch failures account for
+≤2 names.)
 
 **Window drift (study #2 only):** the price store now starts a year earlier than in June, so the
 same locked command (`--start 2010-01-01`) evaluates **135** IC periods from 2015-01, against the
@@ -132,11 +133,14 @@ fix, moved from +0.0003 to +0.0023, and N obs rose from 22,230 to 23,987.
 After both fixes Value's IC **flips sign** (+0.0137 → −0.0134). Pre → post, with the same window,
 isolates the duration fix: it barely moves Value (−0.0138 → −0.0134), even though Value's inputs
 (FCF, EBIT) are duration-sensitive income/cash-flow items. Published → pre is **not** a clean
-isolation of the split fix because of the window drift above. The flip is *probably* mostly the
-split-basis look-ahead, but that attribution is **pending** a supplementary pre/post pair restricted
-to the published effective window (`--start 2016-01-01`, reported alongside, not replacing, the
-locked-command result). Quality moves close to zero either way. **Neither verdict changes: both
-remain FAIL, and the corrected (post) numbers are canonical.**
+isolation of the split fix because of the window drift above.
+
+**Attribution resolved (see "Review follow-up" below): the sign flip is the split-basis look-ahead
+fix.** A window-matched supplementary pair (`--start 2016-01-01`, published's effective window)
+isolates it cleanly: Quality (price-free, a control) reproduces the published number byte-for-byte;
+Value flips from +0.0137 to −0.0070 under the split fix alone, before the duration fix is even
+applied. Quality moves close to zero either way. **Neither verdict changes: both remain FAIL, and
+the corrected (post) numbers are canonical.**
 
 ### Study #3 — q-legs (`--t-gate 2.4`, locked)
 
@@ -168,3 +172,98 @@ residual flags are the diagnostic's documented false-positive class: genuine sea
 (INTU's tax-season Q3, LYV's touring season, POOL's installation season) and one-off restatements/
 M&A tripping the value-ratio thresholds. The duration fix is verified working; see the companion
 doc's errata-results section for the full detail and a note on updating the diagnostic itself.
+
+*(The above paragraph was superseded on review — the diagnostic itself was fixed rather than worked
+around; see "Review follow-up" below and `docs/research/2026-09-25-sec-duration-contamination-check.md`
+for the corrected tool's CLEAN verdict.)*
+
+## Review follow-up (2026-09-26, later same day)
+
+A review of the first pass found two claims this doc couldn't support: the split-fix attribution for
+Value's flip was inferred, not isolated (window drift confounded it), and the coverage-drop
+hypothesis was stated as fact without a per-ticker check. Both are resolved below. Raw artifacts
+in `docs/research/errata-artifacts/` (`duration_check_rebuilt_v2.json`,
+`pre2016-signal-eval-20260926_140450.json`, `post2016-signal-eval-20260926_140655.json`).
+
+### 1. Diagnostic re-run on the rebuilt caches (now verdicts on stored `period_start`)
+
+`check_sec_duration_contamination.py` was updated (commit `3677cc6`) to verdict duration-checked
+caches directly on `bad_durations` (computed from stored `period_start` via `duration_mask`) instead
+of the value-pattern heuristic; the same value patterns are now reported as `pattern_flags_info`
+(informational — seasonality/restatements, not durations). Re-run:
+
+```
+quarterly_cache: CLEAN (0/498 tickers flagged); bad_durations=0; 96 tickers trip pattern_flags_info
+fy_cache:        CLEAN (0/498 tickers flagged); bad_durations=0; 113 tickers trip pattern_flags_info
+```
+
+Exit 0. This matches the manual exhaustive check in the first pass exactly (same 96/113 ticker
+counts, now correctly classified as informational rather than contributing to a false CONTAMINATED
+verdict).
+
+### 2. Window-matched isolation for study #2 — split fix vs duration fix, separated
+
+The price store now starts a year earlier than in June (2015-01 vs 2016-01), so the locked
+`--start 2010-01-01` command evaluates 135 IC periods instead of the published 123 — mixing the
+split fix with an extra year of data. A window-matched supplementary pair (`--start 2016-01-01
+--end 2026-04-01`, same `--t-gate 2.0`) isolates each fix in turn. **Pre2016** uses the legacy FY
+cache (split fix applied, duration fix not — via a scratch dir of symlinks pointing
+`fundamentals_sec` at the `.legacy-2026-09` backup and `prices`/`splits` at the real store).
+**Post2016** is the fully corrected cache.
+
+| | Published (June) | Pre2016 (split-fix only) | Post2016 (both fixes) |
+|---|---|---|---|
+| Value IC (t-stat) | +0.0137 (t=+1.11) | **−0.0070 (t=−0.44)** | −0.0059 (t=−0.37) |
+| Quality IC (t-stat) | +0.0003 (t=+0.02) | **+0.0003 (t=+0.02)** | −0.0021 (t=−0.18) |
+| Value net L-S Sharpe | −0.09 | −0.49 | −0.49 |
+| Quality net L-S Sharpe | −0.34 | **−0.34** | −0.83 |
+| N obs / periods | 22,230 / 123 | **22,230 / 123** | 19,471 / 123 |
+
+**Quality — the price-free control — reproduces the published IC, t-stat, net Sharpe, and N obs
+exactly** (+0.0003/t=0.02/−0.34/22,230, all four to the last published digit), confirming nothing
+else changed since June and the window-matching is correct. **Value flips sign under the split fix
+alone** (+0.0137 → −0.0070), *before* the duration fix or any coverage loss (N obs is unchanged at
+22,230). **The split-basis look-ahead fix explains the sign flip.** The duration fix (pre2016 →
+post2016) then makes a small further move (−0.0070 → −0.0059) alongside the coverage drop (22,230 →
+19,471) diagnosed below. This supplementary pair does not replace the canonical locked-command
+result (135-period, `data/research/errata/{pre,post}/`) — it isolates attribution only.
+
+### 3. Coverage diagnosis — why the duration fix drops names
+
+A throwaway script (not committed; paired `SECFundamentals(allow_legacy=True)` on the legacy FY
+cache vs `SECFundamentals()` on the rebuilt cache, same price-store `as_of` price and split adjuster,
+over study #3's exact window/universe) reproduced the study's N obs exactly (measurable pre =
+22,642, measurable post = 19,833 — matching the canonical run cell-for-cell) and tabulated every
+lost (ticker, month) cell:
+
+- **2,809 lost cells, 100% with post exclusion_reason `"no statement before as_of+lag"`** — not a
+  partial "missing field" exclusion. `select_pit_statement` never finds *any* valid income-statement
+  column for these tickers post-fix, at any date in the 10-year window.
+- **Top losers are near-total, not partial:** 18 tickers lose all 125/125 months (ABBV, ABT, AMGN,
+  CAT, CPRT, CRL, EQIX, FICO, GILD, GM, JCI, KLAC, LYB, NDSN, RTX, TDY, TJX, TMO), plus 7 more
+  losing 52–114/125. The top 25 tickers account for 2,773 of the 2,809 lost cells (98.7%) — this is
+  a concentrated, well-defined defect, not diffuse noise.
+- **Hypothesis test (revised from the original "compare to rebuilt revenue" framing once the
+  mechanism was clear):** for 30 of these tickers, `gross_profit` is present in the legacy cache but
+  has **zero rows** in the rebuilt cache — not filtered down, entirely absent. For every one of the
+  30, the legacy `gross_profit` facts have a **median gap of 91–92 days** between consecutive
+  `period_end`s — an unambiguous quarterly cadence, confirmed directly from stored dates, not
+  inferred from a ratio. Comparing each quarterly value to the annual revenue for its fiscal year
+  (using the rebuilt cache's own now-verified-annual revenue) gives ratios of 0.026–0.196 depending
+  on the company's real gross margin (e.g. AMGN ≈0.196 × 4 ≈ 78% margin, plausible for biotech; NUE
+  ≈0.026 × 4 ≈ 10%, plausible for steel) — economically sensible only if these are single-quarter
+  figures, not annual ones. **Confirmed: these companies' only tagged `GrossProfit` XBRL fact, in
+  every year, was Item-302-style quarterly data; there was never a true annual fact for the legacy
+  fetcher to have captured correctly.** The duration fix correctly excludes it entirely rather than
+  keeping a wrong value.
+  24 of the 25 top losers are in this 30-ticker set; **JCI (125/125 lost) is not** — its rebuilt
+  cache has some `gross_profit` rows but sparse `ebit`/`current_liabilities` coverage instead, a
+  different (not further investigated) data-availability gap.
+- **Sector clustering:** none. The top 20 losers span Healthcare (6), Industrials (5), Technology
+  (3), Consumer Cyclical (2), Consumer Defensive (2), Real Estate (1), Basic Materials (1) — a
+  cross-section of large caps, not a sector-specific XBRL tagging convention.
+
+**Conclusion:** the coverage drop is real and now explained, not a bug in the errata re-run. It is
+the duration fix correctly refusing to substitute a quarterly Item-302 figure for an annual GAAP
+fact that a subset of large-cap filers never separately tagged — exactly the defect this errata set
+out to fix, just showing up as an exclusion rather than a wrong value for these particular names.

@@ -1,0 +1,136 @@
+{
+  "params": {
+    "factors": [
+      "value",
+      "quality"
+    ],
+    "frequency": "monthly",
+    "horizon_months": 1,
+    "quantiles": 10,
+    "min_names_per_bucket": 10,
+    "start": "2016-01-01",
+    "end": "2026-04-01",
+    "transaction_cost_bps": 10.0,
+    "fundamentals": "sec",
+    "t_gate": 2.0,
+    "t_gate_source": "explicit --t-gate",
+    "power_sim_n": 0,
+    "allow_legacy_cache": true
+  },
+  "caveats": [
+    "LEGACY SEC CACHE (--allow-legacy-cache): pre-2026-09-26 cache without period_start; 3-month vs YTD durations unverified. Pre-errata reproduction only \u2014 NOT a canonical verdict.",
+    "SURVIVORSHIP: universe = CURRENT index membership (price store) for all dates; delisted/removed names are absent. Results are biased upward.",
+    "SEC PIT FUNDAMENTALS: true point-in-time (filed-date) data ~2008+; the testable window is bounded by the price store start (~2015). EBIT=OperatingIncomeLoss; banks/financials excluded (no LiabilitiesCurrent/OperatingIncomeLoss). Market cap and net issuance put as-filed SEC shares on the price store's split basis via the cached split history, src/pipeline/splits.py (names without it are excluded)."
+  ],
+  "factors": [
+    {
+      "factor": "value",
+      "ic": {
+        "mean_ic": -0.0069503902288060825,
+        "std_ic": 0.17361932098022698,
+        "t_stat": -0.4439802905066309,
+        "n_periods": 123
+      },
+      "decile_table": [
+        0.024703683387093868,
+        0.017679966113653148,
+        0.015665680086651496,
+        0.015381898042454661,
+        0.014533114255799536,
+        0.013926604908767131,
+        0.012612661439383789,
+        0.013465301191595865,
+        0.016253907512190975,
+        0.018121410176867803
+      ],
+      "monotonic": false,
+      "gross_spread": {
+        "ann_mean": -0.07898727852271273,
+        "ann_vol": 0.17122638934915296,
+        "sharpe": -0.46130318359775346,
+        "n_periods": 123
+      },
+      "net_spread": {
+        "ann_mean": -0.08358172302708702,
+        "ann_vol": 0.17104571633461388,
+        "sharpe": -0.4886513665362861,
+        "n_periods": 123
+      },
+      "n_obs": 22230,
+      "date_range": [
+        "2016-01-31",
+        "2026-03-31"
+      ],
+      "passed": false,
+      "power": {
+        "se": 0.01565472697194489,
+        "ci95": [
+          -0.037633655093818066,
+          0.0237328746362059
+        ],
+        "z_gate": 2.0,
+        "mde80": 0.044484804569265214,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.23501488676114068
+      },
+      "verdict": "FAIL",
+      "gate_met": false,
+      "inconclusive_reason": ""
+    },
+    {
+      "factor": "quality",
+      "ic": {
+        "mean_ic": 0.0002602143622571357,
+        "std_ic": 0.1234371175165371,
+        "t_stat": 0.023379652264791235,
+        "n_periods": 123
+      },
+      "decile_table": [
+        0.016975984798998204,
+        0.018087961558476886,
+        0.018675976879518896,
+        0.012958961700600975,
+        0.016851489492301554,
+        0.015775487517001804,
+        0.01704336527896803,
+        0.01370968260661373,
+        0.01924218203796439,
+        0.013650070940668642
+      ],
+      "monotonic": false,
+      "gross_spread": {
+        "ann_mean": -0.03991096629995478,
+        "ann_vol": 0.12311535544568647,
+        "sharpe": -0.3241753732137978,
+        "n_periods": 123
+      },
+      "net_spread": {
+        "ann_mean": -0.041480128684634805,
+        "ann_vol": 0.12309399690265106,
+        "sharpe": -0.3369792981654449,
+        "n_periods": 123
+      },
+      "n_obs": 22230,
+      "date_range": [
+        "2016-01-31",
+        "2026-03-31"
+      ],
+      "passed": false,
+      "power": {
+        "se": 0.01112995006555369,
+        "ci95": [
+          -0.0215544877662281,
+          0.02207491649074237
+        ],
+        "z_gate": 2.0,
+        "mde80": 0.03162710243488362,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.41954924800860816
+      },
+      "verdict": "FAIL",
+      "gate_met": false,
+      "inconclusive_reason": ""
+    }
+  ],
+  "power_sim": []
+}
