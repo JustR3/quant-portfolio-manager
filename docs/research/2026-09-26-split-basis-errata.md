@@ -58,7 +58,9 @@ pre-errata side of the comparison; note that it still applies the split fix):
 
 ```bash
 # study #2 (docs/superpowers/plans/2026-06-08-deep-pit-fundamentals.md, Task 10)
-uv run ./main.py signal-eval --factors value,quality --fundamentals sec \
+# --t-gate 2.0 is REQUIRED: #2 ran under the flat |t|>=2 bar; the new default would be the
+# auto-Bonferroni 2.24 (k=2), which would change a locked parameter.
+uv run ./main.py signal-eval --factors value,quality --fundamentals sec --t-gate 2.0 \
   --start 2010-01-01 --end 2026-04-01 --frequency monthly --horizon 1 --quantiles 10
 # study #3 (docs/research/2026-06-09-new-factor-inputs-results.md)
 uv run ./main.py signal-eval --factors gross_profitability,net_issuance,asset_growth \
