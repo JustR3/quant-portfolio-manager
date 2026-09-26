@@ -15,6 +15,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.pipeline import historical_store as hstore
+from src.research import power as pw
 from src.research import ts_eval as te
 from src.research import ts_results as tr
 from src.research import ts_signals as ts
@@ -89,6 +90,10 @@ def _metrics(rule: str, net: pd.Series, bench: pd.Series, cash: pd.Series, idx: 
              alpha=boot["alpha"], beta=boot["beta"], p_boot=boot["p_boot"],
              nw_t=te.newey_west_t(strat_x, bench_x),
              n_days=int(len(idx)), turnover=float(turnover), cost_drag=float(cost_drag))
+    # Report-only power on annualized timing alpha (NW SE; the gate itself is unchanged).
+    a_nw, se_nw = te.newey_west_alpha_se(strat_x, bench_x)
+    m["power"] = pw.power_block(a_nw, se_nw, z_gate=pw.z_for_one_sided_p(p_gate),
+                                ref_effect=pw.REF_TS_ALPHA_ANN, scale=pw.TRADING_DAYS)
     m["pass"] = tr.gate_pass(m, p_gate)
     return m
 

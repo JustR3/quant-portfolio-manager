@@ -5,6 +5,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 import numpy as np
 import pandas as pd
+from src.research import power as pw
 from src.research import signal_eval as se
 
 T_STAT_GATE = 2.0
@@ -21,6 +22,7 @@ class FactorResult:
     n_obs: int
     date_range: list
     passed: bool
+    power: dict = field(default_factory=dict)  # report-only; never gates
 
 
 def evaluate_factor(panel: pd.DataFrame, factor: str, q: int, min_names: int,
@@ -54,11 +56,18 @@ def evaluate_factor(panel: pd.DataFrame, factor: str, q: int, min_names: int,
     date_range = ([str(dates.min().date()), str(dates.max().date())]
                   if len(dates) else [None, None])
 
+    # Report-only power (pre-registered gate above is unchanged): the gate is effectively
+    # one-sided (expected sign AND |t| >= t_gate), so z_gate = t_gate.
+    se_ic = (ic["std_ic"] / np.sqrt(ic["n_periods"])
+             if ic["n_periods"] > 1 and pd.notna(ic["std_ic"]) else float("nan"))
+    est = ic["mean_ic"] * expected_sign if pd.notna(ic["mean_ic"]) else float("nan")
+    power = pw.power_block(est, se_ic, z_gate=t_gate, ref_effect=pw.REF_IC)
+
     return FactorResult(
         factor=factor, ic=ic,
         decile_table=[None if pd.isna(v) else float(v) for v in table.tolist()],
         monotonic=monotonic, gross_spread=gross, net_spread=net,
-        n_obs=int(len(measurable)), date_range=date_range, passed=passed,
+        n_obs=int(len(measurable)), date_range=date_range, passed=passed, power=power,
     )
 
 
@@ -107,10 +116,11 @@ class SignalEvalResult:
     factors: list
     caveats: list
     params: dict = field(default_factory=dict)
+    power_sim: list = field(default_factory=list)  # signal_power_sim results; report-only
 
     def to_dict(self) -> dict:
         return {"params": self.params, "caveats": self.caveats,
-                "factors": [asdict(f) for f in self.factors]}
+                "factors": [asdict(f) for f in self.factors], "power_sim": self.power_sim}
 
     def to_json(self, path) -> None:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -127,7 +137,11 @@ class SignalEvalResult:
                 f"  deciles (low→high): {['%.3f' % v if v is not None else 'NA' for v in f.decile_table]}  "
                 f"monotone={f.monotonic}",
                 f"  long-short Sharpe: gross={f.gross_spread['sharpe']:+.2f}  net={f.net_spread['sharpe']:+.2f}",
+                f"  {pw.render_power(f.power)}  (IC, expected-sign oriented; report-only)",
             ]
+        if self.power_sim:
+            from src.research.signal_power_sim import render_power_sim
+            lines += render_power_sim(self.power_sim)
         lines += ["", "-" * 78, "DATA CAVEATS:"]
         lines += [f"  • {c}" for c in self.caveats]
         lines += ["=" * 78]

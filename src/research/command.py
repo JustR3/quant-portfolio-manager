@@ -35,6 +35,20 @@ def run_signal_eval(args) -> R.SignalEvalResult:
                           t_gate=t_gate)
         for f in factors
     ]
+    power_sim = []
+    n_sims = getattr(args, "power_sim", 0) or 0
+    if n_sims > 0:
+        from src.research import signal_power_sim as sps
+        ics = [float(x) for x in str(getattr(args, "power_sim_ics", "") or "").split(",")
+               if x.strip()] or list(sps.DEFAULT_TARGET_ICS)
+        power_sim = [
+            sps.simulate_power(panel, f, q=args.quantiles, min_names=args.min_names_per_bucket,
+                               frequency=args.frequency, cost_bps=args.transaction_cost_bps,
+                               t_gate=t_gate, n_sims=n_sims, target_ics=ics,
+                               seed=getattr(args, "seed", 42),
+                               workers=getattr(args, "workers", 1) or 1)
+            for f in factors
+        ]
     caveats = R.build_caveats(args.frequency, args.horizon, factors,
                               fundamentals_source=getattr(args, "fundamentals", "yfinance"))
     result = R.SignalEvalResult(
@@ -44,7 +58,8 @@ def run_signal_eval(args) -> R.SignalEvalResult:
                 "start": args.start, "end": args.end,
                 "transaction_cost_bps": args.transaction_cost_bps,
                 "fundamentals": getattr(args, "fundamentals", "yfinance"),
-                "t_gate": t_gate},
+                "t_gate": t_gate, "power_sim_n": n_sims},
+        power_sim=power_sim,
     )
     print(result.render())
 

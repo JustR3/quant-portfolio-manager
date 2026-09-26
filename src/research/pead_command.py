@@ -19,6 +19,7 @@ from src.pipeline import sec_quarterly as sq
 from src.research import pead_events as pev
 from src.research import pead_portfolio as pp
 from src.research import pead_results as pr
+from src.research import power as pw
 from src.research import ts_eval as te
 from src.research.signal_eval import is_broadly_monotone
 from src.research.ts_command import TS_BASE, _cash
@@ -140,6 +141,11 @@ def run_pead_eval_measures(measures=None, sec_q_dir: Path = sq.SEC_FUND_Q_DIR,
             turnover=float(spread["turnover"].sum(skipna=True)),
             cost_drag=float(spread["cost"].mean(skipna=True) * 252),
             excluded_days=int(spread["gross"].isna().sum()))
+        # Report-only power on annualized net-spread alpha (NW SE; the gate is unchanged).
+        a_nw, se_nw = te.newey_west_alpha_se(net, spy_x.loc[net.index])
+        metrics["power"] = pw.power_block(a_nw, se_nw, z_gate=pw.z_for_one_sided_p(p_gate),
+                                          ref_effect=pw.REF_PEAD_ALPHA_ANN,
+                                          scale=pw.TRADING_DAYS)
         metrics["pass"] = pr.gate_pass(metrics, p_gate)
         out_measures.append(metrics)
         # un-gated H=20 diagnostic line

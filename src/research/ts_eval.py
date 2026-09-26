@@ -100,11 +100,18 @@ def timing_alpha_bootstrap(strat_x: pd.Series, bench_x: pd.Series, n_boot: int =
 
 def newey_west_t(strat_x: pd.Series, bench_x: pd.Series, lags: int = 21) -> float:
     """Newey-West (Bartlett) t-stat on the alpha of strat_x = a + b*bench_x + e. Cross-check only."""
+    alpha, se = newey_west_alpha_se(strat_x, bench_x, lags)
+    return float(alpha / se) if se > 0 else float("nan")
+
+
+def newey_west_alpha_se(strat_x: pd.Series, bench_x: pd.Series,
+                        lags: int = 21) -> tuple[float, float]:
+    """(OLS alpha, Newey-West Bartlett SE of alpha) per day; (nan, nan) on degenerate input."""
     df = pd.concat([strat_x, bench_x], axis=1).dropna()
     s, b = df.iloc[:, 0].to_numpy(), df.iloc[:, 1].to_numpy()
     n = len(s)
     if n < 30 or np.std(b) == 0:
-        return float("nan")
+        return float("nan"), float("nan")
     X = np.column_stack([np.ones(n), b])
     XtX_inv = np.linalg.inv(X.T @ X)
     coef = XtX_inv @ X.T @ s
@@ -115,5 +122,4 @@ def newey_west_t(strat_x: pd.Series, bench_x: pd.Series, lags: int = 21) -> floa
         G = u[lag:].T @ u[:-lag]
         S += w * (G + G.T)
     V = XtX_inv @ S @ XtX_inv
-    se = np.sqrt(V[0, 0])
-    return float(coef[0] / se) if se > 0 else float("nan")
+    return float(coef[0]), float(np.sqrt(V[0, 0]))

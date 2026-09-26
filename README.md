@@ -31,6 +31,11 @@ honored when it fired.
 | 4 | Regime overlay + vol-conditioning timing rules | Time-series | All five rules fail (best p = 0.070 vs 0.010); the legacy "validated 25-yr regime" claim killed with data | [TS timing results](docs/research/2026-06-10-ts-timing-study-results.md) |
 | 5 | PEAD / post-SEC-filing drift (SUE-E, SUE-R, EAR) | Event-time | All spreads *negative* net of costs; filing-reaction measure shows **reversal** (NW-t −2.04) | [PEAD results](docs/research/2026-06-10-pead-event-drift-results.md) |
 
+**Power caveat (2026-09-26):** measured after the fact, these studies had only 9–39% power
+against literature-plausible effects (IC 0.02, 1–2%/yr alpha). They are failures to reject, not proof
+of absence; only EAR's CI excludes a positive effect. See
+[harness power & positive controls](docs/research/2026-09-26-harness-power-and-positive-controls.md).
+
 Plus a data-feasibility verdict: the **survivorship-free S&P 500 spike**
 ([write-up](docs/research/2026-06-09-survivorship-free-sp500-spike.md)) — membership
 reconstruction works, but free sources structurally cannot supply delisted-name prices (56%
@@ -77,6 +82,10 @@ Rank-IC + quantile spreads (gross and net of costs) per factor, with a configura
 uv run ./main.py signal-eval --factors momentum,value,quality \
   --fundamentals sec --t-gate 2.4 --start 2016-01-01 --end 2026-06-01
 ```
+
+Add `--power-sim 100 --workers 8` for positive and negative controls: synthetic factors of known IC
+(0, 0.02, 0.03, 0.05), injected into the real panel and calibrated to each real factor, run through
+the unchanged gate. The IC-0 row is the false-positive rate.
 
 ### `ts-eval` — time-series timing gate
 Pre-registered timing rules vs buy-and-hold on a 10-ETF multi-asset universe: net excess Sharpe
@@ -134,7 +143,10 @@ formally killed the regime overlay's legacy performance claims.
 4. PIT or it doesn't exist: filed dates, first-filed values, trailing-only thresholds, enforced
    execution lags — each with an adversarial test that fails under leakage.
 5. Degenerate cases fail loudly (NaN p → FAIL); nothing silently degrades or falls back.
-6. Pre-register the stopping rule — and honor it. Negative results get the same write-up quality
+6. Report power next to every verdict: SE, 95% CI, 80%-power minimum detectable effect, and power
+   at a pre-set reference effect (report-only; gates unchanged). A FAIL is evidence of absence only
+   when the test could have seen a realistic effect.
+7. Pre-register the stopping rule — and honor it. Negative results get the same write-up quality
    as positives would have.
 
 ## Status: PARKED (2026-06-10)

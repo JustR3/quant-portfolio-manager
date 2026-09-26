@@ -13,6 +13,8 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from src.research.power import render_power
+
 P_GATE = 0.05 / 3  # one-sided 0.05, Bonferroni k=3 (pre-registered)
 
 
@@ -56,6 +58,9 @@ class PEADResult:
                 f"{m.get('alpha', float('nan')):9.2e} {m.get('p_boot', float('nan')):7.4f} "
                 f"{m.get('nw_t', float('nan')):6.2f} "
                 f"{'PASS' if m.get('pass') else 'FAIL':>8}")
+            if m.get("power"):
+                lines.append(f"{'':8} {render_power(m['power'], '{:+.2%}')}  "
+                             "(alpha/yr; report-only)")
         if self.caveats:
             lines += ["", "CAVEATS:"] + [f"  - {c}" for c in self.caveats]
         return "\n".join(lines)

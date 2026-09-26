@@ -396,6 +396,31 @@ Examples:
         help="|t|-stat gate for PASS (default 2.0; pre-registered k=3 set uses 2.4)",
     )
     sig.add_argument(
+        "--power-sim",
+        dest="power_sim",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Positive/negative control: inject N synthetic factors of known IC into the real "
+        "panel per target IC and report the gate's pass rate (report-only; default 0 = off)",
+    )
+    sig.add_argument(
+        "--power-sim-ics",
+        dest="power_sim_ics",
+        type=str,
+        default="0,0.02,0.03,0.05",
+        help="Comma-separated target mean rank-ICs for --power-sim (default: 0,0.02,0.03,0.05)",
+    )
+    sig.add_argument(
+        "--seed", type=int, default=42, help="Seed for --power-sim (default: 42)"
+    )
+    sig.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Processes for --power-sim (results identical for any count; default: 1)",
+    )
+    sig.add_argument(
         "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
     )
 

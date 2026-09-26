@@ -23,7 +23,9 @@ strategy claim through an honest, costed, PIT-correct gate.
 ## Run it
 - Harnesses: `uv run ./main.py signal-eval --fundamentals sec --t-gate 2.4` /
   `uv run ./main.py ts-eval` / `uv run ./main.py pead-eval` (all offline from local stores;
-  JSON artifacts to `data/research/`)
+  JSON artifacts to `data/research/`). Every artifact carries a report-only `power` block
+  (SE / 95% CI / MDE80 / power@reference); `signal-eval --power-sim N --workers K` runs injected-signal
+  positive/negative controls (`docs/research/2026-09-26-harness-power-and-positive-controls.md`).
 - Legacy tool: `uv run ./main.py optimize --universe sp500 --top-n 50`;
   backtest: `uv run ./main.py backtest --start 2023-07-01 --end 2025-06-01 --top-n 20 --frequency quarterly`
 - Tests: `uv run pytest -q` (network/integration tests are opt-in: `-m integration`)

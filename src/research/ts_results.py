@@ -12,6 +12,8 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from src.research.power import render_power
+
 P_GATE = 0.01  # one-sided 0.05, Bonferroni k=5 (pre-registered)
 
 
@@ -50,6 +52,9 @@ class TSEvalResult:
                 f"{sub_str:>8} {m.get('alpha', float('nan')):9.2e} "
                 f"{m.get('p_boot', float('nan')):7.4f} {m.get('nw_t', float('nan')):6.2f} "
                 f"{m.get('turnover', float('nan')):9.2f} {verdict:>8}")
+            if m.get("power"):
+                lines.append(f"{'':14} {render_power(m['power'], '{:+.2%}')}  "
+                             "(alpha/yr; report-only)")
         if self.caveats:
             lines.append("")
             lines.append("CAVEATS:")
