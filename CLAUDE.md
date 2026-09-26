@@ -70,9 +70,15 @@ time-series (`ts-eval`), or event-time (`pead-eval`):
 - **#1 Momentum** (~11yr): ~0 IC; 12-1/6-1/sector-neutral variants all fail (dead-end branch).
 - **#2 Value/Quality** on deep true-PIT SEC data: Value's thin lead was a small-sample mirage
   (IC +0.036/t=1.58 → +0.014/t=1.11); Quality flat. Closes "needs more data."
+  **Corrected under errata (2026-09-26, split-basis + duration fixes): Value IC +0.014/t=1.11 →
+  −0.013/t=−0.88 (sign flip — the published lead was look-ahead from the split-basis bug); Quality
+  unchanged (~0). Still FAIL.** See `docs/research/2026-09-26-split-basis-errata.md`.
 - **#3 New q-leg inputs** (gross profitability, net issuance, asset growth), pre-registered + Bonferroni
   bar: all flat, best t=0.73, none clears |t|=2.0. Closes "needs new inputs." See
   `docs/research/2026-06-09-new-factor-inputs-results.md`.
+  **Corrected under errata (2026-09-26): gross_profitability t=0.73→0.44, net_issuance t=0.11→−0.26,
+  asset_growth t=−0.04→−0.17. Still all FAIL, none near the bar.** See
+  `docs/research/2026-09-26-split-basis-errata.md`.
 
 **Survivorship-kill spike (2026-06-09): NO-GO on free data** — membership reconstruction PASS, but
 delisted-price coverage only 56% and non-random (`docs/research/2026-06-09-survivorship-free-sp500-spike.md`).
@@ -91,6 +97,9 @@ Closes the down-cap/survivorship lead until paid data is justified.
   bar). All three spreads are *negative* net of costs; EAR points to **reversal** (NW-t −2.04 in
   the wrong direction); quintile drift U-shaped, not monotone. See
   `docs/research/2026-06-10-pead-event-drift-results.md`.
+  **Corrected under errata (2026-09-26, duration fix): sue_e net/yr −2.63%→−1.16%, sue_r
+  −1.81%→−2.49%, ear −4.47%→−4.33% (NW-t −2.04→−1.96, still reversal-direction). Still all FAIL.**
+  See `docs/research/2026-09-25-sec-duration-contamination-check.md`.
 
 ## Direction: PARKED (reframe executed 2026-06-10; stopping rule fired, counter 2 of 2)
 The pre-registered stopping rule (iters #5 AND #6 both negative → reframe, no relitigating)
@@ -103,9 +112,11 @@ five-negatives table. Active investment in this project has STOPPED.
   and corrected results side by side in an errata doc; the corrected verdict becomes canonical
   (README/CLAUDE tables updated). No parameter, window, universe, or gate change is allowed under
   errata. A corrected verdict that flips to PASS does NOT reopen the project: it triggers a fresh
-  pre-registered out-of-sample confirmation first. Open errata: split basis
-  (`docs/research/2026-09-26-split-basis-errata.md`), 3-month/YTD durations
-  (`docs/research/2026-09-25-sec-duration-contamination-check.md`).
+  pre-registered out-of-sample confirmation first. **Errata closed (2026-09-26): split basis**
+  (`docs/research/2026-09-26-split-basis-errata.md`) **and 3-month/YTD durations**
+  (`docs/research/2026-09-25-sec-duration-contamination-check.md`) **re-run on studies #2/#3/#5 —
+  no verdict flipped to PASS; corrected numbers are now canonical (see "Errata results" sections in
+  both docs).**
 - **Candidate claims** (listed, not scheduled; listing ≠ reopening): `docs/research/2026-09-26-candidate-claims.md`
   (C1: announcement-date PEAD on the free 8-K Item 2.02 clock).
 - **Reopening criteria (pre-registered):** a genuinely NEW data tier (paid survivorship-free,

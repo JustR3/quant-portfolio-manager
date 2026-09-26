@@ -1,0 +1,192 @@
+{
+  "params": {
+    "factors": [
+      "gross_profitability",
+      "net_issuance",
+      "asset_growth"
+    ],
+    "frequency": "monthly",
+    "horizon_months": 1,
+    "quantiles": 10,
+    "min_names_per_bucket": 10,
+    "start": "2016-01-01",
+    "end": "2026-06-01",
+    "transaction_cost_bps": 10.0,
+    "fundamentals": "sec",
+    "t_gate": 2.4,
+    "t_gate_source": "explicit --t-gate",
+    "power_sim_n": 0,
+    "allow_legacy_cache": true
+  },
+  "caveats": [
+    "LEGACY SEC CACHE (--allow-legacy-cache): pre-2026-09-26 cache without period_start; 3-month vs YTD durations unverified. Pre-errata reproduction only \u2014 NOT a canonical verdict.",
+    "SURVIVORSHIP: universe = CURRENT index membership (price store) for all dates; delisted/removed names are absent. Results are biased upward.",
+    "PRE-REGISTERED q-LEGS: gross-profitability/asset-growth are FF5/q legs (RMW/CMA) with weak realized large-cap premia 2016-2026; judged at a Bonferroni-raised |t| bar (pass --t-gate). Universe held constant (same exclusion as Value/Quality).",
+    "NET ISSUANCE: shares = SEC cover-page count; stock splits removed via a simple-multiple ratio heuristic (see docs/research/2026-06-09-net-issuance-splits-spike.md)."
+  ],
+  "factors": [
+    {
+      "factor": "gross_profitability",
+      "ic": {
+        "mean_ic": 0.006921013620080176,
+        "std_ic": 0.10660210870817419,
+        "t_stat": 0.725870112479046,
+        "n_periods": 125
+      },
+      "decile_table": [
+        0.013932144490343357,
+        0.015130208799109581,
+        0.014714144048601666,
+        0.018372319076085174,
+        0.016647378954847167,
+        0.01546240835892798,
+        0.01778334936581765,
+        0.01864612613710229,
+        0.017104820560109327,
+        0.014945866603109988
+      ],
+      "monotonic": false,
+      "gross_spread": {
+        "ann_mean": 0.01216466535319962,
+        "ann_vol": 0.10568018538754353,
+        "sharpe": 0.11510828930314748,
+        "n_periods": 125
+      },
+      "net_spread": {
+        "ann_mean": 0.010952549298356633,
+        "ann_vol": 0.10569501323034441,
+        "sharpe": 0.1036240874911232,
+        "n_periods": 125
+      },
+      "n_obs": 22642,
+      "date_range": [
+        "2016-01-31",
+        "2026-05-31"
+      ],
+      "passed": false,
+      "power": {
+        "se": 0.00953478246465199,
+        "ci95": [
+          -0.011767160010637726,
+          0.025609187250798075
+        ],
+        "z_gate": 2.4,
+        "mde80": 0.030908153294914576,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.3811671941485151
+      },
+      "verdict": "FAIL",
+      "gate_met": false,
+      "inconclusive_reason": ""
+    },
+    {
+      "factor": "net_issuance",
+      "ic": {
+        "mean_ic": -0.0005158509047770574,
+        "std_ic": 0.11490616303929431,
+        "t_stat": -0.05019215935971242,
+        "n_periods": 125
+      },
+      "decile_table": [
+        0.02403197198093237,
+        0.017972674859076023,
+        0.014790490285145737,
+        0.013160344063762139,
+        0.012706256663410407,
+        0.014305163932593446,
+        0.012704881633474231,
+        0.01490028456427642,
+        0.018480193673989842,
+        0.01828999740204769
+      ],
+      "monotonic": false,
+      "gross_spread": {
+        "ann_mean": -0.06890369494661616,
+        "ann_vol": 0.1331796949668236,
+        "sharpe": -0.5173738756781262,
+        "n_periods": 125
+      },
+      "net_spread": {
+        "ann_mean": -0.07419899649460376,
+        "ann_vol": 0.13308208185883255,
+        "sharpe": -0.5575431001546151,
+        "n_periods": 125
+      },
+      "n_obs": 22537,
+      "date_range": [
+        "2016-01-31",
+        "2026-05-31"
+      ],
+      "passed": false,
+      "power": {
+        "se": 0.010277519663581437,
+        "ci95": [
+          -0.020659789445396672,
+          0.019628087635842558
+        ],
+        "z_gate": 2.4,
+        "mde80": 0.03331582596992874,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.3249125482704902
+      },
+      "verdict": "FAIL",
+      "gate_met": false,
+      "inconclusive_reason": ""
+    },
+    {
+      "factor": "asset_growth",
+      "ic": {
+        "mean_ic": -0.0004618021937548248,
+        "std_ic": 0.13464942863149768,
+        "t_stat": -0.03834480056429897,
+        "n_periods": 125
+      },
+      "decile_table": [
+        0.018610016883047333,
+        0.018392521425921054,
+        0.015335823661602667,
+        0.014551868583668432,
+        0.01612370135924184,
+        0.015299651532334603,
+        0.015429223140171252,
+        0.013719877744248182,
+        0.01603512299921256,
+        0.019003212428218487
+      ],
+      "monotonic": false,
+      "gross_spread": {
+        "ann_mean": 0.004718346542053814,
+        "ann_vol": 0.14030225233465493,
+        "sharpe": 0.033629870251828974,
+        "n_periods": 125
+      },
+      "net_spread": {
+        "ann_mean": 0.0002261246933143111,
+        "ann_vol": 0.14016250498674815,
+        "sharpe": 0.0016133037386545734,
+        "n_periods": 125
+      },
+      "n_obs": 22642,
+      "date_range": [
+        "2016-01-31",
+        "2026-05-31"
+      ],
+      "passed": false,
+      "power": {
+        "se": 0.01204341102206141,
+        "ci95": [
+          -0.02406688779699519,
+          0.02314328340948554
+        ],
+        "z_gate": 2.4,
+        "mde80": 0.03904017689376034,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.22985000705693026
+      },
+      "verdict": "FAIL",
+      "gate_met": false,
+      "inconclusive_reason": ""
+    }
+  ],
+  "power_sim": []
+}

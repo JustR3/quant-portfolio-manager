@@ -1,0 +1,198 @@
+{
+  "params": {
+    "factors": [
+      "value",
+      "quality"
+    ],
+    "frequency": "monthly",
+    "horizon_months": 1,
+    "quantiles": 10,
+    "min_names_per_bucket": 10,
+    "start": "2010-01-01",
+    "end": "2026-04-01",
+    "transaction_cost_bps": 10.0,
+    "fundamentals": "sec",
+    "t_gate": 2.0,
+    "t_gate_source": "explicit --t-gate",
+    "power_sim_n": 100,
+    "allow_legacy_cache": false
+  },
+  "caveats": [
+    "SURVIVORSHIP: universe = CURRENT index membership (price store) for all dates; delisted/removed names are absent. Results are biased upward.",
+    "SEC PIT FUNDAMENTALS: true point-in-time (filed-date) data ~2008+; the testable window is bounded by the price store start (~2015). EBIT=OperatingIncomeLoss; banks/financials excluded (no LiabilitiesCurrent/OperatingIncomeLoss). Market cap and net issuance put as-filed SEC shares on the price store's split basis via the cached split history, src/pipeline/splits.py (names without it are excluded)."
+  ],
+  "factors": [
+    {
+      "factor": "value",
+      "ic": {
+        "mean_ic": -0.01336324406425614,
+        "std_ic": 0.17697435400423267,
+        "t_stat": -0.8773410475779668,
+        "n_periods": 135
+      },
+      "decile_table": [
+        0.02536038350790369,
+        0.017030258606149217,
+        0.01416988840768327,
+        0.015602438471587736,
+        0.012699613653553259,
+        0.012577654932668523,
+        0.01149176257188982,
+        0.011671687368155388,
+        0.016005203821081386,
+        0.016588835400602537
+      ],
+      "monotonic": false,
+      "gross_spread": {
+        "ann_mean": -0.10525857728761392,
+        "ann_vol": 0.1873329491328483,
+        "sharpe": -0.561879678801027,
+        "n_periods": 135
+      },
+      "net_spread": {
+        "ann_mean": -0.11015552921998381,
+        "ann_vol": 0.18727309674591877,
+        "sharpe": -0.5882079761271659,
+        "n_periods": 135
+      },
+      "n_obs": 20978,
+      "date_range": [
+        "2015-01-31",
+        "2026-03-31"
+      ],
+      "passed": false,
+      "power": {
+        "se": 0.015231527239204646,
+        "ci95": [
+          -0.04321703745309725,
+          0.016490549324584963
+        ],
+        "z_gate": 2.0,
+        "mde80": 0.04328223122266815,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.24606214878938748
+      },
+      "verdict": "FAIL",
+      "gate_met": false,
+      "inconclusive_reason": ""
+    },
+    {
+      "factor": "quality",
+      "ic": {
+        "mean_ic": 0.00021570527204297147,
+        "std_ic": 0.12363326588370062,
+        "t_stat": 0.020271799511405807,
+        "n_periods": 135
+      },
+      "decile_table": [
+        0.02022910168932855,
+        0.018454484303788935,
+        0.012502086022359011,
+        0.011423153125165146,
+        0.01611942630320072,
+        0.01707431940989286,
+        0.015226909557475677,
+        0.012643327917464788,
+        0.01770837836150916,
+        0.011762223073762216
+      ],
+      "monotonic": false,
+      "gross_spread": {
+        "ann_mean": -0.10160254338679606,
+        "ann_vol": 0.12954371448920327,
+        "sharpe": -0.7843108697895493,
+        "n_periods": 135
+      },
+      "net_spread": {
+        "ann_mean": -0.10332148938594844,
+        "ann_vol": 0.12952975318582285,
+        "sharpe": -0.7976660716532352,
+        "n_periods": 135
+      },
+      "n_obs": 20978,
+      "date_range": [
+        "2015-01-31",
+        "2026-03-31"
+      ],
+      "passed": false,
+      "power": {
+        "se": 0.010640657328995691,
+        "ci95": [
+          -0.020639983092788583,
+          0.021071393636874526
+        ],
+        "z_gate": 2.0,
+        "mde80": 0.030236717805247407,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.45207646386982636
+      },
+      "verdict": "FAIL",
+      "gate_met": false,
+      "inconclusive_reason": ""
+    }
+  ],
+  "power_sim": [
+    {
+      "factor": "value",
+      "n_sims": 100,
+      "seed": 42,
+      "t_gate": 2.0,
+      "ref_ic": 0.02,
+      "ic_vol": 0.15731768162173393,
+      "persistence": 0.9694467803248664,
+      "grid": [
+        {
+          "target_ic": 0.0,
+          "pass_rate": 0.03,
+          "mc_se": 0.01705872210923198
+        },
+        {
+          "target_ic": 0.02,
+          "pass_rate": 0.23,
+          "mc_se": 0.042083250825001625
+        },
+        {
+          "target_ic": 0.03,
+          "pass_rate": 0.43,
+          "mc_se": 0.04950757517794625
+        },
+        {
+          "target_ic": 0.05,
+          "pass_rate": 0.85,
+          "mc_se": 0.035707142142714254
+        }
+      ]
+    },
+    {
+      "factor": "quality",
+      "n_sims": 100,
+      "seed": 42,
+      "t_gate": 2.0,
+      "ref_ic": 0.02,
+      "ic_vol": 0.09334942639722855,
+      "persistence": 0.99,
+      "grid": [
+        {
+          "target_ic": 0.0,
+          "pass_rate": 0.04,
+          "mc_se": 0.019595917942265423
+        },
+        {
+          "target_ic": 0.02,
+          "pass_rate": 0.41,
+          "mc_se": 0.04918333050943175
+        },
+        {
+          "target_ic": 0.03,
+          "pass_rate": 0.72,
+          "mc_se": 0.0448998886412873
+        },
+        {
+          "target_ic": 0.05,
+          "pass_rate": 1.0,
+          "mc_se": 0.0
+        }
+      ]
+    }
+  ]
+}

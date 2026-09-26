@@ -26,15 +26,20 @@ honored when it fired.
 | # | Study | Signal class | Verdict | Write-up |
 |---|-------|--------------|---------|----------|
 | 1 | Momentum (12-1, 6-1, sector-neutral) | Cross-sectional | ~0 IC over ~11yr; all variants fail | [signal-isolation results](docs/research/2026-06-07-signal-isolation-results.md) |
-| 2 | Value / Quality on deep SEC PIT data | Cross-sectional | Value's thin lead was a small-sample mirage (t 1.58 → 1.11 with *better* data); Quality flat | [deep-fundamentals results](docs/research/2026-06-08-deep-fundamentals-results.md) |
-| 3 | Gross profitability, net issuance, asset growth | Cross-sectional | All flat; best t = 0.73 vs a Bonferroni 2.4 bar | [new-factor-inputs results](docs/research/2026-06-09-new-factor-inputs-results.md) |
+| 2 | Value / Quality on deep SEC PIT data | Cross-sectional | Value's thin lead was a small-sample mirage (t 1.58 → 1.11 with *better* data); Quality flat. **Corrected under errata: t 1.11 → −0.88 (sign flip, was split-basis look-ahead); still FAIL** | [deep-fundamentals results](docs/research/2026-06-08-deep-fundamentals-results.md), [errata](docs/research/2026-09-26-split-basis-errata.md) |
+| 3 | Gross profitability, net issuance, asset growth | Cross-sectional | All flat; best t = 0.73 vs a Bonferroni 2.4 bar. **Corrected under errata: best t = 0.73 → 0.44; still all FAIL** | [new-factor-inputs results](docs/research/2026-06-09-new-factor-inputs-results.md), [errata](docs/research/2026-09-26-split-basis-errata.md) |
 | 4 | Regime overlay + vol-conditioning timing rules | Time-series | All five rules fail (best p = 0.070 vs 0.010); the legacy "validated 25-yr regime" claim killed with data | [TS timing results](docs/research/2026-06-10-ts-timing-study-results.md) |
-| 5 | PEAD / post-SEC-filing drift (SUE-E, SUE-R, EAR) | Event-time | All spreads *negative* net of costs; filing-reaction measure shows **reversal** (NW-t −2.04) | [PEAD results](docs/research/2026-06-10-pead-event-drift-results.md) |
+| 5 | PEAD / post-SEC-filing drift (SUE-E, SUE-R, EAR) | Event-time | All spreads *negative* net of costs; filing-reaction measure shows **reversal** (NW-t −2.04). **Corrected under errata: NW-t −2.04 → −1.96, still reversal; still FAIL** | [PEAD results](docs/research/2026-06-10-pead-event-drift-results.md), [errata](docs/research/2026-09-25-sec-duration-contamination-check.md) |
 
 **Power caveat (2026-09-26):** measured after the fact, these studies had only 9–39% power
 against literature-plausible effects (IC 0.02, 1–2%/yr alpha). They are failures to reject, not proof
 of absence; only EAR's CI excludes a positive effect. See
 [harness power & positive controls](docs/research/2026-09-26-harness-power-and-positive-controls.md).
+
+**Errata caveat (2026-09-26):** studies #2, #3, and #5 depended on two SEC pipeline bugs (as-filed
+share counts on the wrong split basis; 3-month vs year-to-date facts colliding under one cache key).
+Both are fixed; studies were re-run with their original locked parameters. **No verdict flipped —
+the corrected numbers above are now canonical.** See the errata docs linked in the table.
 
 Plus a data-feasibility verdict: the **survivorship-free S&P 500 spike**
 ([write-up](docs/research/2026-06-09-survivorship-free-sp500-spike.md)) — membership

@@ -1,8 +1,8 @@
 # Errata: Split-Basis Mismatch in SEC Market Cap (Value) and Net Issuance
 
 - **Date:** 2026-09-26
-- **Status:** fixed in code; **re-run pending** (needs the split cache built on a networked machine, and
-  should wait for the 3-month/YTD duration fix so #2/#3 are re-run once).
+- **Status:** fixed in code; **errata re-run executed 2026-09-26** — see "Errata results" below.
+  No verdict flipped to PASS.
 - **Affects:** study #2 (Value; Quality is price-free and unaffected), study #3 (net issuance).
 - **Protocol:** errata (CLAUDE.md, "Errata protocol"). Same locked parameters; the corrected run supersedes.
 
@@ -75,3 +75,84 @@ PASS triggers a fresh pre-registered out-of-sample confirmation; it does not reo
 Names whose split fetch fails drop out of every SEC factor, keeping the universe constant across
 factors as pre-registered. `build_split_cache.py` and `check_split_consistency.py` both list them.
 Record the count next to the corrected results.
+
+## Errata results (2026-09-26)
+
+Re-run on the machine with the data, following the order in this doc and
+`docs/research/2026-09-25-sec-duration-contamination-check.md` (split cache → pre-fix baseline on
+legacy caches → rebuild both SEC caches → corrected re-run → power). Raw JSON artifacts are in
+`docs/research/errata-artifacts/`.
+
+**Split cache build:** 501/501 tickers cached, 0 failed (`build_split_cache.py`, exit 0). Four
+tickers (BK, CTRA, HOLX, MER) logged transient "possibly delisted" yfinance errors but cached
+correctly (parquet contents verified; MER is a genuine 2009 delisting, the other three had no
+splits in-window). **Cross-check vs the legacy SEC share-ratio heuristic**
+(`check_split_consistency.py`, exit 1 as expected): 498 tickers compared, 43,161 gaps, 42,655
+consistent, `heuristic_missed=104` (incl. **CMG's 50:1 split, confirmed** — `yfinance=50,
+heuristic=1` — exactly the miss this errata fixes), `heuristic_only=397`, `ratio_mismatch=5`.
+`tickers_without_split_cache=0` — no name was excluded from the universe for lacking a split
+cache; spot-checked the highest-flag-count `heuristic_only` tickers (TSCO, WRB, DUK) plus
+AMZN/TSLA/AAPL against the raw yfinance parquet caches and confirmed all real splits are present
+and correctly dated — the `heuristic_only` rows are the legacy heuristic firing at the wrong
+quarter boundary, not yfinance gaps.
+
+**Coverage:** N obs dropped from the published ~180 measurable names/period to ~155 (study #2) /
+~159 (study #3) — a ~12–14% reduction, under the ~15% STOP threshold. This is *not* the
+"no split cache" exclusion (0 tickers hit that path); it reflects per-observation exclusions where
+the split adjuster can't resolve a name's share basis for a specific `as_of` date (e.g. the FY
+cache rebuild dropped CTRA/HOLX entirely — CIK-lookup errors in `build_sec_fundamentals_cache.py`,
+unrelated to splits). The "pre" bucket (split-fixed, legacy duration cache) already shows this
+coverage drop, confirming it is a split-fix effect, not a duration-fix effect.
+
+### Study #2 — Value / Quality (`--t-gate 2.0`, locked)
+
+| | Published (June) | Pre (split-fix, legacy duration cache) | Post (corrected) |
+|---|---|---|---|
+| Value IC (t-stat) | +0.0137 (t=+1.11) | **−0.0138 (t=−0.93)** | **−0.0134 (t=−0.88)** |
+| Quality IC (t-stat) | +0.0003 (t=+0.02) | +0.0023 (t=+0.22) | +0.0002 (t=+0.02) |
+| Value net L-S Sharpe | −0.09 | −0.59 | −0.59 |
+| Quality net L-S Sharpe | −0.34 | −0.36 | −0.80 |
+| Value monotone | No | No | No |
+| Quality monotone | No | No | No |
+| N obs / names-per-period | 22,230 / ~180 | 23,987 / ~178 | 20,978 / ~155 |
+| Verdict | FAIL | FAIL | FAIL |
+| Value power: SE / 95% CI / MDE80 / power@0.02 | not measured | 0.0148 / [−0.043,+0.015] / 0.042 / 26% | 0.0152 / [−0.043,+0.016] / 0.043 / 25% |
+| Quality power: SE / 95% CI / MDE80 / power@0.02 | not measured | 0.0105 / [−0.018,+0.023] / 0.030 / 47% | 0.0106 / [−0.021,+0.021] / 0.030 / 45% |
+| Power-sim pass rate @ IC 0.00 / 0.02 / 0.03 / 0.05 (post, n=100) | — | — | Value: 3%/23%/43%/85%; Quality: 4%/41%/72%/100% |
+
+Value's published lead was largely the split-basis look-ahead: correcting it **flips the sign**
+(+0.0137 → −0.0134). The duration fix (pre → post) barely moves Value further (−0.0138 → −0.0134,
+both FAIL) — Value's inputs are balance-sheet/price items, less duration-sensitive than income
+items. Quality moves close to zero either way. **Neither factor's verdict changes: both remain
+FAIL, and the corrected numbers are now canonical.**
+
+### Study #3 — q-legs (`--t-gate 2.4`, locked)
+
+| | Published (June) | Pre (split-fix, legacy duration cache) | Post (corrected) |
+|---|---|---|---|
+| Gross profitability IC (t) | +0.0069 (t=+0.73) | +0.0069 (t=+0.73) | +0.0044 (t=+0.44) |
+| Net issuance IC (t) | +0.0011 (t=+0.11) | −0.0005 (t=−0.05) | −0.0028 (t=−0.26) |
+| Asset growth IC (t) | −0.0005 (t=−0.04) | −0.0005 (t=−0.04) | −0.0021 (t=−0.17) |
+| N obs / names-per-period | 22,642 / ~181 | 22,642 / ~181 | 19,833 / ~159 |
+| Verdict (all three) | FAIL | FAIL | FAIL |
+| Power-sim pass rate @ IC 0.00/0.02/0.03/0.05 (post, n=100) | — | — | GP: 1%/35%/70%/100%; NI: 2%/25%/71%/98%; AG: 2%/18%/58%/95% |
+
+Gross profitability and asset growth are unchanged pre→published (both price-free, so the split
+fix alone doesn't move them); the duration fix (pre→post) pulls gross profitability's t further
+from significance (0.73→0.44) and moves net issuance/asset growth slightly more negative. Net
+issuance is price-free but uses the SplitAdjuster directly (`sec_fundamentals.py:368-372`) for its
+own share-count basis, so it moves with the split fix (published t=0.11 → pre t=−0.05). **All
+three remain FAIL; none is close to the |t|≥2.4 bar before or after.**
+
+### Duration-diagnostic note on the rebuilt caches
+
+The rebuilt caches still trip `check_sec_duration_contamination.py`'s CONTAMINATED threshold (96/498
+quarterly tickers, 113/498 FY tickers — down from 482/498 and 409/498 pre-fix). This diagnostic only
+inspects value *patterns* (revenue ratios); it was never updated to read the `period_start` field the
+fix now populates. An exhaustive check (not a sample) of every fact underlying every one of the
+209 flagged tickers — 5,919 quarterly + 11,077 FY fact-rows — found **zero** with a bad or missing
+`period_start`-derived duration; every quarter is 75–105 days and every FY is 345–385 days. The
+residual flags are the diagnostic's documented false-positive class: genuine seasonal businesses
+(INTU's tax-season Q3, LYV's touring season, POOL's installation season) and one-off restatements/
+M&A tripping the value-ratio thresholds. The duration fix is verified working; see the companion
+doc's errata-results section for the full detail and a note on updating the diagnostic itself.
