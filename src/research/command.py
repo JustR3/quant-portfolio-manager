@@ -15,7 +15,7 @@ def _build_panel_for_args(args):
     tickers = sp.universe_tickers()
     obs = sp.observation_dates(args.start, args.end, args.frequency)
     close, adj = sp.load_inputs(tickers)
-    source = getattr(args, "fundamentals", "yfinance")
+    source = getattr(args, "fundamentals", "sec")
     provider = (fpv.SECFundamentals(allow_legacy=getattr(args, "allow_legacy_cache", False))
                 if source == "sec" else _PROVIDERS[source]())
     return sp.build_panel(
@@ -30,7 +30,11 @@ def run_signal_eval(args) -> R.SignalEvalResult:
         raise ValueError(f"Unknown factor(s): {bad}. Choose from {list(se.FACTOR_COLUMN)}.")
 
     panel = _build_panel_for_args(args)
-    t_gate = getattr(args, "t_gate", 2.0)
+    t_gate = getattr(args, "t_gate", None)
+    t_gate_source = "explicit --t-gate"
+    if t_gate is None:  # default: Bonferroni over the factors tested together
+        t_gate = R.bonferroni_t_gate(len(factors))
+        t_gate_source = f"auto Bonferroni (k={len(factors)})"
     factor_results = [
         R.evaluate_factor(panel, f, q=args.quantiles, min_names=args.min_names_per_bucket,
                           frequency=args.frequency, cost_bps=args.transaction_cost_bps,
@@ -52,7 +56,7 @@ def run_signal_eval(args) -> R.SignalEvalResult:
             for f in factors
         ]
     caveats = R.build_caveats(args.frequency, args.horizon, factors,
-                              fundamentals_source=getattr(args, "fundamentals", "yfinance"),
+                              fundamentals_source=getattr(args, "fundamentals", "sec"),
                               legacy_cache=getattr(args, "allow_legacy_cache", False))
     result = R.SignalEvalResult(
         factors=factor_results, caveats=caveats,
@@ -60,8 +64,8 @@ def run_signal_eval(args) -> R.SignalEvalResult:
                 "quantiles": args.quantiles, "min_names_per_bucket": args.min_names_per_bucket,
                 "start": args.start, "end": args.end,
                 "transaction_cost_bps": args.transaction_cost_bps,
-                "fundamentals": getattr(args, "fundamentals", "yfinance"),
-                "t_gate": t_gate, "power_sim_n": n_sims,
+                "fundamentals": getattr(args, "fundamentals", "sec"),
+                "t_gate": t_gate, "t_gate_source": t_gate_source, "power_sim_n": n_sims,
                 "allow_legacy_cache": getattr(args, "allow_legacy_cache", False)},
         power_sim=power_sim,
     )

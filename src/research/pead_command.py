@@ -22,6 +22,7 @@ from src.research import pead_portfolio as pp
 from src.research import pead_results as pr
 from src.research import power as pw
 from src.research import ts_eval as te
+from src.research import verdict as V
 from src.research.signal_eval import is_broadly_monotone
 from src.research.ts_command import TS_BASE, _cash
 
@@ -129,6 +130,8 @@ def run_pead_eval_measures(measures=None, sec_q_dir: Path = sq.SEC_FUND_Q_DIR,
         if ev.empty:
             out_measures.append(dict(measure=m, window="", n_events=0, p_boot=float("nan"),
                                      net_mean=float("nan"), thirds_positive=[], monotone=False,
+                                     gate_met=False, verdict=V.INCONCLUSIVE,
+                                     inconclusive_reason="no events in the window",
                                      **{"pass": False}))
             continue
         spread = pp.calendar_spread(ev, returns, calendar, horizon=horizon,
@@ -156,7 +159,11 @@ def run_pead_eval_measures(measures=None, sec_q_dir: Path = sq.SEC_FUND_Q_DIR,
         metrics["power"] = pw.power_block(a_nw, se_nw, z_gate=pw.z_for_one_sided_p(p_gate),
                                           ref_effect=pw.REF_PEAD_ALPHA_ANN,
                                           scale=pw.TRADING_DAYS)
-        metrics["pass"] = pr.gate_pass(metrics, p_gate)
+        metrics["gate_met"] = pr.gate_pass(metrics, p_gate)
+        computable = not (np.isnan(metrics["p_boot"]) or np.isnan(metrics["net_mean"]))
+        metrics["verdict"], metrics["inconclusive_reason"] = V.decide(
+            metrics["gate_met"], computable, metrics["n_days"], V.MIN_DAYS, "spread days")
+        metrics["pass"] = metrics["verdict"] == V.PASS
         out_measures.append(metrics)
         # un-gated H=20 diagnostic line
         d20 = pp.calendar_spread(ev, returns, calendar, horizon=20,

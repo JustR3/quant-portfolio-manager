@@ -118,7 +118,9 @@ jobs:
                  --dir "$SCRATCH/data/historical/prices" --spot 0
                ```
 
-               Confirm each exits 0 AND open each JSON artifact written to `$SCRATCH/export`:
+               Confirm each exits 0 or 3 (3 = at least one INCONCLUSIVE verdict — expected here,
+               since the synthetic windows are shorter than the harnesses' minimum samples; any
+               other code is a failure) AND open each JSON artifact written to `$SCRATCH/export`:
                `signal-eval`'s must show `N obs` > 0 for every factor (not `range ...  (N obs=0)`
                and not an empty `factors` list); `ts-eval`'s must show a real `window` with
                non-null `sharpe_strat`/`sharpe_bench` for every rule; `pead-eval`'s must show
@@ -127,9 +129,9 @@ jobs:
                likely: `data/historical` wasn't literally in the path) — that is a failure of
                THIS check, not a legitimate "degenerate small-universe" result, and must be
                fixed by correcting the paths, not by treating it as a pass. Once the paths are
-               right, it IS correct and expected for verdicts themselves to read FAIL on this
-               tiny synthetic universe (house rule: "degenerate cases fail loudly") — that part
-               is not a bug. Never touch this repo's own `data/historical/`, `data/research/`,
+               right, it IS correct and expected for verdicts themselves to read FAIL or
+               INCONCLUSIVE on this tiny synthetic universe (house rule: "degenerate cases are
+               INCONCLUSIVE, loudly") — that part is not a bug. Never touch this repo's own `data/historical/`, `data/research/`,
                or `data/backtests/` — everything above runs against `$SCRATCH` only.
 
             3. Check whether `src/pipeline/external/fred.py`, `french.py`, and `damodaran.py`

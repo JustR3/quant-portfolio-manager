@@ -28,6 +28,10 @@ strategy claim through an honest, costed, PIT-correct gate.
   positive/negative controls (`docs/research/2026-09-26-harness-power-and-positive-controls.md`).
   SEC caches without `period_start` (pre-duration-fix) are refused; `--allow-legacy-cache`
   (signal-eval/pead-eval) reproduces pre-errata numbers, stamped non-canonical.
+  Verdicts are PASS / FAIL / INCONCLUSIVE (`src/research/verdict.py`: no computable statistic, or
+  < 24 IC periods / < 252 days); any INCONCLUSIVE → exit 3. `passed`/`pass` in JSON is True only for
+  a canonical PASS (raw gate in `gate_met`). signal-eval defaults: `--fundamentals sec`, t-gate =
+  Bonferroni over the k factors tested (explicit `--t-gate` wins).
 - Legacy tool: `uv run ./main.py optimize --universe sp500 --top-n 50`;
   backtest: `uv run ./main.py backtest --start 2023-07-01 --end 2025-06-01 --top-n 20 --frequency quarterly`
 - Tests: `uv run pytest -q` (network/integration tests are opt-in: `-m integration`)

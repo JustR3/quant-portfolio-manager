@@ -207,5 +207,6 @@ def test_documented_allow_legacy_cache_commands_run(tmp_path):
         assert refused.returncode == 1 and "period_start" in refused.stdout + refused.stderr
         ok = subprocess.run(cmd + ["--allow-legacy-cache"], cwd=tmp_path, capture_output=True,
                             text=True, timeout=300)
-        assert ok.returncode == 0, ok.stdout[-1500:] + ok.stderr[-1500:]
+        # short synthetic windows -> INCONCLUSIVE verdicts -> exit 3 (still a completed run)
+        assert ok.returncode in (0, 3), ok.stdout[-1500:] + ok.stderr[-1500:]
         assert tag in ok.stdout

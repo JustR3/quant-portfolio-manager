@@ -43,7 +43,7 @@ class PEADResult:
 
     def render(self) -> str:
         head = (f"{'measure':8} {'window':24} {'events':>7} {'net/yr':>8} {'thirds':>7} "
-                f"{'mono':>5} {'alpha/d':>9} {'p_boot':>7} {'NW-t':>6} {'verdict':>8}")
+                f"{'mono':>5} {'alpha/d':>9} {'p_boot':>7} {'NW-t':>6} {'verdict':>12}")
         lines = ["PEAD EVENT-DRIFT STUDY — pre-registered gate "
                  f"(p<{self.params.get('p_gate', P_GATE):.4f}, net>0 + >=2/3 thirds + monotone)",
                  head, "-" * len(head)]
@@ -57,7 +57,9 @@ class PEADResult:
                 f"{'Y' if m.get('monotone') else 'N':>5} "
                 f"{m.get('alpha', float('nan')):9.2e} {m.get('p_boot', float('nan')):7.4f} "
                 f"{m.get('nw_t', float('nan')):6.2f} "
-                f"{'PASS' if m.get('pass') else 'FAIL':>8}")
+                f"{m.get('verdict') or ('PASS' if m.get('pass') else 'FAIL'):>12}")
+            if m.get("inconclusive_reason"):
+                lines.append(f"{'':8} INCONCLUSIVE: {m['inconclusive_reason']}")
             if m.get("power"):
                 lines.append(f"{'':8} {render_power(m['power'], '{:+.2%}')}  "
                              "(alpha/yr; report-only)")

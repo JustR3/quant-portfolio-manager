@@ -191,6 +191,8 @@ def test_documented_power_sim_command_runs(tmp_path):
         text=True,
         timeout=300,
     )
-    assert res.returncode == 0, res.stdout[-2000:] + res.stderr[-2000:]
+    # The synthetic window has ~10 IC periods (< MIN_IC_PERIODS): INCONCLUSIVE -> exit 3.
+    assert res.returncode == 3, res.stdout[-2000:] + res.stderr[-2000:]
+    assert "INCONCLUSIVE" in res.stdout
     assert "POWER SIMULATION" in res.stdout
     assert "MDE80" in res.stdout

@@ -76,7 +76,9 @@ All three are decoupled from the portfolio pipeline, run offline from local stor
 artifacts to `data/research/`.
 
 ### `signal-eval` — cross-sectional factor gate
-Rank-IC + quantile spreads (gross and net of costs) per factor, with a configurable t-gate.
+Rank-IC + quantile spreads (gross and net of costs) per factor. Defaults: true-PIT SEC fundamentals
+and a Bonferroni t-gate over the factors tested together (Φ⁻¹(1 − 0.025/k): 1.96 for one factor,
+2.39 for three); `--t-gate` overrides it. All three harnesses return PASS / FAIL / INCONCLUSIVE.
 
 ```bash
 uv run ./main.py signal-eval --factors momentum,value,quality \
@@ -143,7 +145,9 @@ formally killed the regime overlay's legacy performance claims.
 3. Net of realistic costs, always; benchmarks get the benefit of the doubt.
 4. PIT or it doesn't exist: filed dates, first-filed values, trailing-only thresholds, enforced
    execution lags — each with an adversarial test that fails under leakage.
-5. Degenerate cases fail loudly (NaN p → FAIL); nothing silently degrades or falls back.
+5. Degenerate cases are INCONCLUSIVE, loudly: no computable statistic or too short a sample
+   (< 24 IC periods / < 252 days) is never reported as FAIL, and the CLI exits 3. "No data" must
+   not read as "no edge". Nothing silently degrades or falls back.
 6. Report power next to every verdict: SE, 95% CI, 80%-power minimum detectable effect, and power
    at a pre-set reference effect (report-only; gates unchanged). A FAIL is evidence of absence only
    when the test could have seen a realistic effect.
