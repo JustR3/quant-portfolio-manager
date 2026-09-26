@@ -144,3 +144,62 @@ def test_no_cache_exits_2_from_repo_root_semantics(tmp_path):
     )
     assert res.returncode == 2
     assert "No cache found" in res.stdout
+
+
+# --- rebuilt (duration-checked) caches: verdict from stored period_start, patterns = info ------
+
+
+def _with_starts(df: pd.DataFrame, days_q: int = 90, days_fy: int = 364) -> pd.DataFrame:
+    df = df.copy()
+    if "fiscal_period" in df.columns:
+        days = df["fiscal_period"].map(lambda fp: days_fy if fp == "FY" else days_q)
+    else:
+        days = pd.Series(days_fy, index=df.index)
+    df["period_start"] = df["period_end"] - pd.to_timedelta(days, unit="D")
+    return df
+
+
+def _seasonal_q_facts() -> pd.DataFrame:
+    """INTU-like true 3-month quarters: Q3 (tax season) ~2.5x Q1 -> trips q3_ytd_like."""
+    rows = []
+    for y in (2019, 2020, 2021):
+        for fp, m, v in (("Q1", 3, 100.0), ("Q2", 6, 120.0), ("Q3", 9, 250.0)):
+            pe = pd.Timestamp(y, m, 1) + pd.offsets.MonthEnd(0)
+            rows.append(("revenue", pe, fp, pe + pd.Timedelta(days=35), v))
+        pe = pd.Timestamp(y, 12, 31)
+        rows.append(("revenue", pe, "FY", pe + pd.Timedelta(days=60), 600.0))
+    return _with_starts(pd.DataFrame(
+        rows, columns=["field", "period_end", "fiscal_period", "filed", "value"]))
+
+
+def test_rebuilt_seasonal_cache_is_clean_with_pattern_info(tmp_path):
+    q_dir, fy_dir = tmp_path / "q", tmp_path / "fy"
+    q_dir.mkdir()
+    fy_dir.mkdir()
+    for i in range(10):
+        (_seasonal_q_facts() if i < 5 else _with_starts(_q_facts(ytd=False))).to_parquet(
+            q_dir / f"T{i}.parquet")
+        _with_starts(_fy_facts(quarter_in=True)).to_parquet(fy_dir / f"T{i}.parquet")
+    rep = dc.run(q_dir, fy_dir)
+    q, fy = rep["quarterly_cache"], rep["fy_cache"]
+    assert q["verdict"] == "CLEAN" and q["tickers_duration_checked"] == 10
+    assert q["pattern_flags_info"] == 5  # seasonality reported, not verdicted
+    assert fy["verdict"] == "CLEAN" and fy["pattern_flags_info"] == 10  # restatement-like info
+    assert dc.exit_code(rep) == 0
+
+
+def test_rebuilt_cache_with_one_bad_duration_is_contaminated(tmp_path):
+    q_dir, fy_dir = tmp_path / "q", tmp_path / "fy"
+    q_dir.mkdir()
+    fy_dir.mkdir()
+    for i in range(50):
+        _with_starts(_q_facts(ytd=False)).to_parquet(q_dir / f"T{i}.parquet")
+        facts = _with_starts(_fy_facts(quarter_in=False))
+        if i == 0:  # a single 3-month "FY" revenue row slipped in
+            facts.loc[facts.index[0], "period_start"] = facts["period_end"].iloc[0] - pd.Timedelta(
+                days=91)
+        facts.to_parquet(fy_dir / f"T{i}.parquet")
+    rep = dc.run(q_dir, fy_dir)
+    assert rep["quarterly_cache"]["verdict"] == "CLEAN"
+    assert rep["fy_cache"]["verdict"] == "CONTAMINATED"  # 1/50 < 2% gate, but any bad duration counts
+    assert rep["fy_cache"]["totals"]["bad_durations"] == 1

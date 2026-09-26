@@ -71,7 +71,7 @@ time-series (`ts-eval`), or event-time (`pead-eval`):
 - **#2 Value/Quality** on deep true-PIT SEC data: Value's thin lead was a small-sample mirage
   (IC +0.036/t=1.58 → +0.014/t=1.11); Quality flat. Closes "needs more data."
   **Corrected under errata (2026-09-26, split-basis + duration fixes): Value IC +0.014/t=1.11 →
-  −0.013/t=−0.88 (sign flip — the published lead was look-ahead from the split-basis bug); Quality
+  −0.013/t=−0.88 (sign flip; attribution to the split-basis fix pending a window-matched check — the price store now starts a year earlier); Quality
   unchanged (~0). Still FAIL.** See `docs/research/2026-09-26-split-basis-errata.md`.
 - **#3 New q-leg inputs** (gross profitability, net issuance, asset growth), pre-registered + Bonferroni
   bar: all flat, best t=0.73, none clears |t|=2.0. Closes "needs new inputs." See

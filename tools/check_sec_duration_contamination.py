@@ -5,8 +5,11 @@ Why: SEC companyfacts' `fp` is the fiscal period of the FILING, not the fact's d
 (period_end, fp, filed) key, and pre-2021 10-Ks often tag 3-month Q4 values next to the annual
 ones. Both cache builders (sec_fundamentals.fetch_facts / sec_quarterly.fetch_facts_quarterly)
 drop `period_start` and keep the FIRST row per key, so which duration survived is uncontrolled.
-The caches no longer carry `period_start`, so this tool detects contamination from value
-patterns instead:
+Legacy caches (pre-2026-09-26) no longer carry `period_start`, so for them this tool detects
+contamination from value patterns. Rebuilt caches store `period_start`: for those the verdict is
+the stored durations themselves (Q1-Q3 80-100 days, FY 350-380 days), and the value patterns below
+are reported as INFORMATION only. On a clean cache they flag genuine seasonality (e.g. INTU's
+tax-season Q3), restatements, and FY-vs-quarter concept mismatches, not durations. Value patterns:
 
 Quarterly cache (data/historical/fundamentals_sec_q/), per fiscal year with 3 Q siblings:
   - imputed Q4 revenue = FY - (Q1+Q2+Q3) < 0  -> impossible with 3-month quarters
@@ -32,6 +35,12 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.pipeline.sec_fundamentals import (  # noqa: E402
+    ANNUAL_DAYS,
+    DURATION_FIELDS,
+    duration_mask,
+    is_legacy_cache,
+)
 from src.research.pead_events import Q4_SIBLING_WINDOW_DAYS, first_filed  # noqa: E402
 
 Q_DIR = Path("data/historical/fundamentals_sec_q")
@@ -44,8 +53,30 @@ FY_DISAGREE_RATIO = (
 )
 FY_QUARTER_SIZED = 0.4  # a 3-month value is ~0.25x its neighbouring annual values
 FY_POSITIVE_FIELDS = ("revenue", "gross_profit", "capex")
-# A cache is flagged CONTAMINATED when this share of scanned tickers has any flag.
+# A LEGACY cache is flagged CONTAMINATED when this share of scanned tickers has any value-pattern
+# flag. A duration-checked (rebuilt) cache is CONTAMINATED if ANY stored duration is wrong.
 TICKER_SHARE_GATE = 0.02
+
+
+def _bad_quarterly_durations(facts_q: pd.DataFrame) -> int:
+    dur = facts_q[facts_q["field"].isin(DURATION_FIELDS)]
+    return int(sum((~duration_mask(g, f)).sum() for f, g in dur.groupby("field")))
+
+
+def _bad_fy_durations(facts: pd.DataFrame) -> int:
+    dur = facts[facts["field"].isin(DURATION_FIELDS)]
+    days = (pd.to_datetime(dur["period_end"]) - pd.to_datetime(dur["period_start"])).dt.days
+    return int((~days.between(*ANNUAL_DAYS).fillna(False).astype(bool)).sum())
+
+
+def _finish(out: dict, facts: pd.DataFrame, bad_fn, pattern_keys: tuple) -> dict:
+    """Set duration_checked / bad_durations / pattern_flag / flagged for one ticker."""
+    out["pattern_flag"] = sum(out[k] for k in pattern_keys) > 0
+    out["duration_checked"] = not is_legacy_cache(facts)
+    out["bad_durations"] = bad_fn(facts) if out["duration_checked"] else 0
+    out["flagged"] = (out["bad_durations"] > 0 if out["duration_checked"]
+                      else out["pattern_flag"])
+    return out
 
 
 def quarterly_flags(facts_q: pd.DataFrame, field: str = "revenue") -> dict:
@@ -67,8 +98,8 @@ def quarterly_flags(facts_q: pd.DataFrame, field: str = "revenue") -> dict:
         if q1 > 0:
             out["q2_ytd_like"] += int(q2 / q1 >= Q2_YTD_RATIO)
             out["q3_ytd_like"] += int(q3 / q1 >= Q3_YTD_RATIO)
-    out["flagged"] = out["q4_negative"] + out["q2_ytd_like"] + out["q3_ytd_like"] > 0
-    return out
+    return _finish(out, facts_q, _bad_quarterly_durations,
+                   ("q4_negative", "q2_ytd_like", "q3_ytd_like"))
 
 
 def fy_flags(facts: pd.DataFrame) -> dict:
@@ -91,8 +122,7 @@ def fy_flags(facts: pd.DataFrame) -> dict:
                 axis=1
             )
             out["quarter_sized"] += int((latest <= FY_QUARTER_SIZED * neigh).sum())
-    out["flagged"] = out["cross_filing_disagree"] + out["quarter_sized"] > 0
-    return out
+    return _finish(out, facts, _bad_fy_durations, ("cross_filing_disagree", "quarter_sized"))
 
 
 def scan_dir(base: Path, fn) -> dict:
@@ -110,24 +140,31 @@ def scan_dir(base: Path, fn) -> dict:
 
 def summarize(per_ticker: dict, count_keys: tuple) -> dict:
     n = len(per_ticker)
+    checked = [t for t, f in per_ticker.items() if f["duration_checked"]]
+    legacy = [t for t in per_ticker if t not in set(checked)]
     flagged = sorted(t for t, f in per_ticker.items() if f["flagged"])
-    share = len(flagged) / n if n else float("nan")
-    worst = sorted(flagged, key=lambda t: -sum(per_ticker[t][k] for k in count_keys))[
-        :15
-    ]
+    legacy_flagged = [t for t in flagged if t in set(legacy)]
+    checked_flagged = [t for t in flagged if t in set(checked)]
+    pattern_info = sorted(t for t in checked if per_ticker[t]["pattern_flag"])
+    keys = count_keys + ("bad_durations",)
+    rank = flagged or pattern_info
+    worst = sorted(rank, key=lambda t: -sum(per_ticker[t][k] for k in keys))[:15]
+    if not n:
+        verdict = "NO DATA"
+    elif checked_flagged or (legacy and len(legacy_flagged) / len(legacy) >= TICKER_SHARE_GATE):
+        verdict = "CONTAMINATED"
+    else:
+        verdict = "CLEAN"
     return {
         "tickers": n,
+        "tickers_duration_checked": len(checked),
         "tickers_flagged": len(flagged),
-        "share_flagged": share,
-        "totals": {k: int(sum(f[k] for f in per_ticker.values())) for k in count_keys},
+        "share_flagged": len(flagged) / n if n else float("nan"),
+        # duration-checked tickers whose value patterns trip (seasonality/restatements) — info only
+        "pattern_flags_info": len(pattern_info),
+        "totals": {k: int(sum(f[k] for f in per_ticker.values())) for k in keys},
         "worst": {t: per_ticker[t] for t in worst},
-        "verdict": (
-            "NO DATA"
-            if not n
-            else "CONTAMINATED"
-            if share >= TICKER_SHARE_GATE
-            else "CLEAN"
-        ),
+        "verdict": verdict,
     }
 
 
@@ -156,8 +193,15 @@ def render(report: dict) -> str:
         lines.append(
             "  totals: " + ", ".join(f"{k}={v}" for k, v in r["totals"].items())
         )
+        if r.get("tickers_duration_checked"):
+            lines.append(
+                f"  {r['tickers_duration_checked']} tickers verdicted on stored period_start; "
+                f"{r['pattern_flags_info']} of them trip value patterns (INFO only: seasonality, "
+                "restatements, concept mismatches, not durations)"
+            )
         for t, f in r["worst"].items():
-            counts = ", ".join(f"{k}={v}" for k, v in f.items() if k != "flagged")
+            counts = ", ".join(f"{k}={v}" for k, v in f.items()
+                               if k not in ("flagged", "pattern_flag", "duration_checked"))
             lines.append(f"    {t:8} {counts}")
     return "\n".join(lines)
 

@@ -96,13 +96,22 @@ AMZN/TSLA/AAPL against the raw yfinance parquet caches and confirmed all real sp
 and correctly dated — the `heuristic_only` rows are the legacy heuristic firing at the wrong
 quarter boundary, not yfinance gaps.
 
-**Coverage:** N obs dropped from the published ~180 measurable names/period to ~155 (study #2) /
-~159 (study #3) — a ~12–14% reduction, under the ~15% STOP threshold. This is *not* the
-"no split cache" exclusion (0 tickers hit that path); it reflects per-observation exclusions where
-the split adjuster can't resolve a name's share basis for a specific `as_of` date (e.g. the FY
-cache rebuild dropped CTRA/HOLX entirely — CIK-lookup errors in `build_sec_fundamentals_cache.py`,
-unrelated to splits). The "pre" bucket (split-fixed, legacy duration cache) already shows this
-coverage drop, confirming it is a split-fix effect, not a duration-fix effect.
+**Coverage** *(corrected 2026-09-26 on review; the first version of this paragraph was wrong)*:
+the drop is a **duration-fix** effect, not a split-fix one. Study #3 is the clean comparison
+(identical window): N obs 22,642 published = 22,642 pre → 19,833 post (−12.4%, ~181 → ~159
+names/period). Pre equals published, so the split fix removed nothing. `SplitAdjuster` cannot exclude
+per date either; it only excludes whole tickers with no cache (0 here). The reduction happens when the
+duration filter is applied. Leading hypothesis, **unverified**: names whose only fiscal-year-end XBRL
+fact for a required income item (most likely `GrossProfit`) was a 3-month Reg S-K Item 302 "selected
+quarterly data" value. The legacy cache counted them as measurable using a quarter-sized input; the
+duration filter correctly excludes them. Pending: a per-ticker diagnosis of which names dropped and
+the exclusion reason. (CTRA/HOLX FY-cache fetch failures account for ≤2 names.)
+
+**Window drift (study #2 only):** the price store now starts a year earlier than in June, so the
+same locked command (`--start 2010-01-01`) evaluates **135** IC periods from 2015-01, against the
+published **123** from 2016-01. Pre and post are comparable with each other, but published → pre
+mixes the split fix with that extra year: Quality, which is price-free and untouched by the split
+fix, moved from +0.0003 to +0.0023, and N obs rose from 22,230 to 23,987.
 
 ### Study #2 — Value / Quality (`--t-gate 2.0`, locked)
 
@@ -120,11 +129,14 @@ coverage drop, confirming it is a split-fix effect, not a duration-fix effect.
 | Quality power: SE / 95% CI / MDE80 / power@0.02 | not measured | 0.0105 / [−0.018,+0.023] / 0.030 / 47% | 0.0106 / [−0.021,+0.021] / 0.030 / 45% |
 | Power-sim pass rate @ IC 0.00 / 0.02 / 0.03 / 0.05 (post, n=100) | — | — | Value: 3%/23%/43%/85%; Quality: 4%/41%/72%/100% |
 
-Value's published lead was largely the split-basis look-ahead: correcting it **flips the sign**
-(+0.0137 → −0.0134). The duration fix (pre → post) barely moves Value further (−0.0138 → −0.0134,
-both FAIL) — Value's inputs are balance-sheet/price items, less duration-sensitive than income
-items. Quality moves close to zero either way. **Neither factor's verdict changes: both remain
-FAIL, and the corrected numbers are now canonical.**
+After both fixes Value's IC **flips sign** (+0.0137 → −0.0134). Pre → post, with the same window,
+isolates the duration fix: it barely moves Value (−0.0138 → −0.0134), even though Value's inputs
+(FCF, EBIT) are duration-sensitive income/cash-flow items. Published → pre is **not** a clean
+isolation of the split fix because of the window drift above. The flip is *probably* mostly the
+split-basis look-ahead, but that attribution is **pending** a supplementary pre/post pair restricted
+to the published effective window (`--start 2016-01-01`, reported alongside, not replacing, the
+locked-command result). Quality moves close to zero either way. **Neither verdict changes: both
+remain FAIL, and the corrected (post) numbers are canonical.**
 
 ### Study #3 — q-legs (`--t-gate 2.4`, locked)
 

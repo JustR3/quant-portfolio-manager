@@ -119,6 +119,15 @@ cannot distinguish "genuine duration contamination" from "a real business event 
 trip the same value-ratio thresholds" (which its own module docstring already anticipated: "a
 genuine seasonal business can trip one ratio").
 
+*Review note (2026-09-26):* the `period_start` check below holds **by construction**, because the
+fetchers only keep rows that pass `duration_mask`, so it cannot fail. The independent evidence that
+the fix works is the collapse in the value-pattern signatures above: imputed-Q4-negative revenue
+fell from 6,611 of 6,644 fiscal years to 52 of 6,679, and YTD-like Q2 ratios from 6,518 to 93. The 52
+residual negative Q4s (e.g. AMT, CCI, AVB: REITs, among others) are more likely an FY-vs-quarterly
+concept mismatch (different revenue tags winning the concept-priority walk) than durations. That is
+0.8% of fiscal years and a known residual. The diagnostic now checks `period_start` directly on
+rebuilt caches (see "Diagnostic update" below).
+
 To resolve this, every fact underlying every flagged ticker in the rebuilt caches — not a sample —
 was checked directly against its stored `period_start`: **5,919 quarterly fact-rows (96 tickers)
 and 11,077 FY fact-rows (113 tickers), zero with a duration outside 75–105 days (Q1–Q3) or 345–385
@@ -162,3 +171,15 @@ ones essentially exactly, confirming the legacy cache used for the June study is
 (−2.63%→−1.16%) and SUE-R's negative deepens slightly (−1.81%→−2.49%); EAR is nearly unchanged
 (NW-t −2.04→−1.96, still a borderline-significant reversal in the wrong direction). All three
 verdicts remain FAIL — none flips to PASS.**
+
+## Diagnostic update (2026-09-26, post-errata)
+
+`tools/check_sec_duration_contamination.py` now verdicts a rebuilt cache (one that stores
+`period_start`) on the **stored durations**: CONTAMINATED if even one duration fact falls outside
+Q1–Q3 80–100 days or FY 350–380 days. The value-pattern signatures are still computed and reported as
+`pattern_flags_info`, as information only: on a clean cache they flag seasonality (INTU, LYV, POOL),
+restatements, and FY-vs-quarterly concept mismatches, not durations. Legacy caches (no
+`period_start`) keep the value-pattern verdict and its 2%-of-tickers gate. Tests:
+`tests/test_sec_duration_check.py` (a seasonal rebuilt cache is CLEAN with pattern info; one bad
+stored duration is CONTAMINATED). Re-running the command on the rebuilt caches should now print
+CLEAN for both.
