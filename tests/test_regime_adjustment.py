@@ -1,15 +1,42 @@
 """Unit tests for regime adjustment functionality."""
 
+from datetime import datetime
+
 import pytest
 import pandas as pd
 
 from src.utils.regime_adjustment import RegimePortfolioAdjuster, apply_regime_adjustment
-from src.models.regime import MarketRegime
+from src.models.regime import MarketRegime, RegimeResult
 from src.constants import (
     REGIME_RISK_OFF_EXPOSURE,
     REGIME_CAUTION_EXPOSURE,
     REGIME_RISK_ON_EXPOSURE,
 )
+
+
+class FakeDetector:
+    """Stands in for RegimeDetector so no test touches the network."""
+
+    regime = MarketRegime.RISK_OFF
+    calls: list = []
+
+    def get_regime_with_details(
+        self, use_cache=True, method="combined", as_of_date=None
+    ):
+        FakeDetector.calls.append(
+            {"use_cache": use_cache, "method": method, "as_of_date": as_of_date}
+        )
+        return RegimeResult(
+            regime=FakeDetector.regime, method=method, last_updated=datetime.now()
+        )
+
+
+@pytest.fixture
+def fake_detector(monkeypatch):
+    FakeDetector.regime = MarketRegime.RISK_OFF
+    FakeDetector.calls = []
+    monkeypatch.setattr("src.utils.regime_adjustment.RegimeDetector", FakeDetector)
+    return FakeDetector
 
 
 class TestRegimePortfolioAdjuster:
@@ -135,26 +162,29 @@ class TestRegimePortfolioAdjuster:
 class TestApplyRegimeAdjustment:
     """Test suite for apply_regime_adjustment convenience function."""
 
-    def test_function_signature(self):
-        """Test that function accepts expected parameters."""
+    def test_function_signature(self, fake_detector):
+        """Every documented keyword is accepted and applied."""
         weights_df = pd.DataFrame({"ticker": ["AAPL"], "weight": [1.0]})
 
-        # Should not raise any errors
-        try:
-            adjusted, metadata = apply_regime_adjustment(
-                weights_df=weights_df,
-                risk_off_exposure=0.50,
-                caution_exposure=0.75,
-                method="combined",
-                verbose=False,
-                as_of_date=None,
-            )
-            assert True
-        except Exception as e:
-            pytest.fail(f"Function call failed: {str(e)}")
+        adjusted, metadata = apply_regime_adjustment(
+            weights_df=weights_df,
+            risk_off_exposure=0.50,
+            caution_exposure=0.75,
+            method="sma",
+            verbose=False,
+            as_of_date=None,
+        )
 
-    def test_metadata_structure(self):
-        """Test that metadata has expected structure."""
+        # RISK_OFF regime with risk_off_exposure=0.50 halves the weight
+        assert adjusted["weight"].tolist() == pytest.approx([0.50])
+        assert metadata["regime"] == "RISK_OFF"
+        assert metadata["exposure"] == 0.50
+        assert metadata["method"] == "sma"
+        assert {c["method"] for c in fake_detector.calls} == {"sma"}
+
+    def test_metadata_structure(self, fake_detector):
+        """Metadata has the expected keys, types and values."""
+        fake_detector.regime = MarketRegime.CAUTION
         weights_df = pd.DataFrame({"ticker": ["AAPL"], "weight": [1.0]})
 
         adjusted, metadata = apply_regime_adjustment(
@@ -173,10 +203,11 @@ class TestApplyRegimeAdjustment:
         assert isinstance(metadata["cash_allocation"], float)
         assert isinstance(metadata["method"], str)
 
-        # Check value ranges
-        assert 0.0 <= metadata["exposure"] <= 1.0
-        assert 0.0 <= metadata["cash_allocation"] <= 1.0
-        assert metadata["method"] in ["sma", "vix", "combined"]
+        # Check values (CAUTION at the default 75% exposure)
+        assert metadata["regime"] == "CAUTION"
+        assert metadata["exposure"] == 0.75
+        assert metadata["cash_allocation"] == pytest.approx(0.25)
+        assert metadata["method"] == "combined"
 
 
 class TestWeightConservation:
@@ -305,31 +336,32 @@ class TestRegimeExposureMapping:
 class TestHistoricalDateParameter:
     """Test historical date parameter for backtesting."""
 
-    def test_as_of_date_parameter(self):
-        """Test that as_of_date parameter is accepted."""
+    def test_as_of_date_parameter(self, fake_detector):
+        """as_of_date reaches the detector and bypasses its cache."""
         weights_df = pd.DataFrame({"ticker": ["AAPL"], "weight": [1.0]})
 
-        # Should accept as_of_date without error
-        try:
-            adjusted, metadata = apply_regime_adjustment(
-                weights_df=weights_df, as_of_date="2020-01-01", verbose=False
-            )
-            assert True
-        except Exception as e:
-            pytest.fail(f"as_of_date parameter failed: {str(e)}")
+        adjusted, metadata = apply_regime_adjustment(
+            weights_df=weights_df, as_of_date="2020-01-01", verbose=False
+        )
 
-    def test_as_of_date_none(self):
-        """Test that None as_of_date uses current regime."""
+        assert fake_detector.calls
+        assert all(c["as_of_date"] == "2020-01-01" for c in fake_detector.calls)
+        assert all(c["use_cache"] is False for c in fake_detector.calls)
+        assert metadata["regime"] == "RISK_OFF"
+        assert adjusted["weight"].tolist() == pytest.approx([0.50])
+
+    def test_as_of_date_none(self, fake_detector):
+        """None as_of_date uses the current regime (cache allowed)."""
         weights_df = pd.DataFrame({"ticker": ["AAPL"], "weight": [1.0]})
 
-        # Should work with None (current date)
-        try:
-            adjusted, metadata = apply_regime_adjustment(
-                weights_df=weights_df, as_of_date=None, verbose=False
-            )
-            assert True
-        except Exception as e:
-            pytest.fail(f"None as_of_date failed: {str(e)}")
+        adjusted, metadata = apply_regime_adjustment(
+            weights_df=weights_df, as_of_date=None, verbose=False
+        )
+
+        assert fake_detector.calls
+        assert all(c["as_of_date"] is None for c in fake_detector.calls)
+        assert all(c["use_cache"] is True for c in fake_detector.calls)
+        assert metadata["exposure"] == 0.50
 
 
 if __name__ == "__main__":

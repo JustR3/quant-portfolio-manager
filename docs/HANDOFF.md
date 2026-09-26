@@ -89,3 +89,13 @@ One line per checkpoint. Newest at the bottom.
   live/refresh cycle, and never touches `data/historical/`, `data/research/`, or
   `data/backtests/`, honoring the repo's PARKED/deferred-automation decision. 285/285 tests
   pass, ruff clean, YAML parses.
+- task 1 (branch `claude/hygiene-format-offline-tests`): one-shot `ruff format` of the whole repo
+  (98 files, formatting only) in its own commit, plus `ruff format --check .` added to
+  `.github/workflows/test.yml`. pytest before/after format identical: 347 passed, 4 skipped,
+  7 deselected.
+- task 2: offline guard in `tests/conftest.py` (autouse; blocks AF_INET/AF_INET6 `connect`/
+  `connect_ex` and `curl_cffi.Curl.perform`, and fails the test at teardown if the attempt was
+  swallowed by an `except`) + `tests/test_offline_guard.py`. Found 25 unmarked tests that reached
+  the network (masked locally by a warm `data/cache`, visible only with a cold cache): rewrote the
+  regime tests on synthetic data and marked the live Damodaran/FRED tests `integration`.
+  359 passed, 14 deselected, ruff clean.

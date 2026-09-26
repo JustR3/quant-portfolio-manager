@@ -15,8 +15,9 @@ import pytest
 from src.pipeline.external import FredConnector, DamodaranLoader
 
 
+@pytest.mark.integration
 class TestFredConnector:
-    """Test FRED API integration."""
+    """Test FRED API integration (live network when FRED_API_KEY is set)."""
 
     def test_fred_connector_init(self):
         """Test connector initialization (requires API key)."""
@@ -91,6 +92,7 @@ class TestDamodaranLoader:
         loader = DamodaranLoader()
         assert loader is not None
 
+    @pytest.mark.integration
     def test_get_sector_priors_technology(self):
         """Test fetching Technology sector priors."""
         loader = DamodaranLoader()
@@ -113,6 +115,7 @@ class TestDamodaranLoader:
             else "  Operating margin: N/A"
         )
 
+    @pytest.mark.integration
     def test_get_all_sectors(self):
         """Test fetching all sector priors."""
         loader = DamodaranLoader()
@@ -145,8 +148,9 @@ class TestDamodaranLoader:
         print("✓ Fallback priors work for unmapped sectors")
 
 
+@pytest.mark.integration
 class TestPhase1Integration:
-    """Integration tests combining all Phase 1 components."""
+    """Integration tests combining all Phase 1 components (live network)."""
 
     def test_full_pipeline(self):
         """Test complete data foundation pipeline."""
@@ -158,6 +162,7 @@ class TestPhase1Integration:
         if os.getenv("FRED_API_KEY"):
             connector = FredConnector()
             macro = connector.get_macro_data()
+            assert 0 < macro.risk_free_rate < 0.20
             print(
                 f"\n✓ Macro data fetched: risk-free rate = {macro.risk_free_rate:.2%}"
             )
@@ -173,7 +178,8 @@ class TestPhase1Integration:
         print("PHASE 1 COMPLETE: Data foundation operational!")
         print("=" * 60)
 
-        assert True  # If we got here, all components work
+        assert tech_priors.sector == "Technology"
+        assert tech_priors.beta is not None and tech_priors.beta > 0
 
 
 if __name__ == "__main__":

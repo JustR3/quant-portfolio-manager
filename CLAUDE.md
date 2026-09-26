@@ -34,7 +34,10 @@ strategy claim through an honest, costed, PIT-correct gate.
   Bonferroni over the k factors tested (explicit `--t-gate` wins).
 - Legacy tool: `uv run ./main.py optimize --universe sp500 --top-n 50`;
   backtest: `uv run ./main.py backtest --start 2023-07-01 --end 2025-06-01 --top-n 20 --frequency quarterly`
-- Tests: `uv run pytest -q` (network/integration tests are opt-in: `-m integration`)
+- Tests: `uv run pytest -q` (network/integration tests are opt-in: `-m integration`). The default
+  run is enforced offline: `tests/conftest.py` fails any test not marked `integration` that opens
+  an internet connection (AF_INET/AF_INET6 sockets and yfinance's `curl_cffi`), even when the code
+  under test swallows the error. Mark live-data tests `@pytest.mark.integration` or mock the fetch.
 - Price store integrity: `uv run python tools/verify_price_store.py`
 - SEC cache 3-month-vs-YTD contamination: `uv run python tools/check_sec_duration_contamination.py`
   (see `docs/research/2026-09-25-sec-duration-contamination-check.md`)

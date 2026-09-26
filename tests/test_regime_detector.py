@@ -1,8 +1,72 @@
 """Unit tests for RegimeDetector functionality."""
 
+import numpy as np
+import pandas as pd
 import pytest
 
+from src.core.rate_limit import rate_limiter
 from src.models.regime import RegimeDetector, MarketRegime, RegimeResult
+
+# Synthetic market data. The detector's two fetch seams (_get_spy_history and
+# _get_vix_data) are patched, so these tests never touch the network or the
+# on-disk cache and the expected regimes are known exactly.
+_VIX_LEVELS = {
+    # (VIX9D, VIX, VIX3M)
+    "contango": (14.0, 16.0, 18.0),  # 9d < 30d < 3m -> RISK_ON
+    "backwardation": (30.0, 25.0, 24.0),  # 9d > 30d -> RISK_OFF
+    "caution": (14.0, 20.0, 18.0),  # not backwardated, 30d > 3m -> CAUTION
+}
+
+
+def _spy_frame(trend):
+    """300 daily closes drifting up (ends above its 200-SMA) or down (below)."""
+    n = 300
+    step = 0.5 if trend == "up" else -0.5
+    close = 400.0 + step * np.arange(n)
+    index = pd.bdate_range(end="2024-06-28", periods=n)
+    return pd.DataFrame({"Close": close}, index=index)
+
+
+def _vix_frame(shape):
+    vix9d, vix, vix3m = _VIX_LEVELS[shape]
+    columns = pd.MultiIndex.from_tuples(
+        [("Close", "^VIX9D"), ("Close", "^VIX"), ("Close", "^VIX3M")]
+    )
+    return pd.DataFrame([[vix9d, vix, vix3m]], columns=columns)
+
+
+class FakeMarket:
+    """Knobs for the synthetic market; None means "no data" for that source."""
+
+    def __init__(self):
+        self.trend = "up"
+        self.vix = "contango"
+        self.spy_error = None
+        self.vix_error = None
+        self.spy_calls = []  # as_of_date of every SPY fetch
+        self.vix_calls = 0
+
+
+@pytest.fixture
+def market(monkeypatch):
+    fake = FakeMarket()
+
+    def fake_spy_history(self, ticker, lookback_days, as_of_date=None):
+        fake.spy_calls.append(as_of_date)
+        if fake.spy_error:
+            raise fake.spy_error
+        return None if fake.trend is None else _spy_frame(fake.trend)
+
+    def fake_vix_data(self):
+        fake.vix_calls += 1
+        if fake.vix_error:
+            raise fake.vix_error
+        return None if fake.vix is None else _vix_frame(fake.vix)
+
+    monkeypatch.setattr(rate_limiter, "min_interval", 0.0)  # nothing to throttle
+    monkeypatch.setattr(RegimeDetector, "_get_spy_history", fake_spy_history)
+    monkeypatch.setattr(RegimeDetector, "_get_vix_data", fake_vix_data)
+    return fake
 
 
 class TestRegimeDetectorInitialization:
@@ -64,208 +128,220 @@ class TestMarketRegimeEnum:
 class TestRegimeDetectorMethods:
     """Test suite for RegimeDetector public methods."""
 
-    def test_get_current_regime_returns_regime(self):
-        """Test that get_current_regime returns a MarketRegime."""
-        detector = RegimeDetector()
-        regime = detector.get_current_regime()
+    def test_get_current_regime_returns_regime(self, market):
+        """Uptrend + VIX contango is RISK_ON."""
+        assert RegimeDetector().get_current_regime() == MarketRegime.RISK_ON
 
-        assert isinstance(regime, MarketRegime)
-        assert regime in [
-            MarketRegime.RISK_ON,
-            MarketRegime.RISK_OFF,
-            MarketRegime.CAUTION,
-            MarketRegime.UNKNOWN,
-        ]
+    def test_get_regime_with_details_returns_result(self, market):
+        """get_regime_with_details returns a fully populated RegimeResult."""
+        result = RegimeDetector().get_regime_with_details()
 
-    def test_get_regime_with_details_returns_result(self):
-        """Test that get_regime_with_details returns RegimeResult."""
-        detector = RegimeDetector()
-        result = detector.get_regime_with_details()
+        assert isinstance(result, RegimeResult)
+        assert result.regime == MarketRegime.RISK_ON
+        assert result.method == "combined"
+        assert result.current_price > result.sma_200
+        assert result.vix_structure.is_contango
 
-        assert result is None or isinstance(result, RegimeResult)
+    def test_is_risk_on_method(self, market):
+        """is_risk_on is True for uptrend + contango, False for backwardation."""
+        assert RegimeDetector().is_risk_on() is True
 
-        if result:
-            assert hasattr(result, "regime")
-            assert hasattr(result, "method")
-            assert isinstance(result.regime, MarketRegime)
+        market.vix = "backwardation"
+        assert RegimeDetector().is_risk_on() is False
 
-    def test_is_risk_on_method(self):
-        """Test is_risk_on convenience method."""
-        detector = RegimeDetector()
-        result = detector.is_risk_on()
+    def test_is_risk_off_method(self, market):
+        """is_risk_off is False for uptrend + contango, True for backwardation."""
+        assert RegimeDetector().is_risk_off() is False
 
-        assert isinstance(result, bool)
+        market.vix = "backwardation"
+        assert RegimeDetector().is_risk_off() is True
 
-    def test_is_risk_off_method(self):
-        """Test is_risk_off convenience method."""
-        detector = RegimeDetector()
-        result = detector.is_risk_off()
-
-        assert isinstance(result, bool)
-
-    def test_regime_mutual_exclusivity(self):
-        """Test that regime states are mutually exclusive."""
+    @pytest.mark.parametrize(
+        "trend, vix, expected",
+        [
+            ("up", "contango", MarketRegime.RISK_ON),
+            ("up", "backwardation", MarketRegime.RISK_OFF),
+            ("up", "caution", MarketRegime.CAUTION),
+            ("down", "contango", MarketRegime.CAUTION),
+            ("down", "backwardation", MarketRegime.RISK_OFF),
+            ("down", "caution", MarketRegime.CAUTION),
+        ],
+    )
+    def test_regime_mutual_exclusivity(self, market, trend, vix, expected):
+        """Exactly the expected regime flag is set for each SMA x VIX state."""
+        market.trend = trend
+        market.vix = vix
         detector = RegimeDetector()
 
         is_on = detector.is_risk_on()
         is_off = detector.is_risk_off()
 
-        # Both cannot be true simultaneously
-        if is_on:
-            assert not is_off
-        if is_off:
-            assert not is_on
+        assert not (is_on and is_off)
+        assert is_on == (expected == MarketRegime.RISK_ON)
+        assert is_off == (expected == MarketRegime.RISK_OFF)
 
 
 class TestRegimeDetectionMethods:
     """Test suite for different detection methods."""
 
-    def test_sma_method(self):
-        """Test SMA-only detection method."""
+    @pytest.mark.parametrize(
+        "trend, expected",
+        [("up", MarketRegime.RISK_ON), ("down", MarketRegime.RISK_OFF)],
+    )
+    def test_sma_method(self, market, trend, expected):
+        """SMA-only detection follows price vs the 200-day SMA."""
+        market.trend = trend
+        regime = RegimeDetector().get_current_regime(method="sma")
+
+        assert regime == expected
+        assert market.vix_calls == 0  # SMA-only never reads VIX
+
+    @pytest.mark.parametrize(
+        "vix, expected",
+        [
+            ("contango", MarketRegime.RISK_ON),
+            ("backwardation", MarketRegime.RISK_OFF),
+            ("caution", MarketRegime.CAUTION),
+        ],
+    )
+    def test_vix_method(self, market, vix, expected):
+        """VIX-only detection follows the term structure."""
+        market.vix = vix
+        regime = RegimeDetector().get_current_regime(method="vix")
+
+        assert regime == expected
+        assert market.spy_calls == []  # VIX-only never reads SPY
+
+    def test_combined_method(self, market):
+        """Combined: mixed SMA/VIX signals give CAUTION; agreement gives RISK_ON."""
         detector = RegimeDetector()
-        regime = detector.get_current_regime(method="sma")
+        assert detector.get_current_regime(method="combined") == MarketRegime.RISK_ON
 
-        assert isinstance(regime, MarketRegime)
-
-    def test_vix_method(self):
-        """Test VIX-only detection method."""
-        detector = RegimeDetector()
-        regime = detector.get_current_regime(method="vix")
-
-        assert isinstance(regime, MarketRegime)
-
-    def test_combined_method(self):
-        """Test combined detection method."""
-        detector = RegimeDetector()
-        regime = detector.get_current_regime(method="combined")
-
-        assert isinstance(regime, MarketRegime)
+        market.trend = "down"
+        assert (
+            RegimeDetector().get_current_regime(method="combined")
+            == MarketRegime.CAUTION
+        )
 
 
 class TestCaching:
     """Test suite for caching behavior."""
 
-    def test_cache_parameter_accepted(self):
-        """Test that use_cache parameter is accepted."""
+    def test_cache_parameter_accepted(self, market):
+        """use_cache=True reuses the result; use_cache=False recomputes."""
         detector = RegimeDetector()
 
-        # Should not raise error
-        try:
-            detector.get_regime_with_details(use_cache=True)
-            detector.get_regime_with_details(use_cache=False)
-        except Exception as e:
-            pytest.fail(f"Cache parameter failed: {str(e)}")
+        first = detector.get_regime_with_details(use_cache=True)
+        second = detector.get_regime_with_details(use_cache=True)
+        assert second is first
+        assert market.vix_calls == 1
 
-    def test_cache_consistency(self):
-        """Test that cached results are consistent."""
+        third = detector.get_regime_with_details(use_cache=False)
+        assert third is not first
+        assert third.regime == first.regime
+        assert market.vix_calls == 2
+
+    def test_cache_consistency(self, market):
+        """Repeated cached calls return the same regime from one fetch."""
         detector = RegimeDetector()
 
-        # Get regime with cache
         result1 = detector.get_current_regime(method="combined")
         result2 = detector.get_current_regime(method="combined")
 
-        # Should be same (assuming no market change in microseconds)
-        assert result1 == result2
+        assert result1 == result2 == MarketRegime.RISK_ON
+        assert market.vix_calls == 1
+        assert market.spy_calls == [None]
 
 
 class TestHistoricalDateParameter:
     """Test suite for historical date parameter."""
 
-    def test_as_of_date_parameter_accepted(self):
-        """Test that as_of_date parameter is accepted."""
-        detector = RegimeDetector()
+    def test_as_of_date_parameter_accepted(self, market):
+        """as_of_date is forwarded to the SPY fetch; VIX is skipped historically."""
+        result = RegimeDetector().get_regime_with_details(
+            as_of_date="2020-01-01", use_cache=False
+        )
 
-        # Should not raise error
-        try:
-            detector.get_regime_with_details(as_of_date="2020-01-01", use_cache=False)
-        except Exception as e:
-            pytest.fail(f"as_of_date parameter failed: {str(e)}")
+        assert isinstance(result, RegimeResult)
+        assert result.method == "sma"  # combined degrades to SMA historically
+        assert result.vix_structure is None
+        assert market.spy_calls == ["2020-01-01"]
+        assert market.vix_calls == 0
 
-    def test_as_of_date_none_uses_current(self):
-        """Test that None as_of_date uses current date."""
+    def test_as_of_date_none_uses_current(self, market):
+        """None and an omitted as_of_date both mean "now", including VIX."""
         detector = RegimeDetector()
 
         result1 = detector.get_regime_with_details(as_of_date=None)
         result2 = detector.get_regime_with_details()  # No as_of_date
 
-        # Both should return results (may be None if API fails)
-        assert result1 is None or isinstance(result1, RegimeResult)
-        assert result2 is None or isinstance(result2, RegimeResult)
+        assert isinstance(result1, RegimeResult)
+        assert result1.method == "combined"
+        assert result1.vix_structure is not None
+        assert result2 is result1  # served from the instance cache
+        assert market.spy_calls == [None]
 
-    def test_historical_date_format(self):
-        """Test various date format handling."""
+    def test_historical_date_format(self, market):
+        """Each ISO date string is accepted and forwarded unchanged."""
         detector = RegimeDetector()
-
         date_formats = ["2020-01-01", "2020-12-31", "2019-06-15"]
 
         for date_str in date_formats:
-            try:
-                detector.get_regime_with_details(as_of_date=date_str, use_cache=False)
-                # Should accept format without error
-            except ValueError:
-                pytest.fail(f"Date format {date_str} not accepted")
+            result = detector.get_regime_with_details(
+                as_of_date=date_str, use_cache=False
+            )
+            assert isinstance(result, RegimeResult)
+
+        assert market.spy_calls == date_formats
 
 
 class TestRegimeResultDataclass:
     """Test suite for RegimeResult dataclass."""
 
-    def test_regime_result_attributes(self):
-        """Test that RegimeResult has expected attributes."""
-        detector = RegimeDetector()
-        result = detector.get_regime_with_details()
+    def test_regime_result_attributes(self, market):
+        """RegimeResult carries populated regime, price, SMA and VIX fields."""
+        result = RegimeDetector().get_regime_with_details()
 
-        if result:
-            assert hasattr(result, "regime")
-            assert hasattr(result, "method")
-            assert hasattr(result, "current_price")
-            assert hasattr(result, "sma_200")
-            assert hasattr(result, "vix_structure")
+        assert result.regime == MarketRegime.RISK_ON
+        assert result.method == "combined"
+        assert result.current_price == pytest.approx(400.0 + 0.5 * 299)
+        assert result.sma_200 == pytest.approx(
+            np.mean(400.0 + 0.5 * np.arange(100, 300))
+        )
+        assert result.vix_structure.vix == 16.0
 
-    def test_regime_result_to_dict(self):
-        """Test that RegimeResult can be converted to dict."""
-        detector = RegimeDetector()
-        result = detector.get_regime_with_details()
+    def test_regime_result_to_dict(self, market):
+        """to_dict serialises regime, SPY and VIX details."""
+        result = RegimeDetector().get_regime_with_details()
+        result_dict = result.to_dict()
 
-        if result:
-            try:
-                result_dict = result.to_dict()
-                assert isinstance(result_dict, dict)
-            except AttributeError:
-                # to_dict may not be implemented, that's OK
-                pass
+        assert result_dict["regime"] == "RISK_ON"
+        assert result_dict["method"] == "combined"
+        assert set(result_dict["spy"]) == {"price", "sma_200", "signal_strength"}
+        assert result_dict["vix"]["is_contango"] is True
 
 
 class TestErrorHandling:
     """Test suite for error handling."""
 
-    def test_invalid_ticker_graceful_failure(self):
-        """Test that invalid ticker is handled gracefully."""
+    def test_invalid_ticker_graceful_failure(self, market):
+        """No data for the ticker: UNKNOWN when VIX is missing too, no crash."""
+        market.trend = None  # what _get_spy_history yields for an unknown ticker
+        market.vix = None
         detector = RegimeDetector(ticker="INVALID_TICKER_XYZ")
 
-        # Should return UNKNOWN or handle gracefully, not crash
-        try:
-            regime = detector.get_current_regime()
-            assert regime in [
-                MarketRegime.UNKNOWN,
-                MarketRegime.RISK_ON,
-                MarketRegime.RISK_OFF,
-                MarketRegime.CAUTION,
-            ]
-        except Exception:
-            # Acceptable to raise exception for invalid ticker
-            pass
+        assert detector.get_regime_with_details() is None
+        assert detector.get_current_regime() == MarketRegime.UNKNOWN
+        assert "INVALID_TICKER_XYZ" in detector.last_error
 
-    def test_network_error_resilience(self):
-        """Test resilience to network errors."""
+    def test_network_error_resilience(self, market):
+        """Fetch exceptions are absorbed into UNKNOWN and recorded in last_error."""
+        market.spy_error = ConnectionError("network down")
+        market.vix_error = ConnectionError("network down")
         detector = RegimeDetector()
 
-        # Even with potential network issues, should not crash
-        try:
-            regime = detector.get_current_regime()
-            assert isinstance(regime, MarketRegime)
-        except Exception:
-            # Network errors are acceptable, but should be caught
-            assert True
+        assert detector.get_current_regime() == MarketRegime.UNKNOWN
+        assert "network down" in detector.last_error
 
 
 class TestSMALogic:
@@ -324,16 +400,16 @@ class TestCombinedLogic:
         # Combined should also use SMA (lookback_days > 0)
         assert detector.lookback_days > 0
 
-    def test_vix_overrides_in_fear(self):
-        """Test that VIX RISK_OFF overrides SMA."""
-        # This is a conceptual test of the logic
-        # In implementation: if VIX says RISK_OFF, combined should be RISK_OFF
-        # regardless of SMA
-        detector = RegimeDetector()
+    def test_vix_overrides_in_fear(self, market):
+        """VIX backwardation forces RISK_OFF even when SMA alone says RISK_ON."""
+        market.trend = "up"
+        market.vix = "backwardation"
 
-        # We can verify the method exists
-        regime = detector.get_current_regime(method="combined")
-        assert isinstance(regime, MarketRegime)
+        assert RegimeDetector().get_current_regime(method="sma") == MarketRegime.RISK_ON
+        assert (
+            RegimeDetector().get_current_regime(method="combined")
+            == MarketRegime.RISK_OFF
+        )
 
 
 if __name__ == "__main__":
