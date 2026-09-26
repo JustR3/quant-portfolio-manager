@@ -22,6 +22,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from src.pipeline.splits import cache_path as splits_cache_path
+from src.pipeline.splits import save_splits
+
 START_DATE = "2015-01-02"
 N_DAYS = (
     1100  # ~4.3 trading years: >=250-obs momentum floor, a 3-yr SEC/PEAD fact history,
@@ -170,6 +173,8 @@ def build_synthetic_store(base_dir: Path) -> dict:
         )
         _write_fy_facts(base_dir / "fundamentals_sec" / f"{t}.parquet", seed=k)
         _write_quarterly_facts(base_dir / "fundamentals_sec_q" / f"{t}.parquet", seed=k)
+        # "fetched, no splits": SECFundamentals excludes names whose split history is missing.
+        save_splits(pd.Series(dtype=float), splits_cache_path(t, base_dir / "splits"))
 
     for k, t in enumerate(TS_ETFS + TS_VOL_RATE):
         base = TS_BASE_LEVEL.get(t, 100.0)

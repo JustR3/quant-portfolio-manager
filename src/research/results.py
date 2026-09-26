@@ -89,7 +89,9 @@ def build_caveats(frequency: str, horizon_months: int, factors: list,
             cav.append(
                 "SEC PIT FUNDAMENTALS: true point-in-time (filed-date) data ~2008+; the testable "
                 "window is bounded by the price store start (~2015). EBIT=OperatingIncomeLoss; "
-                "banks/financials excluded (no LiabilitiesCurrent/OperatingIncomeLoss)."
+                "banks/financials excluded (no LiabilitiesCurrent/OperatingIncomeLoss). Market cap "
+                "and net issuance put as-filed SEC shares on the price store's split basis via the "
+                "cached split history, src/pipeline/splits.py (names without it are excluded)."
             )
         else:
             cav.append(

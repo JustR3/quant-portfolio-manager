@@ -112,6 +112,7 @@ uv run ./main.py pead-eval          # all three pre-registered measures
 | `data/historical/prices/` | ~500 S&P names, daily, 2015→ | `tools/download_historical_data.py` | ticker-identity guard + `tools/verify_price_store.py` |
 | `data/historical/ts/` | 10 multi-asset ETFs + ^VIX/^VIX9D/^VIX3M/^IRX | `tools/download_ts_universe.py` | separate dir — never pollutes the cross-sectional universe |
 | `data/historical/fundamentals_sec/` | FY companyfacts, filed-stamped (498 names) | `tools/build_sec_fundamentals_cache.py` | PIT slicing `filed ≤ as_of` |
+| `data/historical/splits/` | Per-ticker split history (puts as-filed SEC shares on the price basis) | `tools/build_split_cache.py` | cross-checked by `tools/check_split_consistency.py`; missing → name excluded |
 | `data/historical/fundamentals_sec_q/` | Quarterly companyfacts incl. net income (498 names) | `tools/build_sec_q_cache.py` (probe mode first) | first-filed semantics; separate dir |
 
 ## The portfolio tool (legacy, still functional)

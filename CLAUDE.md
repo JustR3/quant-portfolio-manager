@@ -32,6 +32,9 @@ strategy claim through an honest, costed, PIT-correct gate.
 - Price store integrity: `uv run python tools/verify_price_store.py`
 - SEC cache 3-month-vs-YTD contamination: `uv run python tools/check_sec_duration_contamination.py`
   (see `docs/research/2026-09-25-sec-duration-contamination-check.md`)
+- Split cache (network; required for `--fundamentals sec`): `uv run python tools/build_split_cache.py`;
+  cross-check vs the SEC share heuristic: `uv run python tools/check_split_consistency.py`
+  (see `docs/research/2026-09-26-split-basis-errata.md`)
 
 ## Key flags
 - `--transaction-cost-bps` (default 10): per-side cost on turnover; backtest reports net of costs.
@@ -51,6 +54,9 @@ strategy claim through an honest, costed, PIT-correct gate.
   tz-naive `Date`. `historical_store.load_prices` enforces a ticker-identity guard.
 - Factors are computed by the single source of truth `fundamentals.compute_pit_factors`
   (PIT/no-clamp: negatives allowed) for both live and backtest.
+- SEC share counts are as-filed; the price store is split-adjusted. Any `shares × price` must first
+  put shares on the price basis (`splits.SplitAdjuster`); a name without a split cache is excluded,
+  never mis-sized.
 
 ## Edge status (validated-edge phase — FIVE honest NEGATIVES; hunt CLOSED)
 No demonstrated edge on free data in any testable signal class — cross-sectional (`signal-eval`),
@@ -86,6 +92,14 @@ The pre-registered stopping rule (iters #5 AND #6 both negative → reframe, no 
 five-negatives table. Active investment in this project has STOPPED.
 - **Standing job: claim-tester.** Any new strategy claim gets an afternoon through the relevant
   harness — pre-registered gate, realistic costs, PIT data — before it earns another minute.
+- **Errata protocol (adopted 2026-09-26).** A correctness fix (a data/pipeline bug, not a
+  parameter choice) → re-run the affected study with its ORIGINAL locked commands → publish original
+  and corrected results side by side in an errata doc; the corrected verdict becomes canonical
+  (README/CLAUDE tables updated). No parameter, window, universe, or gate change is allowed under
+  errata. A corrected verdict that flips to PASS does NOT reopen the project: it triggers a fresh
+  pre-registered out-of-sample confirmation first. Open errata: split basis
+  (`docs/research/2026-09-26-split-basis-errata.md`), 3-month/YTD durations
+  (`docs/research/2026-09-25-sec-duration-contamination-check.md`).
 - **Reopening criteria (pre-registered):** a genuinely NEW data tier (paid survivorship-free,
   e.g. down-cap + delisted) AND a fresh pre-registration, treated as a new project with its own
   budget decision. Re-tuning any iter-1–6 parameter is p-hacking, not reopening.

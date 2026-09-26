@@ -133,10 +133,24 @@ def pit_shares(facts: pd.DataFrame, as_of: pd.Timestamp) -> Optional[float]:
     return res[1] if res else None
 
 
+def _market_cap(shares_res, price, adjuster):
+    """PIT shares (as-filed, dated) x split-adjusted price, with the share count converted to the
+    price's split basis when an adjuster is given (see src/pipeline/splits.py). None if invalid."""
+    if shares_res is None or price is None or not price > 0:
+        return None
+    share_date, shares = shares_res
+    if not (np.isfinite(shares) and shares > 0):
+        return None
+    if adjuster is not None:
+        shares = adjuster.to_basis(shares, share_date)
+    return shares * price
+
+
 def pit_factors_from_facts(
-    facts: pd.DataFrame, as_of: pd.Timestamp, price: Optional[float]
+    facts: pd.DataFrame, as_of: pd.Timestamp, price: Optional[float], adjuster=None
 ):
-    """PITFactors from cached SEC facts at as_of. market_cap = PIT shares * price.
+    """PITFactors from cached SEC facts at as_of. market_cap = PIT shares * price, shares
+    converted to the price's split basis by `adjuster` (splits.SplitAdjuster) when given.
 
     Calls the UNCHANGED compute_pit_factors with lag_days=0 (filed<=as_of already
     enforced when assembling statements).
@@ -144,18 +158,7 @@ def pit_factors_from_facts(
     from src.pipeline.fundamentals import compute_pit_factors
 
     inc, bal, cf = build_pit_statements(facts, as_of)
-    shares = pit_shares(facts, as_of)
-    market_cap = (
-        shares * price
-        if (
-            shares is not None
-            and np.isfinite(shares)
-            and shares > 0
-            and price is not None
-            and price > 0
-        )
-        else None
-    )
+    market_cap = _market_cap(select_pit_value(facts, "shares", as_of), price, adjuster)
     return compute_pit_factors(
         inc, bal, cf, market_cap=market_cap, as_of=pd.Timestamp(as_of), lag_days=0
     )
@@ -272,8 +275,14 @@ def split_factor_in_window(prep, t_prior64, t_now64, as_of64):
     return factor
 
 
-def pit_factors_from_prepared(prep: dict, as_of: pd.Timestamp, price: Optional[float]):
-    """Fast equivalent of pit_factors_from_facts over a prepared (numpy) fact table."""
+def pit_factors_from_prepared(
+    prep: dict, as_of: pd.Timestamp, price: Optional[float], adjuster=None
+):
+    """Fast equivalent of pit_factors_from_facts over a prepared (numpy) fact table.
+
+    With an `adjuster` (splits.SplitAdjuster, the production path via SECFundamentals), both
+    market cap and net issuance use authoritative split ratios; without one they fall back to the
+    legacy behavior (raw shares for market cap, ratio heuristic for net issuance)."""
     from src.pipeline.fundamentals import compute_pit_factors
 
     as_of64 = pd.Timestamp(as_of).to_datetime64()
@@ -293,18 +302,7 @@ def pit_factors_from_prepared(prep: dict, as_of: pd.Timestamp, price: Optional[f
     shares_res = (
         _np_select_latest(prep["shares"], as_of64) if "shares" in prep else None
     )
-    shares = shares_res[1] if shares_res else None
-    market_cap = (
-        shares * price
-        if (
-            shares is not None
-            and np.isfinite(shares)
-            and shares > 0
-            and price is not None
-            and price > 0
-        )
-        else None
-    )
+    market_cap = _market_cap(shares_res, price, adjuster)
     pf = compute_pit_factors(
         inc, bal, cf, market_cap=market_cap, as_of=pd.Timestamp(as_of), lag_days=0
     )
@@ -327,8 +325,15 @@ def pit_factors_from_prepared(prep: dict, as_of: pd.Timestamp, price: Optional[f
         a_prior64 = (pd.Timestamp(as_of) - pd.Timedelta(days=365)).to_datetime64()
         prior_sh = _np_select_latest(prep["shares"], a_prior64)
         if prior_sh is not None:
-            sfac = split_factor_in_window(prep, prior_sh[0], shares_res[0], as_of64)
-            pf.net_issuance_raw = net_issuance_factor(shares_res[1] / sfac, prior_sh[1])
+            if adjuster is not None:
+                # Both counts on the same (price-store) split basis: splits between them cancel.
+                pf.net_issuance_raw = net_issuance_factor(
+                    adjuster.to_basis(shares_res[1], shares_res[0]),
+                    adjuster.to_basis(prior_sh[1], prior_sh[0]),
+                )
+            else:
+                sfac = split_factor_in_window(prep, prior_sh[0], shares_res[0], as_of64)
+                pf.net_issuance_raw = net_issuance_factor(shares_res[1] / sfac, prior_sh[1])
     return pf
 
 
