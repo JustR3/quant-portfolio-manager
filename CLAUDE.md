@@ -106,6 +106,8 @@ five-negatives table. Active investment in this project has STOPPED.
   pre-registered out-of-sample confirmation first. Open errata: split basis
   (`docs/research/2026-09-26-split-basis-errata.md`), 3-month/YTD durations
   (`docs/research/2026-09-25-sec-duration-contamination-check.md`).
+- **Candidate claims** (listed, not scheduled; listing ≠ reopening): `docs/research/2026-09-26-candidate-claims.md`
+  (C1: announcement-date PEAD on the free 8-K Item 2.02 clock).
 - **Reopening criteria (pre-registered):** a genuinely NEW data tier (paid survivorship-free,
   e.g. down-cap + delisted) AND a fresh pre-registration, treated as a new project with its own
   budget decision. Re-tuning any iter-1–6 parameter is p-hacking, not reopening.
