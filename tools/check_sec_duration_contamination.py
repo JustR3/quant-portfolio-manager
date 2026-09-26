@@ -12,11 +12,13 @@ are reported as INFORMATION only. On a clean cache they flag genuine seasonality
 tax-season Q3), restatements, and FY-vs-quarter concept mismatches, not durations. Value patterns:
 
 Quarterly cache (data/historical/fundamentals_sec_q/), per fiscal year with 3 Q siblings:
-  - imputed Q4 revenue = FY - (Q1+Q2+Q3) < 0  -> impossible with 3-month quarters. Only years
-    whose FY row and Q1-Q3 siblings share one XBRL `concept` are counted in `q4_negative`; years
-    that mix concepts (pead_events.same_concept: pead-eval skips their Q4) are counted in
-    `q4_concept_mismatch`, with the negatives among them in `q4_negative_in_mismatch`.
-    `q4_negative + q4_negative_in_mismatch` is the pre-fix definition (every 3-sibling year).
+  - imputed Q4 revenue = FY - (Q1+Q2+Q3) < 0  -> impossible with 3-month quarters. Counts every
+    3-sibling year, whatever the XBRL `concept`; this measures the CACHE, not the pead-eval
+    filter (pead_events.quarterly_series skips these Q4s and counts them as
+    `q4_negative_revenue_skipped`; see the 2026-09-27 addendum in
+    docs/research/2026-09-25-sec-duration-contamination-check.md).
+  - `q4_concept_mismatch` (INFO only, never a flag): years whose FY row and Q1-Q3 siblings come
+    from different XBRL concepts (e.g. the ASC 606 tag switch, where both mean total revenue).
   - revenue Q2/Q1 >= Q2_YTD_RATIO or Q3/Q1 >= Q3_YTD_RATIO -> YTD signature (3m ~1x; YTD ~2x/~3x)
 FY cache (data/historical/fundamentals_sec/), positive fields only (revenue, gross_profit, capex):
   - same period_end disagrees across filings by >= FY_DISAGREE_RATIO (3m value beside 12m)
@@ -101,7 +103,6 @@ def quarterly_flags(facts_q: pd.DataFrame, field: str = "revenue") -> dict:
         "q2_ytd_like": 0,
         "q3_ytd_like": 0,
         "q4_concept_mismatch": 0,
-        "q4_negative_in_mismatch": 0,
     }
     for _, fy in sub[sub["fiscal_period"] == "FY"].iterrows():
         lo = fy["period_end"] - pd.Timedelta(days=Q4_SIBLING_WINDOW_DAYS)
@@ -111,12 +112,10 @@ def quarterly_flags(facts_q: pd.DataFrame, field: str = "revenue") -> dict:
         sib = sib.sort_values("period_end")
         q1, q2, q3 = (float(v) for v in sib["value"])
         out["fy_years"] += 1
-        q4_negative = fy["value"] - (q1 + q2 + q3) < 0
-        if same_concept(fy, sib):
-            out["q4_negative"] += int(q4_negative)
-        else:
+        if fy["value"] - (q1 + q2 + q3) < 0:
+            out["q4_negative"] += 1
+        if not same_concept(fy, sib):
             out["q4_concept_mismatch"] += 1
-            out["q4_negative_in_mismatch"] += int(q4_negative)
         if q1 > 0:
             out["q2_ytd_like"] += int(q2 / q1 >= Q2_YTD_RATIO)
             out["q3_ytd_like"] += int(q3 / q1 >= Q3_YTD_RATIO)
@@ -212,7 +211,6 @@ def run(q_dir: Path = Q_DIR, fy_dir: Path = FY_DIR) -> dict:
                     "q2_ytd_like",
                     "q3_ytd_like",
                     "q4_concept_mismatch",
-                    "q4_negative_in_mismatch",
                 ),
             ),
         },

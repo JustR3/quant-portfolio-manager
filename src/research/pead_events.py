@@ -21,8 +21,8 @@ SUE_MIN_HIST = 6
 def first_filed(facts: pd.DataFrame) -> pd.DataFrame:
     """Earliest-filed row per (field, period_end): the as-first-reported value.
 
-    Carries the XBRL `concept` of that first-filed row when the cache has one (caches built
-    before the 2026-09-26 Q4-concept fix do not; see quarterly_series)."""
+    Carries the XBRL `concept` of that first-filed row when the cache has one. `concept` is
+    information only: it feeds the duration-check diagnostic and never changes a result."""
     cols = ["field", "period_end", "fiscal_period", "filed", "value"]
     if "concept" in facts.columns:
         cols.append("concept")
@@ -33,9 +33,8 @@ def first_filed(facts: pd.DataFrame) -> pd.DataFrame:
 def same_concept(fy: pd.Series, sib: pd.DataFrame) -> bool:
     """True when every sibling quarter was taken from the FY row's concept.
 
-    A FY value and Q1-Q3 values from different concepts (e.g. Revenues vs
-    RevenueFromContractWithCustomer...) are not the same measure, so FY - (Q1+Q2+Q3) is not a
-    quarter. Frames without a `concept` column (legacy caches) are not checked.
+    INFORMATION only (tools/check_sec_duration_contamination.py reports mismatches); it does not
+    gate Q4 imputation. Frames without a `concept` column are not checked.
     """
     if "concept" not in fy.index or "concept" not in sib.columns:
         return True
@@ -49,10 +48,14 @@ def quarterly_series(
 
     Q4 rules (spec §3): siblings are the Q1/Q2/Q3 period_ends strictly inside
     (FY_pe - 370d, FY_pe); exactly three required, all FIRST-filed <= the FY filed date
-    (else imputing at f would peek), and all under the FY row's concept (same_concept; a
-    mismatch skips the Q4 exactly like a missing sibling). The Q4 event date is the FY filing
-    date. If `stats` is given, `stats["q4_concept_mismatch"]` is incremented for each Q4 that
-    passed the sibling/PIT checks and was skipped ONLY for the concept mismatch.
+    (else imputing at f would peek). The Q4 event date is the FY filing date.
+
+    Validity rule (2026-09-27 addendum): for `field == "revenue"` only, an imputed Q4 < 0 is
+    skipped exactly like a missing sibling; negative revenue is impossible, so the FY row and its
+    Q1-Q3 siblings cannot be on the same basis (mixed XBRL concepts, or a discontinued-ops
+    recast). net_income is untouched (a negative quarter is legitimate). If `stats` is given,
+    `stats["q4_negative_revenue_skipped"]` counts each Q4 that passed the sibling/PIT checks and
+    was skipped ONLY for being negative.
     Returns columns (period_end, filed, value), sorted by period_end.
     """
     sub = ff[ff["field"] == field]
@@ -63,9 +66,11 @@ def quarterly_series(
         sib = qs[(qs["period_end"] > lo) & (qs["period_end"] < fy["period_end"])]
         if len(sib) != 3 or (sib["filed"] > fy["filed"]).any():
             continue
-        if not same_concept(fy, sib):
+        q4 = fy["value"] - sib["value"].sum()
+        if field == "revenue" and q4 < 0:
             if stats is not None:
-                stats["q4_concept_mismatch"] = stats.get("q4_concept_mismatch", 0) + 1
+                key = "q4_negative_revenue_skipped"
+                stats[key] = stats.get(key, 0) + 1
             continue
         out.append(
             pd.DataFrame(
@@ -73,7 +78,7 @@ def quarterly_series(
                     {
                         "period_end": fy["period_end"],
                         "filed": fy["filed"],
-                        "value": fy["value"] - sib["value"].sum(),
+                        "value": q4,
                     }
                 ]
             )

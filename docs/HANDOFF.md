@@ -124,3 +124,4 @@ One line per checkpoint. Newest at the bottom.
   realized CAGR quarterly 17.91→18.57%, monthly 18.66→18.02% (inside the ±5%/yr stop rule). Not
   fixed, noticed: net `total_return` excludes the first deployment cost; SPY benchmark loses one
   return day (`iloc[0]` overwrite); trade stats still stop the day before each rebalance date.
+- task 3 (Q4 negative revenue): replaced the concept rule with a validity rule. `pead_events.quarterly_series` skips an imputed Q4 **revenue** < 0 (net_income untouched) and counts it as `q4_negative_revenue_skipped` (artifact diagnostic `sue_r_q4_negative_revenue_skipped`). `concept` is still stored and reported (`q4_concept_mismatch`, INFO) but no longer gates anything or marks a cache legacy; `q4_negative` in the duration check is back to the original every-3-sibling-year definition.

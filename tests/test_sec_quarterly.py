@@ -285,10 +285,3 @@ def test_fetch_facts_quarterly_stores_the_concept_each_row_came_from(monkeypatch
     assert "concept" in sq.COLUMNS and "concept" in facts.columns
     rev = facts[facts["field"] == "revenue"].set_index("fiscal_period")["concept"]
     assert rev["FY"] == high and rev["Q1"] == low
-
-
-def test_legacy_reason_names_the_missing_column():
-    full = pd.DataFrame(columns=sq.COLUMNS)
-    assert sq.legacy_missing_column(full) is None
-    assert sq.legacy_missing_column(full.drop(columns="concept")) == "concept"
-    assert sq.legacy_missing_column(full.drop(columns="period_start")) == "period_start"

@@ -66,59 +66,67 @@ def test_q4_imputation_arithmetic_and_filed_date():
     assert q4.iloc[0]["filed"] == pd.Timestamp("2020-12-31") + pd.Timedelta(days=55)
 
 
-def test_q4_imputed_only_when_fy_and_siblings_share_concept():
+def test_q4_revenue_negative_is_skipped_and_counted():
+    # same concept throughout, FY < Q1+Q2+Q3: imputed Q4 revenue = -5 is physically impossible
+    rows = _year_rows(2020, [10, 20, 30, -5], field="revenue")
     stats = {}
-    q = pe.quarterly_series(
-        pe.first_filed(pd.DataFrame(_year_rows(2020, [10, 20, 30, 40]))),
-        "net_income",
-        stats,
-    )
-    q4 = q[q["period_end"] == pd.Timestamp("2020-12-31")]
-    assert len(q4) == 1 and q4.iloc[0]["value"] == pytest.approx(40.0)
-    assert stats.get("q4_concept_mismatch", 0) == 0
-
-
-@pytest.mark.parametrize("odd_index", [0, 1, 2, 3])  # any one of Q1/Q2/Q3/FY differs
-def test_q4_skipped_when_any_row_uses_a_different_concept(odd_index):
-    rows = _year_rows(2020, [10, 20, 30, 40])
-    rows[odd_index]["concept"] = "us-gaap:ProfitLoss"
-    stats = {}
-    q = pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "net_income", stats)
+    q = pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "revenue", stats)
     assert (q["period_end"] != pd.Timestamp("2020-12-31")).all()  # no Q4 row
     assert len(q) == 3  # Q1-Q3 direct rows are untouched
-    assert stats["q4_concept_mismatch"] == 1
+    assert stats["q4_negative_revenue_skipped"] == 1
 
 
-def test_q4_fy_concept_a_siblings_concept_b_no_q4_row():
-    rows = _year_rows(2020, [10, 20, 30, 40])
+def test_q4_revenue_zero_is_kept():
+    rows = _year_rows(2020, [10, 20, 30, 0], field="revenue")
+    stats = {}
+    q = pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "revenue", stats)
+    q4 = q[q["period_end"] == pd.Timestamp("2020-12-31")]
+    assert len(q4) == 1 and q4.iloc[0]["value"] == pytest.approx(0.0)
+    assert stats.get("q4_negative_revenue_skipped", 0) == 0
+
+
+def test_q4_kept_when_concepts_differ_but_q4_is_positive():
+    rows = _year_rows(2020, [10, 20, 30, 40], field="revenue")
     for r in rows[:3]:
-        r["concept"] = "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
-    rows[3]["concept"] = "us-gaap:Revenues"
-    q = pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "net_income")
-    assert (q["period_end"] != pd.Timestamp("2020-12-31")).all()
+        r["concept"] = "us-gaap:Revenues"
+    rows[3]["concept"] = "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
+    stats = {}
+    q = pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "revenue", stats)
+    q4 = q[q["period_end"] == pd.Timestamp("2020-12-31")]
+    assert len(q4) == 1 and q4.iloc[0]["value"] == pytest.approx(40.0)
+    assert stats.get("q4_negative_revenue_skipped", 0) == 0
 
 
-def test_q4_mismatch_count_ignores_years_already_skipped_for_other_reasons():
+def test_q4_negative_net_income_is_kept():
+    # negative earnings are legitimate: the validity rule applies to revenue only
+    rows = _year_rows(2020, [10, 20, 30, -5], field="net_income")
+    stats = {}
+    q = pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "net_income", stats)
+    q4 = q[q["period_end"] == pd.Timestamp("2020-12-31")]
+    assert len(q4) == 1 and q4.iloc[0]["value"] == pytest.approx(-5.0)
+    assert stats.get("q4_negative_revenue_skipped", 0) == 0
+
+
+def test_q4_negative_revenue_in_a_year_with_a_missing_sibling_is_not_counted():
     rows = [
         r
-        for r in _year_rows(2020, [10, 20, 30, 40])
+        for r in _year_rows(2020, [10, 20, 30, -5], field="revenue")
         if r["period_end"] != pd.Timestamp("2020-06-30")
-    ]  # Q2 missing AND concept differs: skipped by the sibling rule, not counted
-    rows[0]["concept"] = "us-gaap:ProfitLoss"
+    ]  # skipped by the sibling rule first, so the negative-revenue rule never sees it
     stats = {}
-    pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "net_income", stats)
-    assert stats.get("q4_concept_mismatch", 0) == 0
+    pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "revenue", stats)
+    assert stats.get("q4_negative_revenue_skipped", 0) == 0
 
 
-def test_legacy_facts_without_concept_column_keep_old_q4_behaviour():
+def test_quarterly_series_works_without_stats_and_without_concept_column():
     rows = [
         {k: v for k, v in r.items() if k != "concept"}
-        for r in _year_rows(2020, [10, 20, 30, 40])
+        for r in _year_rows(2020, [10, 20, 30, -5], field="revenue")
     ]
     ff = pe.first_filed(pd.DataFrame(rows))
     assert "concept" not in ff.columns
-    q = pe.quarterly_series(ff, "net_income")
-    assert (q["period_end"] == pd.Timestamp("2020-12-31")).any()
+    q = pe.quarterly_series(ff, "revenue")  # stats omitted; negative Q4 still skipped
+    assert (q["period_end"] != pd.Timestamp("2020-12-31")).all()
 
 
 def test_first_filed_carries_the_first_filed_rows_concept():

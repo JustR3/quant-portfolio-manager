@@ -112,9 +112,9 @@ def test_legacy_cache_is_refused_unless_explicitly_allowed(tmp_path):
     assert res.params["allow_legacy_cache"] is True
 
 
-def _run_kw(secq, main, ts):
+def _run_kw(secq, main, ts, measures):
     return dict(
-        measures=["sue_e"],
+        measures=measures,
         sec_q_dir=secq,
         price_dir=main,
         ts_dir=ts,
@@ -124,34 +124,33 @@ def _run_kw(secq, main, ts):
     )
 
 
-def test_cache_without_concept_column_is_refused_unless_explicitly_allowed(tmp_path):
-    """A quarterly cache with period_start but no concept (pre-Q4-concept-fix) must not feed
-    a canonical verdict: Q4 imputation could mix concepts. --allow-legacy-cache reproduces it."""
+def test_cache_without_concept_column_loads_without_error(tmp_path):
+    """`concept` is information only (2026-09-27 addendum): a cache that has period_start but
+    no concept is NOT legacy, feeds a canonical verdict, and gets no legacy caveat."""
     secq, main, ts = _mini_world(tmp_path)
     for f in secq.glob("*.parquet"):
         pd.read_parquet(f).drop(columns="concept").to_parquet(f, index=False)
-    kw = _run_kw(secq, main, ts)
-    with pytest.raises(pc.sf.LegacyCacheError, match="concept"):
-        pc.run_pead_eval_measures(**kw)
-    res = pc.run_pead_eval_measures(allow_legacy=True, **kw)
-    assert res.caveats[0].startswith("LEGACY SEC QUARTERLY CACHE")
-    assert "concept" in res.caveats[0]
-    assert res.params["allow_legacy_cache"] is True
+    res = pc.run_pead_eval_measures(**_run_kw(secq, main, ts, ["sue_e", "sue_r"]))
+    assert res.params["allow_legacy_cache"] is False
+    assert not any(c.startswith("LEGACY SEC QUARTERLY CACHE") for c in res.caveats)
+    assert {m["measure"] for m in res.measures} == {"sue_e", "sue_r"}
 
 
-def test_q4_concept_mismatches_are_counted_in_artifact_diagnostics(tmp_path):
+def test_negative_imputed_q4_revenue_is_counted_in_artifact_diagnostics(tmp_path):
     secq, main, ts = _mini_world(tmp_path)
-    clean = pc.run_pead_eval_measures(**_run_kw(secq, main, ts))
-    assert clean.params["diagnostics"]["sue_e_q4_concept_mismatch_skipped"] == 0
-    # give every FY net_income row of two tickers a different concept than its quarters
+    kw = _run_kw(secq, main, ts, ["sue_e", "sue_r"])
+    clean = pc.run_pead_eval_measures(**kw)
+    assert clean.params["diagnostics"]["sue_r_q4_negative_revenue_skipped"] == 0
+    # FY revenue far below Q1+Q2+Q3 for two tickers -> imputed Q4 revenue < 0 in every FY
     n_fy = 0
     for t in ("T00", "T01"):
         f = secq / f"{t}.parquet"
         df = pd.read_parquet(f)
-        is_fy = (df["fiscal_period"] == "FY") & (df["field"] == "net_income")
-        df.loc[is_fy, "concept"] = "us-gaap:ProfitLoss"
+        is_fy = (df["fiscal_period"] == "FY") & (df["field"] == "revenue")
+        df.loc[is_fy, "value"] = 1.0
         n_fy += int(is_fy.sum())
         df.to_parquet(f, index=False)
-    res = pc.run_pead_eval_measures(**_run_kw(secq, main, ts))
-    skipped = res.params["diagnostics"]["sue_e_q4_concept_mismatch_skipped"]
-    assert 0 < skipped <= n_fy
+    res = pc.run_pead_eval_measures(**kw)
+    assert res.params["diagnostics"]["sue_r_q4_negative_revenue_skipped"] == n_fy > 0
+    # net_income has no validity rule: sue_e never reports the diagnostic
+    assert "sue_e_q4_negative_revenue_skipped" not in res.params["diagnostics"]

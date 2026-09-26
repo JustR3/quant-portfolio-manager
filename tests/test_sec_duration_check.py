@@ -243,16 +243,24 @@ def _q_facts_with_concepts(fy_concept: str, q_concept: str) -> pd.DataFrame:
     return df
 
 
-def test_negative_q4_from_mixed_concepts_is_counted_as_mismatch_not_negative():
-    f = dc.quarterly_flags(_q_facts_with_concepts("us-gaap:Revenues", "us-gaap:Sales"))
-    assert f["fy_years"] == 3
-    assert f["q4_concept_mismatch"] == 3 and f["q4_negative_in_mismatch"] == 3
-    assert f["q4_negative"] == 0
-    assert not f["flagged"]  # a concept mismatch is not a duration contamination
-
-
-def test_negative_q4_within_one_concept_is_still_counted_as_negative():
-    f = dc.quarterly_flags(
+def test_negative_q4_is_counted_whatever_the_concept():
+    """q4_negative measures the cache: every 3-sibling year with negative imputed Q4 revenue,
+    same concept or not. A concept mismatch is reported separately as an INFO count."""
+    mixed = dc.quarterly_flags(
+        _q_facts_with_concepts("us-gaap:Revenues", "us-gaap:Sales")
+    )
+    assert mixed["fy_years"] == 3
+    assert mixed["q4_negative"] == 3 and mixed["q4_concept_mismatch"] == 3
+    assert not any(k.endswith("_in_mismatch") for k in mixed)
+    same = dc.quarterly_flags(
         _q_facts_with_concepts("us-gaap:Revenues", "us-gaap:Revenues")
     )
-    assert f["q4_negative"] == 3 and f["q4_concept_mismatch"] == 0
+    assert same["q4_negative"] == 3 and same["q4_concept_mismatch"] == 0
+
+
+def test_concept_mismatch_alone_is_info_not_a_flag():
+    facts = _q_facts_with_concepts("us-gaap:Revenues", "us-gaap:Sales")
+    facts.loc[facts["fiscal_period"] == "FY", "value"] = 450.0  # Q4 = +150: valid
+    f = dc.quarterly_flags(facts)
+    assert f["q4_concept_mismatch"] == 3 and f["q4_negative"] == 0
+    assert not f["flagged"]
