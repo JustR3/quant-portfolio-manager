@@ -99,3 +99,8 @@ One line per checkpoint. Newest at the bottom.
   the network (masked locally by a warm `data/cache`, visible only with a cold cache): rewrote the
   regime tests on synthetic data and marked the live Damodaran/FRED tests `integration`.
   359 passed, 14 deselected, ruff clean.
+- task 3: `CLAUDE.md` still said `qpm ts-eval` / `qpm pead-eval` (no such binary; the entry point is
+  `uv run ./main.py <cmd>`); changed to `main.py ts-eval` / `main.py pead-eval`. README.md had no
+  `qpm` mentions. Left as-is: `CLAUDE.md` line 13 and the earlier entries in this file, which name
+  the `qpm` bug itself as history, and everything dated under `docs/research/`,
+  `docs/superpowers/specs/` and `docs/superpowers/plans/`. `tests/test_cli_help.py` passes (13).

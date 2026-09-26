@@ -91,14 +91,14 @@ Closes the down-cap/survivorship lead until paid data is justified.
 
 - **#4 TS timing (iter-5, 2026-06-10):** five pre-registered rules (legacy regime overlay as-coded/
   as-documented/VIX-only + vol-targeting + vol-filter) on SPY + 10 multi-asset ETFs via the new
-  `qpm ts-eval` harness — ALL FAIL the two-part gate (best p=0.070 vs 0.010 bar). The legacy
+  `main.py ts-eval` harness — ALL FAIL the two-part gate (best p=0.070 vs 0.010 bar). The legacy
   "validated 25yr regime" claim is dead with data: as-coded SMA-only is +1.2%/yr *insignificant*;
   as-documented combined **underperforms B&H** (its VIX leg was never even computable historically —
   `RegimeDetector` hard-codes `vix=None` for as_of_date). See
   `docs/research/2026-06-10-ts-timing-study-results.md`.
 - **#5 PEAD/SEC-event drift (iter-6, 2026-06-10):** three pre-registered measures (SUE-earnings,
   SUE-revenue, EAR) on 21k–25k quarterly-filing events (2015–2026, new quarterly SEC cache in
-  `data/historical/fundamentals_sec_q/`) via `qpm pead-eval` — ALL FAIL (best p=0.745 vs 0.0167
+  `data/historical/fundamentals_sec_q/`) via `main.py pead-eval` — ALL FAIL (best p=0.745 vs 0.0167
   bar). All three spreads are *negative* net of costs; EAR points to **reversal** (NW-t −2.04 in
   the wrong direction); quintile drift U-shaped, not monotone. See
   `docs/research/2026-06-10-pead-event-drift-results.md`.
