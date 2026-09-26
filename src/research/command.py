@@ -53,6 +53,7 @@ def run_signal_eval(args) -> R.SignalEvalResult:
             q=args.quantiles,
             min_names=args.min_names_per_bucket,
             frequency=args.frequency,
+            horizon_months=args.horizon,
             cost_bps=args.transaction_cost_bps,
             t_gate=t_gate,
         )
@@ -75,6 +76,7 @@ def run_signal_eval(args) -> R.SignalEvalResult:
                 q=args.quantiles,
                 min_names=args.min_names_per_bucket,
                 frequency=args.frequency,
+                horizon_months=args.horizon,
                 cost_bps=args.transaction_cost_bps,
                 t_gate=t_gate,
                 n_sims=n_sims,

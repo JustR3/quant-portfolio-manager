@@ -44,6 +44,7 @@ def evaluate_factor(
     q: int,
     min_names: int,
     frequency: str,
+    horizon_months: int,
     cost_bps: float,
     t_gate: float = T_STAT_GATE,
     min_periods: int = V.MIN_IC_PERIODS,
@@ -55,11 +56,16 @@ def evaluate_factor(
     multi-factor run raises it (Bonferroni) to keep the family-wise error controlled.
     Verdict: INCONCLUSIVE if t or the net spread is not computable or the IC series has
     fewer than `min_periods` cross-sections; otherwise PASS iff the gate is met.
+
+    Each per-period spread is a `horizon_months` forward return, so spreads are annualized
+    with 12 / horizon_months periods per year, not the observation spacing implied by
+    `frequency` (they differ whenever windows overlap). `horizon_months` has no default so
+    a caller cannot silently fall back to the wrong scale.
     """
     col = se.FACTOR_COLUMN[factor]
     expected_sign = se.EXPECTED_SIGN[factor]
     measurable = panel[[col, "fwd_return"]].dropna()
-    ppy = se.periods_per_year(frequency)
+    ppy = 12 / horizon_months
 
     ic_series = se.rank_ic(panel, col)
     ic = se.ic_summary(ic_series)
@@ -143,7 +149,9 @@ def build_caveats(
     if horizon_months != spacing:
         cav.append(
             f"OVERLAP: forward horizon ({horizon_months}m) != observation spacing ({spacing}m); "
-            "windows overlap, so naive IC t-stats are inflated (no Newey-West in the Standard bar)."
+            "windows overlap, so naive IC t-stats are inflated (no Newey-West in the Standard bar). "
+            f"Spread mean/vol are annualized by the horizon (12/{horizon_months} periods per year); "
+            "with overlapping windows the spread Sharpe and vol are approximate."
         )
     if any(f in ("value", "quality") for f in factors):
         if fundamentals_source == "sec":
