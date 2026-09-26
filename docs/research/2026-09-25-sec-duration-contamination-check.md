@@ -112,6 +112,8 @@ The flagged-ticker count fell ~80% (482→96, 409→113) and the per-ticker flag
 character: pre-fix, most flagged tickers had *most* of their periods flagged (e.g. SYK 38/159 FY
 periods); post-fix, flagged tickers typically have 1–3 flagged periods out of 50+.
 
+*(Superseded 2026-09-26: the diagnostic now verdicts rebuilt caches on stored `period_start`, and both rebuilt caches are CLEAN with 0 bad durations; see "Diagnostic update" below. The next two paragraphs describe the tool as it was during the first errata run.)*
+
 **This diagnostic never reads `period_start`** — it infers contamination purely from value
 patterns (revenue ratios), because that's all the legacy caches had. The fix now populates
 `period_start` in both caches, but the diagnostic tool itself was not updated to use it, so it
@@ -143,7 +145,7 @@ or YoY volatility, not duration collisions.
 is not a reliable pass/fail signal once systemic contamination is gone — a genuinely clean cache
 still trips its 2%-of-tickers gate on real seasonal/restatement noise. Treating "CLEAN" as
 satisfied for the purposes of this errata re-run is justified by the exhaustive `period_start`
-check above, not by relaxing the tool's threshold. **Follow-up (not done here, out of scope for
+check above, not by relaxing the tool's threshold. **Follow-up (done 2026-09-26, see "Diagnostic update"; originally out of scope for
 this errata run):** update `check_sec_duration_contamination.py` to check `period_start` directly
 now that both caches store it, so it stops relying on the value-pattern heuristic at all.
 
