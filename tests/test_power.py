@@ -66,6 +66,7 @@ def test_evaluate_factor_reports_power_without_touching_verdict():
         q=5,
         min_names=10,
         frequency="monthly",
+        horizon_months=1,
         cost_bps=10.0,
         t_gate=2.0,
     )
@@ -133,6 +134,7 @@ def test_gate_passes_strong_injected_signal_and_rejects_null():
         q=5,
         min_names=10,
         frequency="monthly",
+        horizon_months=1,
         cost_bps=10.0,
         t_gate=2.0,
         n_sims=10,
@@ -149,6 +151,7 @@ def test_power_sim_identical_for_any_worker_count():
         q=5,
         min_names=10,
         frequency="monthly",
+        horizon_months=1,
         cost_bps=10.0,
         t_gate=2.0,
         n_sims=3,

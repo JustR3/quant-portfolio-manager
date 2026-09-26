@@ -109,5 +109,9 @@ One line per checkpoint. Newest at the bottom.
   branch with the variants is gone. Both now say 12-0 is reproducible via `signal-eval` and the
   variants are not reproducible from `main`. No momentum re-implemented or re-run; the dated
   research write-up is untouched.
+<<<<<<< HEAD
 - task 1 (Q4 concept): `concept` stored per row in the quarterly SEC cache; `pead_events.quarterly_series` imputes Q4 only when FY and Q1-Q3 share a concept and counts skips in `diagnostics`; caches without `concept` raise `LegacyCacheError` in `pead-eval` unless `--allow-legacy-cache`; the duration check separates `q4_negative` from `q4_concept_mismatch`. Code and tests only; cache rebuild and study #5 re-run are the next tasks.
 - task 2 (Q4 concept): STOP. Cache rebuilt with `--refresh` (498/498, 0 failed; pre-rebuild copy kept at `data/historical/fundamentals_sec_q.bak-2026-09-26`). Duration check: `q4_negative` 52 -> 25, above the brief's 10 limit: 460 of 6,679 FY years mix concepts and 27 of the 52 negatives were among them, but 25 negatives remain within one concept. Study #5 was NOT re-run and README/CLAUDE.md were NOT edited. Evidence: `docs/research/errata-artifacts/duration_check_v3.json`.
+=======
+- task 1: `evaluate_factor`/`simulate_power` now take a required `horizon_months` and annualize spreads by `12 / horizon_months` (was observation spacing, overstating `ann_mean`/`ann_vol` by horizon/spacing when they differ). Artifact `*_spread.periods_per_year` records the scale; OVERLAP caveat extended. No published number changes (all studies used horizon == spacing); no study re-run.
+>>>>>>> 3419348cfd45871d69a2d80a67f97b296f6faeea

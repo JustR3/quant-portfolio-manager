@@ -124,8 +124,12 @@ def long_short_gross(
     return pd.Series(out, dtype=float).sort_index()
 
 
-def spread_summary(ls: pd.Series, periods_per_year: int) -> dict:
-    """Annualized mean, vol, and Sharpe of a per-period spread series."""
+def spread_summary(ls: pd.Series, periods_per_year: float) -> dict:
+    """Annualized mean, vol, and Sharpe of a per-period spread series.
+
+    `periods_per_year` is the number of non-overlapping return windows per year, i.e.
+    12 / horizon_months when each per-period value is a horizon-month forward return.
+    It is echoed in the output so a reader can check the scale used."""
     n = int(len(ls))
     ann_mean = float(ls.mean() * periods_per_year) if n else float("nan")
     ann_vol = (
@@ -137,6 +141,7 @@ def spread_summary(ls: pd.Series, periods_per_year: int) -> dict:
         "ann_vol": ann_vol,
         "sharpe": float(sharpe),
         "n_periods": n,
+        "periods_per_year": periods_per_year,
     }
 
 
