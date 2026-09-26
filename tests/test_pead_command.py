@@ -1,4 +1,5 @@
 """End-to-end: synthetic quarterly cache + price mini-stores -> events -> gate verdicts. Offline."""
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -42,21 +43,37 @@ def _mini_world(tmp_path):
             if fp == "FY":  # FY = year sum so Q4 imputation recovers a sane quarter
                 val = 400 + rng.normal(0, 25)
             for field in ("net_income", "revenue"):
-                rows.append(dict(field=field, period_end=pe_, fiscal_period=fp,
-                                 period_start=pe_ - pd.Timedelta(days=364 if fp == "FY" else 90),
-                                 filed=pe_ + pd.Timedelta(days=40 if fp != "FY" else 55),
-                                 value=val * (10 if field == "revenue" else 1)))
+                rows.append(
+                    dict(
+                        field=field,
+                        period_end=pe_,
+                        fiscal_period=fp,
+                        period_start=pe_ - pd.Timedelta(days=364 if fp == "FY" else 90),
+                        filed=pe_ + pd.Timedelta(days=40 if fp != "FY" else 55),
+                        value=val * (10 if field == "revenue" else 1),
+                    )
+                )
         pd.DataFrame(rows).to_parquet(secq / f"{t}.parquet", index=False)
     return secq, tmp_path / "main", tmp_path / "ts"
 
 
 def test_end_to_end_sue_and_ear(tmp_path):
     secq, main, ts = _mini_world(tmp_path)
-    res = pc.run_pead_eval_measures(measures=["sue_e", "ear"], sec_q_dir=secq, price_dir=main,
-                                    ts_dir=ts, horizon=20, min_leg=2, n_boot=60, seed=42)
+    res = pc.run_pead_eval_measures(
+        measures=["sue_e", "ear"],
+        sec_q_dir=secq,
+        price_dir=main,
+        ts_dir=ts,
+        horizon=20,
+        min_leg=2,
+        n_boot=60,
+        seed=42,
+    )
     by = {m["measure"]: m for m in res.measures}
     assert set(by) == {"sue_e", "ear"}
-    assert by["ear"]["n_events"] >= by["sue_e"]["n_events"] > 0  # EAR needs no SUE history
+    assert (
+        by["ear"]["n_events"] >= by["sue_e"]["n_events"] > 0
+    )  # EAR needs no SUE history
     for m in res.measures:
         assert isinstance(m["pass"], bool)
         assert m["window"] and m["n_days"] > 0
@@ -66,7 +83,9 @@ def test_end_to_end_sue_and_ear(tmp_path):
 def test_unknown_measure_raises(tmp_path):
     secq, main, ts = _mini_world(tmp_path)
     with pytest.raises(ValueError, match="nope"):
-        pc.run_pead_eval_measures(measures=["nope"], sec_q_dir=secq, price_dir=main, ts_dir=ts)
+        pc.run_pead_eval_measures(
+            measures=["nope"], sec_q_dir=secq, price_dir=main, ts_dir=ts
+        )
 
 
 def test_legacy_cache_is_refused_unless_explicitly_allowed(tmp_path):
@@ -75,8 +94,15 @@ def test_legacy_cache_is_refused_unless_explicitly_allowed(tmp_path):
     secq, main, ts = _mini_world(tmp_path)
     for f in secq.glob("*.parquet"):
         pd.read_parquet(f).drop(columns="period_start").to_parquet(f, index=False)
-    kw = dict(measures=["sue_e"], sec_q_dir=secq, price_dir=main, ts_dir=ts, horizon=20,
-              min_leg=2, n_boot=50)
+    kw = dict(
+        measures=["sue_e"],
+        sec_q_dir=secq,
+        price_dir=main,
+        ts_dir=ts,
+        horizon=20,
+        min_leg=2,
+        n_boot=50,
+    )
     with pytest.raises(pc.sf.LegacyCacheError, match="period_start"):
         pc.run_pead_eval_measures(**kw)
     res = pc.run_pead_eval_measures(allow_legacy=True, **kw)

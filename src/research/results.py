@@ -1,4 +1,5 @@
 """Per-factor evaluation, the go/no-go decision rule, and report/JSON output."""
+
 from __future__ import annotations
 import json
 from dataclasses import dataclass, field, asdict
@@ -37,10 +38,16 @@ def bonferroni_t_gate(k: int, alpha_two_sided: float = 0.05) -> float:
     return float(norm.ppf(1.0 - alpha_two_sided / (2 * max(int(k), 1))))
 
 
-def evaluate_factor(panel: pd.DataFrame, factor: str, q: int, min_names: int,
-                    frequency: str, cost_bps: float,
-                    t_gate: float = T_STAT_GATE,
-                    min_periods: int = V.MIN_IC_PERIODS) -> FactorResult:
+def evaluate_factor(
+    panel: pd.DataFrame,
+    factor: str,
+    q: int,
+    min_names: int,
+    frequency: str,
+    cost_bps: float,
+    t_gate: float = T_STAT_GATE,
+    min_periods: int = V.MIN_IC_PERIODS,
+) -> FactorResult:
     """Compute IC + quantile + spread for one factor and apply the decision rule.
 
     Gate met iff: mean IC in the expected sign, |t-stat| >= t_gate, broadly monotone
@@ -65,28 +72,49 @@ def evaluate_factor(panel: pd.DataFrame, factor: str, q: int, min_names: int,
     tstat_ok = pd.notna(ic["t_stat"]) and abs(ic["t_stat"]) >= t_gate
     sharpe_ok = pd.notna(net["sharpe"]) and net["sharpe"] > 0
     gate_met = bool(sign_ok and tstat_ok and monotonic and sharpe_ok)
-    verdict, why = V.decide(gate_met, computable=bool(pd.notna(ic["t_stat"])
-                                                      and pd.notna(net["sharpe"])),
-                            n=int(ic["n_periods"]), n_min=min_periods, unit="IC periods")
+    verdict, why = V.decide(
+        gate_met,
+        computable=bool(pd.notna(ic["t_stat"]) and pd.notna(net["sharpe"])),
+        n=int(ic["n_periods"]),
+        n_min=min_periods,
+        unit="IC periods",
+    )
 
-    dates = (panel.loc[measurable.index, "date"] if len(measurable)
-             else pd.Series([], dtype="datetime64[ns]"))
-    date_range = ([str(dates.min().date()), str(dates.max().date())]
-                  if len(dates) else [None, None])
+    dates = (
+        panel.loc[measurable.index, "date"]
+        if len(measurable)
+        else pd.Series([], dtype="datetime64[ns]")
+    )
+    date_range = (
+        [str(dates.min().date()), str(dates.max().date())]
+        if len(dates)
+        else [None, None]
+    )
 
     # Report-only power (pre-registered gate above is unchanged): the gate is effectively
     # one-sided (expected sign AND |t| >= t_gate), so z_gate = t_gate.
-    se_ic = (ic["std_ic"] / np.sqrt(ic["n_periods"])
-             if ic["n_periods"] > 1 and pd.notna(ic["std_ic"]) else float("nan"))
+    se_ic = (
+        ic["std_ic"] / np.sqrt(ic["n_periods"])
+        if ic["n_periods"] > 1 and pd.notna(ic["std_ic"])
+        else float("nan")
+    )
     est = ic["mean_ic"] * expected_sign if pd.notna(ic["mean_ic"]) else float("nan")
     power = pw.power_block(est, se_ic, z_gate=t_gate, ref_effect=pw.REF_IC)
 
     return FactorResult(
-        factor=factor, ic=ic,
+        factor=factor,
+        ic=ic,
         decile_table=[None if pd.isna(v) else float(v) for v in table.tolist()],
-        monotonic=monotonic, gross_spread=gross, net_spread=net,
-        n_obs=int(len(measurable)), date_range=date_range, passed=verdict == V.PASS,
-        power=power, verdict=verdict, gate_met=gate_met, inconclusive_reason=why,
+        monotonic=monotonic,
+        gross_spread=gross,
+        net_spread=net,
+        n_obs=int(len(measurable)),
+        date_range=date_range,
+        passed=verdict == V.PASS,
+        power=power,
+        verdict=verdict,
+        gate_met=gate_met,
+        inconclusive_reason=why,
     )
 
 
@@ -96,10 +124,17 @@ LEGACY_CACHE_CAVEAT = (
 )
 
 
-def build_caveats(frequency: str, horizon_months: int, factors: list,
-                  fundamentals_source: str = "yfinance", legacy_cache: bool = False) -> list:
+def build_caveats(
+    frequency: str,
+    horizon_months: int,
+    factors: list,
+    fundamentals_source: str = "yfinance",
+    legacy_cache: bool = False,
+) -> list:
     """Honest caveats attached to every run."""
-    cav = [LEGACY_CACHE_CAVEAT] if (legacy_cache and fundamentals_source == "sec") else []
+    cav = (
+        [LEGACY_CACHE_CAVEAT] if (legacy_cache and fundamentals_source == "sec") else []
+    )
     cav += [
         "SURVIVORSHIP: universe = CURRENT index membership (price store) for all dates; "
         "delisted/removed names are absent. Results are biased upward.",
@@ -144,11 +179,17 @@ class SignalEvalResult:
     factors: list
     caveats: list
     params: dict = field(default_factory=dict)
-    power_sim: list = field(default_factory=list)  # signal_power_sim results; report-only
+    power_sim: list = field(
+        default_factory=list
+    )  # signal_power_sim results; report-only
 
     def to_dict(self) -> dict:
-        return {"params": self.params, "caveats": self.caveats,
-                "factors": [asdict(f) for f in self.factors], "power_sim": self.power_sim}
+        return {
+            "params": self.params,
+            "caveats": self.caveats,
+            "factors": [asdict(f) for f in self.factors],
+            "power_sim": self.power_sim,
+        }
 
     def to_json(self, path) -> None:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -157,13 +198,16 @@ class SignalEvalResult:
     def render(self) -> str:
         lines = ["=" * 78, "SIGNAL-ISOLATION STUDY — verdict per factor", "=" * 78]
         if "t_gate" in self.params:
-            lines.append(f"gate: expected sign, |t| >= {self.params['t_gate']:.2f} "
-                         f"({self.params.get('t_gate_source', 'explicit --t-gate')}), monotone "
-                         f"deciles, net L-S Sharpe > 0; INCONCLUSIVE below "
-                         f"{V.MIN_IC_PERIODS} IC periods")
+            lines.append(
+                f"gate: expected sign, |t| >= {self.params['t_gate']:.2f} "
+                f"({self.params.get('t_gate_source', 'explicit --t-gate')}), monotone "
+                f"deciles, net L-S Sharpe > 0; INCONCLUSIVE below "
+                f"{V.MIN_IC_PERIODS} IC periods"
+            )
         for f in self.factors:
             verdict = {V.PASS: "PASS ✅", V.FAIL: "FAIL ✗"}.get(
-                f.verdict, f"INCONCLUSIVE ⚠ — {f.inconclusive_reason}")
+                f.verdict, f"INCONCLUSIVE ⚠ — {f.inconclusive_reason}"
+            )
             lines += [
                 "",
                 f"{f.factor.upper()}  [{verdict}]   range {f.date_range[0]}..{f.date_range[1]}  (N obs={f.n_obs})",
@@ -175,6 +219,7 @@ class SignalEvalResult:
             ]
         if self.power_sim:
             from src.research.signal_power_sim import render_power_sim
+
             lines += render_power_sim(self.power_sim)
         lines += ["", "-" * 78, "DATA CAVEATS:"]
         lines += [f"  • {c}" for c in self.caveats]

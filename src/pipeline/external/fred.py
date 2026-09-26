@@ -136,7 +136,7 @@ class FredConnector:
 
             logger.info(
                 f"Fetched risk-free rate: {risk_free_rate:.4f} "
-                f"({risk_free_rate*100:.2f}%) as of {latest_date.date()}"
+                f"({risk_free_rate * 100:.2f}%) as of {latest_date.date()}"
             )
 
             return risk_free_rate

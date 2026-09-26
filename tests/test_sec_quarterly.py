@@ -7,7 +7,6 @@ from src.pipeline import sec_quarterly as sq
 # Same gap as sec_fundamentals.fetch_facts: `.notna()` drops NaN but not +-inf.
 
 
-
 def _edgar_like(df: pd.DataFrame) -> pd.DataFrame:
     """Real edgartools frames always carry period_start; fakes that omit it get the standard
     duration for their fiscal_period (FY ~364d, quarters ~90d). Tests of non-standard durations
@@ -19,6 +18,7 @@ def _edgar_like(df: pd.DataFrame) -> pd.DataFrame:
     days = df["fiscal_period"].map(lambda fp: 364 if fp == "FY" else 90)
     df["period_start"] = pe - pd.to_timedelta(days, unit="D")
     return df
+
 
 class _FakeQuery:
     def __init__(self, df):

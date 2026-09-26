@@ -5,6 +5,7 @@ quarter, the year-ago comparator, and the sigma history. Restatements never ente
 
 Spec: docs/superpowers/specs/2026-06-10-pead-event-drift-design.md §3.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -20,8 +21,9 @@ SUE_MIN_HIST = 6
 def first_filed(facts: pd.DataFrame) -> pd.DataFrame:
     """Earliest-filed row per (field, period_end): the as-first-reported value."""
     f = facts.sort_values("filed", kind="stable")
-    return (f.groupby(["field", "period_end"], as_index=False).first()
-            [["field", "period_end", "fiscal_period", "filed", "value"]])
+    return f.groupby(["field", "period_end"], as_index=False).first()[
+        ["field", "period_end", "fiscal_period", "filed", "value"]
+    ]
 
 
 def quarterly_series(ff: pd.DataFrame, field: str) -> pd.DataFrame:
@@ -40,14 +42,28 @@ def quarterly_series(ff: pd.DataFrame, field: str) -> pd.DataFrame:
         sib = qs[(qs["period_end"] > lo) & (qs["period_end"] < fy["period_end"])]
         if len(sib) != 3 or (sib["filed"] > fy["filed"]).any():
             continue
-        out.append(pd.DataFrame([{"period_end": fy["period_end"], "filed": fy["filed"],
-                                  "value": fy["value"] - sib["value"].sum()}]))
+        out.append(
+            pd.DataFrame(
+                [
+                    {
+                        "period_end": fy["period_end"],
+                        "filed": fy["filed"],
+                        "value": fy["value"] - sib["value"].sum(),
+                    }
+                ]
+            )
+        )
     q = pd.concat(out, ignore_index=True)
-    return q.drop_duplicates(subset="period_end").sort_values("period_end").reset_index(drop=True)
+    return (
+        q.drop_duplicates(subset="period_end")
+        .sort_values("period_end")
+        .reset_index(drop=True)
+    )
 
 
-def sue_series(q: pd.DataFrame, n_hist: int = SUE_N_HIST,
-               min_hist: int = SUE_MIN_HIST) -> pd.DataFrame:
+def sue_series(
+    q: pd.DataFrame, n_hist: int = SUE_N_HIST, min_hist: int = SUE_MIN_HIST
+) -> pd.DataFrame:
     """SUE per quarter: (v - v_yearago) / std(trailing n_hist PRIOR diffs, ddof=1, min min_hist).
 
     Year-ago comparator = the period_end closest to pe-365d within ±45d (none -> no diff).
@@ -79,7 +95,9 @@ def sue_series(q: pd.DataFrame, n_hist: int = SUE_N_HIST,
             sues.append(np.nan)
             continue
         prior = out.iloc[:i]
-        hist = prior[(prior["diff"].notna()) & (prior["diff_avail"] <= f)]["diff"].tail(n_hist)
+        hist = prior[(prior["diff"].notna()) & (prior["diff_avail"] <= f)]["diff"].tail(
+            n_hist
+        )
         if len(hist) < min_hist:
             sues.append(np.nan)
             continue

@@ -5,14 +5,20 @@ The execution lag lives in exactly ONE place — `strategy_returns` — never in
 
 Spec: docs/superpowers/specs/2026-06-10-ts-timing-study-design.md §4-§5.
 """
+
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
 
-def strategy_returns(exposure: pd.Series, asset_ret: pd.Series, cash_ret: pd.Series,
-                     cost_bps: float, shift: int = 1) -> pd.DataFrame:
+def strategy_returns(
+    exposure: pd.Series,
+    asset_ret: pd.Series,
+    cash_ret: pd.Series,
+    cost_bps: float,
+    shift: int = 1,
+) -> pd.DataFrame:
     """Daily gross/net/cost strategy returns.
 
     Effective exposure = exposure.shift(shift) (pre-window days are flat cash at e=0, which the
@@ -23,8 +29,15 @@ def strategy_returns(exposure: pd.Series, asset_ret: pd.Series, cash_ret: pd.Ser
     gross = e * asset_ret + (1.0 - e) * cash_ret
     turnover = e.diff().abs().fillna(0.0)
     cost = cost_bps / 1e4 * turnover
-    return pd.DataFrame({"gross": gross, "net": gross - cost, "cost": cost,
-                         "exposure": e, "turnover": turnover})
+    return pd.DataFrame(
+        {
+            "gross": gross,
+            "net": gross - cost,
+            "cost": cost,
+            "exposure": e,
+            "turnover": turnover,
+        }
+    )
 
 
 def excess_sharpe(ret: pd.Series, cash_ret: pd.Series) -> float:
@@ -42,7 +55,7 @@ def sub_windows(index: pd.Index, k: int = 3) -> list[pd.Index]:
     """Split an index into k contiguous, near-equal parts (by count)."""
     n = len(index)
     cuts = [round(i * n / k) for i in range(k + 1)]
-    return [index[cuts[i]:cuts[i + 1]] for i in range(k)]
+    return [index[cuts[i] : cuts[i + 1]] for i in range(k)]
 
 
 def _ols_alpha_beta(s: np.ndarray, b: np.ndarray) -> tuple[float, float]:
@@ -54,9 +67,14 @@ def _ols_alpha_beta(s: np.ndarray, b: np.ndarray) -> tuple[float, float]:
     return float(ms - beta * mb), float(beta)
 
 
-def timing_alpha_bootstrap(strat_x: pd.Series, bench_x: pd.Series, n_boot: int = 10_000,
-                           seed: int = 42, mean_block: int = 21,
-                           chunk: int = 500) -> dict:
+def timing_alpha_bootstrap(
+    strat_x: pd.Series,
+    bench_x: pd.Series,
+    n_boot: int = 10_000,
+    seed: int = 42,
+    mean_block: int = 21,
+    chunk: int = 500,
+) -> dict:
     """Stationary-bootstrap (Politis-Romano) one-sided p for timing alpha > 0.
 
     Resamples JOINT (strategy, benchmark) daily excess-return pairs with geometric blocks
@@ -104,8 +122,9 @@ def newey_west_t(strat_x: pd.Series, bench_x: pd.Series, lags: int = 21) -> floa
     return float(alpha / se) if se > 0 else float("nan")
 
 
-def newey_west_alpha_se(strat_x: pd.Series, bench_x: pd.Series,
-                        lags: int = 21) -> tuple[float, float]:
+def newey_west_alpha_se(
+    strat_x: pd.Series, bench_x: pd.Series, lags: int = 21
+) -> tuple[float, float]:
     """(OLS alpha, Newey-West Bartlett SE of alpha) per day; (nan, nan) on degenerate input."""
     df = pd.concat([strat_x, bench_x], axis=1).dropna()
     s, b = df.iloc[:, 0].to_numpy(), df.iloc[:, 1].to_numpy()

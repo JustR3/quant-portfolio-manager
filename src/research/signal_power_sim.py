@@ -99,42 +99,72 @@ def _one_sim(task: tuple) -> bool:
     result never depends on worker count or scheduling order."""
     factor, col, target, ti, k, cal, seed, gate_kw = task
     rng = np.random.default_rng(np.random.SeedSequence([seed, ti, k]))
-    sim = inject_signal(_WORKER_PANEL, col, target, cal["ic_vol"], cal["persistence"], rng)
+    sim = inject_signal(
+        _WORKER_PANEL, col, target, cal["ic_vol"], cal["persistence"], rng
+    )
     # evaluate_factor applies EXPECTED_SIGN; orient the injected signal accordingly.
     sim[col] = sim[col] * se.EXPECTED_SIGN[factor]
     return bool(R.evaluate_factor(sim, factor, **gate_kw).passed)
 
 
-def simulate_power(panel: pd.DataFrame, factor: str, q: int, min_names: int, frequency: str,
-                   cost_bps: float, t_gate: float, n_sims: int = 100,
-                   target_ics=DEFAULT_TARGET_ICS, seed: int = 42, workers: int = 1) -> dict:
+def simulate_power(
+    panel: pd.DataFrame,
+    factor: str,
+    q: int,
+    min_names: int,
+    frequency: str,
+    cost_bps: float,
+    t_gate: float,
+    n_sims: int = 100,
+    target_ics=DEFAULT_TARGET_ICS,
+    seed: int = 42,
+    workers: int = 1,
+) -> dict:
     """Pass rate of the UNCHANGED gate (evaluate_factor) per target IC, with Monte-Carlo SE.
     workers > 1 fans the draws out over processes (identical results for any worker count)."""
     col = se.FACTOR_COLUMN[factor]
     cal = calibrate(panel, col)
     slim = panel[["date", "ticker", col, "fwd_return"]].copy()
-    gate_kw = dict(q=q, min_names=min_names, frequency=frequency, cost_bps=cost_bps,
-                   t_gate=t_gate)
-    tasks = [(factor, col, float(t), ti, k, cal, seed, gate_kw)
-             for ti, t in enumerate(target_ics) for k in range(n_sims)]
+    gate_kw = dict(
+        q=q, min_names=min_names, frequency=frequency, cost_bps=cost_bps, t_gate=t_gate
+    )
+    tasks = [
+        (factor, col, float(t), ti, k, cal, seed, gate_kw)
+        for ti, t in enumerate(target_ics)
+        for k in range(n_sims)
+    ]
     if workers > 1:
         import multiprocessing as mp
         from concurrent.futures import ProcessPoolExecutor
+
         # spawn everywhere (macOS default; fork of a multi-threaded parent can deadlock on Linux)
-        with ProcessPoolExecutor(max_workers=workers, mp_context=mp.get_context("spawn"),
-                                 initializer=_init_worker, initargs=(slim,)) as ex:
-            passed = list(ex.map(_one_sim, tasks, chunksize=max(1, len(tasks) // (4 * workers))))
+        with ProcessPoolExecutor(
+            max_workers=workers,
+            mp_context=mp.get_context("spawn"),
+            initializer=_init_worker,
+            initargs=(slim,),
+        ) as ex:
+            passed = list(
+                ex.map(_one_sim, tasks, chunksize=max(1, len(tasks) // (4 * workers)))
+            )
     else:
         _init_worker(slim)
         passed = [_one_sim(t) for t in tasks]
     rows = []
     for ti, target in enumerate(target_ics):
-        hits = passed[ti * n_sims:(ti + 1) * n_sims]
+        hits = passed[ti * n_sims : (ti + 1) * n_sims]
         rate = sum(hits) / n_sims if n_sims else float("nan")
         mc_se = float(np.sqrt(rate * (1 - rate) / n_sims)) if n_sims else float("nan")
         rows.append({"target_ic": float(target), "pass_rate": rate, "mc_se": mc_se})
-    return {"factor": factor, "n_sims": n_sims, "seed": seed, "t_gate": t_gate,
-            "ref_ic": pw.REF_IC, **cal, "grid": rows}
+    return {
+        "factor": factor,
+        "n_sims": n_sims,
+        "seed": seed,
+        "t_gate": t_gate,
+        "ref_ic": pw.REF_IC,
+        **cal,
+        "grid": rows,
+    }
 
 
 def render_power_sim(sims: list) -> list[str]:

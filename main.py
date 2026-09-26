@@ -50,8 +50,12 @@ PROG = "uv run ./main.py"
 
 def print_msg(msg: str, style: str = "info"):
     """Print a message with optional styling."""
-    symbols = {"success": ("✓", "green"), "error": ("✗", "red"), "info": ("ℹ", "blue"),
-               "warning": ("⚠", "yellow")}
+    symbols = {
+        "success": ("✓", "green"),
+        "error": ("✗", "red"),
+        "info": ("ℹ", "blue"),
+        "warning": ("⚠", "yellow"),
+    }
     sym, color = symbols.get(style, ("ℹ", "blue"))
     if HAS_RICH and console:
         console.print(f"[{color}]{sym}[/{color}] {msg}")
@@ -573,13 +577,22 @@ def _exit_if_inconclusive(result) -> None:
     """Exit 3 when any verdict is INCONCLUSIVE, so scripts can't read 'no data' as 'no edge'."""
     from src.research import verdict as V
 
-    items = (getattr(result, "factors", None) or getattr(result, "rules", None)
-             or getattr(result, "measures", None) or [])
-    verdicts = [(i.verdict if hasattr(i, "verdict") else i.get("verdict")) for i in items]
+    items = (
+        getattr(result, "factors", None)
+        or getattr(result, "rules", None)
+        or getattr(result, "measures", None)
+        or []
+    )
+    verdicts = [
+        (i.verdict if hasattr(i, "verdict") else i.get("verdict")) for i in items
+    ]
     code = V.exit_code(verdicts)
     if code:
-        print_msg(f"{verdicts.count(V.INCONCLUSIVE)} verdict(s) INCONCLUSIVE — not evidence "
-                  f"either way (exit {code}).", "warning")
+        print_msg(
+            f"{verdicts.count(V.INCONCLUSIVE)} verdict(s) INCONCLUSIVE — not evidence "
+            f"either way (exit {code}).",
+            "warning",
+        )
         sys.exit(code)
 
 

@@ -1,4 +1,5 @@
 """A-rules must replicate RegimeDetector semantics exactly; B-rules must be PIT."""
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -9,8 +10,10 @@ from src.research import ts_signals as ts
 
 def _trend_series(n=260, seed=7):
     rng = np.random.default_rng(seed)
-    return pd.Series(100 * np.cumprod(1 + rng.normal(0.0004, 0.01, n)),
-                     index=pd.bdate_range("2020-01-01", periods=n))
+    return pd.Series(
+        100 * np.cumprod(1 + rng.normal(0.0004, 0.01, n)),
+        index=pd.bdate_range("2020-01-01", periods=n),
+    )
 
 
 def test_sma_regime_replicates_detector():
@@ -28,7 +31,9 @@ def test_combine_truth_table_matches_detector():
     for sma in (MarketRegime.RISK_ON, MarketRegime.RISK_OFF):
         for vix in (MarketRegime.RISK_ON, MarketRegime.CAUTION, MarketRegime.RISK_OFF):
             expected = det._combine_regimes(sma, vix).value
-            got = ts.combine_regimes(pd.Series([sma.value]), pd.Series([vix.value])).iloc[0]
+            got = ts.combine_regimes(
+                pd.Series([sma.value]), pd.Series([vix.value])
+            ).iloc[0]
             assert got == expected, f"combine({sma},{vix})"
 
 
@@ -56,7 +61,9 @@ def test_missing_tenor_carries_previous_regime():
     v30 = pd.Series([20.0, 20.0, 20.0, 20.0], index=idx)
     v3m = pd.Series([22.0, 22.0, 22.0, 22.0], index=idx)
     r = ts.vix_regime(v9, v30, v3m)
-    assert r.iloc[0] == "RISK_OFF" and r.iloc[1] == "RISK_OFF"  # carried, not dropped/refilled
+    assert (
+        r.iloc[0] == "RISK_OFF" and r.iloc[1] == "RISK_OFF"
+    )  # carried, not dropped/refilled
     assert r.iloc[3] == "RISK_ON"
 
 
@@ -64,7 +71,9 @@ def test_vol_target_cap_and_crossover():
     # alternating +/- s gives realized vol ~= target -> exposure in the cap region; never above cap
     s = 0.15 / np.sqrt(252)
     moves = np.array([s, -s] * 22)
-    px = pd.Series(100 * np.cumprod(1 + moves), index=pd.bdate_range("2024-01-01", periods=44))
+    px = pd.Series(
+        100 * np.cumprod(1 + moves), index=pd.bdate_range("2024-01-01", periods=44)
+    )
     e = ts.vol_target_exposure(px, target=0.15, lookback=21, cap=1.0).dropna()
     assert (e <= 1.0).all()
     assert e.iloc[-1] == pytest.approx(1.0, rel=0.05)
@@ -74,7 +83,9 @@ def test_vol_target_derisks_in_high_vol():
     # realized vol ~30% -> e ~= 0.5
     s = 0.30 / np.sqrt(252)
     moves = np.array([s, -s] * 22)
-    px = pd.Series(100 * np.cumprod(1 + moves), index=pd.bdate_range("2024-01-01", periods=44))
+    px = pd.Series(
+        100 * np.cumprod(1 + moves), index=pd.bdate_range("2024-01-01", periods=44)
+    )
     e = ts.vol_target_exposure(px, target=0.15, lookback=21, cap=1.0).dropna()
     assert e.iloc[-1] == pytest.approx(0.5, rel=0.05)
 
@@ -87,4 +98,6 @@ def test_vol_filter_threshold_is_pit():
     moves = np.append(calm, [0.20])
     px = pd.Series(100 * np.cumprod(1 + moves), index=idx[: len(moves) + 1][1:])
     e = ts.vol_filter_exposure(px, lookback=21, pct_window=252, pct=80, floor=0.5)
-    assert e.dropna().iloc[-1] == 0.5  # the spike day itself must be filtered, not grandfathered
+    assert (
+        e.dropna().iloc[-1] == 0.5
+    )  # the spike day itself must be filtered, not grandfathered

@@ -65,7 +65,9 @@ def _bad_quarterly_durations(facts_q: pd.DataFrame) -> int:
 
 def _bad_fy_durations(facts: pd.DataFrame) -> int:
     dur = facts[facts["field"].isin(DURATION_FIELDS)]
-    days = (pd.to_datetime(dur["period_end"]) - pd.to_datetime(dur["period_start"])).dt.days
+    days = (
+        pd.to_datetime(dur["period_end"]) - pd.to_datetime(dur["period_start"])
+    ).dt.days
     return int((~days.between(*ANNUAL_DAYS).fillna(False).astype(bool)).sum())
 
 
@@ -74,8 +76,9 @@ def _finish(out: dict, facts: pd.DataFrame, bad_fn, pattern_keys: tuple) -> dict
     out["pattern_flag"] = sum(out[k] for k in pattern_keys) > 0
     out["duration_checked"] = not is_legacy_cache(facts)
     out["bad_durations"] = bad_fn(facts) if out["duration_checked"] else 0
-    out["flagged"] = (out["bad_durations"] > 0 if out["duration_checked"]
-                      else out["pattern_flag"])
+    out["flagged"] = (
+        out["bad_durations"] > 0 if out["duration_checked"] else out["pattern_flag"]
+    )
     return out
 
 
@@ -98,8 +101,12 @@ def quarterly_flags(facts_q: pd.DataFrame, field: str = "revenue") -> dict:
         if q1 > 0:
             out["q2_ytd_like"] += int(q2 / q1 >= Q2_YTD_RATIO)
             out["q3_ytd_like"] += int(q3 / q1 >= Q3_YTD_RATIO)
-    return _finish(out, facts_q, _bad_quarterly_durations,
-                   ("q4_negative", "q2_ytd_like", "q3_ytd_like"))
+    return _finish(
+        out,
+        facts_q,
+        _bad_quarterly_durations,
+        ("q4_negative", "q2_ytd_like", "q3_ytd_like"),
+    )
 
 
 def fy_flags(facts: pd.DataFrame) -> dict:
@@ -122,7 +129,9 @@ def fy_flags(facts: pd.DataFrame) -> dict:
                 axis=1
             )
             out["quarter_sized"] += int((latest <= FY_QUARTER_SIZED * neigh).sum())
-    return _finish(out, facts, _bad_fy_durations, ("cross_filing_disagree", "quarter_sized"))
+    return _finish(
+        out, facts, _bad_fy_durations, ("cross_filing_disagree", "quarter_sized")
+    )
 
 
 def scan_dir(base: Path, fn) -> dict:
@@ -151,7 +160,9 @@ def summarize(per_ticker: dict, count_keys: tuple) -> dict:
     worst = sorted(rank, key=lambda t: -sum(per_ticker[t][k] for k in keys))[:15]
     if not n:
         verdict = "NO DATA"
-    elif checked_flagged or (legacy and len(legacy_flagged) / len(legacy) >= TICKER_SHARE_GATE):
+    elif checked_flagged or (
+        legacy and len(legacy_flagged) / len(legacy) >= TICKER_SHARE_GATE
+    ):
         verdict = "CONTAMINATED"
     else:
         verdict = "CLEAN"
@@ -200,8 +211,11 @@ def render(report: dict) -> str:
                 "restatements, concept mismatches, not durations)"
             )
         for t, f in r["worst"].items():
-            counts = ", ".join(f"{k}={v}" for k, v in f.items()
-                               if k not in ("flagged", "pattern_flag", "duration_checked"))
+            counts = ", ".join(
+                f"{k}={v}"
+                for k, v in f.items()
+                if k not in ("flagged", "pattern_flag", "duration_checked")
+            )
             lines.append(f"    {t:8} {counts}")
     return "\n".join(lines)
 

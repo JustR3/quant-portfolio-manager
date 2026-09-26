@@ -1,14 +1,28 @@
 """Point-in-time path of FactorEngine: real fundamentals, no silent momentum-only."""
+
 import pandas as pd
 import pytest
 from src.models import factor_engine as fe
 
 
 def _good_statements():
-    inc = pd.DataFrame({pd.Timestamp("2022-12-31"):
-                        {"EBIT": 200, "Gross Profit": 450, "Total Revenue": 900}})
-    bal = pd.DataFrame({pd.Timestamp("2022-12-31"):
-                        {"Total Assets": 5000, "Current Liabilities": 1000}})
+    inc = pd.DataFrame(
+        {
+            pd.Timestamp("2022-12-31"): {
+                "EBIT": 200,
+                "Gross Profit": 450,
+                "Total Revenue": 900,
+            }
+        }
+    )
+    bal = pd.DataFrame(
+        {
+            pd.Timestamp("2022-12-31"): {
+                "Total Assets": 5000,
+                "Current Liabilities": 1000,
+            }
+        }
+    )
     cf = pd.DataFrame({pd.Timestamp("2022-12-31"): {"Free Cash Flow": 150}})
     return {"income": inc, "balance": bal, "cashflow": cf}
 
@@ -20,15 +34,20 @@ def _prices():
 
 def _patch(monkeypatch, statements):
     monkeypatch.setattr(fe.fnd, "get_statements", lambda t: statements)
-    monkeypatch.setattr(fe.fnd, "get_shares", lambda t, **k:
-                        pd.Series([100.0], index=pd.to_datetime(["2022-01-01"])))
+    monkeypatch.setattr(
+        fe.fnd,
+        "get_shares",
+        lambda t, **k: pd.Series([100.0], index=pd.to_datetime(["2022-01-01"])),
+    )
     monkeypatch.setattr(fe.hstore, "price_asof", lambda t, d, **k: 50.0)
     monkeypatch.setattr(fe.hstore, "load_prices", lambda t, **k: _prices())
 
 
 def test_asof_uses_pit_fundamentals_not_momentum_only(monkeypatch):
     _patch(monkeypatch, _good_statements())
-    eng = fe.FactorEngine(tickers=["AAA", "BBB"], as_of_date="2024-03-30", verbose=False)
+    eng = fe.FactorEngine(
+        tickers=["AAA", "BBB"], as_of_date="2024-03-30", verbose=False
+    )
     scores = eng.rank_universe()
     assert len(scores) == 2
     assert eng.excluded == {}
