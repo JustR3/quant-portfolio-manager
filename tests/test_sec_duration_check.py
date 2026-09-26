@@ -214,3 +214,45 @@ def test_rebuilt_cache_with_one_bad_duration_is_contaminated(tmp_path):
         rep["fy_cache"]["verdict"] == "CONTAMINATED"
     )  # 1/50 < 2% gate, but any bad duration counts
     assert rep["fy_cache"]["totals"]["bad_durations"] == 1
+
+
+# --- imputed-Q4 concept mismatch (2026-09-26 addendum) --------------------------------------
+
+
+def _q_facts_with_concepts(fy_concept: str, q_concept: str) -> pd.DataFrame:
+    """3-month (non-YTD) quarters of 100 against an FY of 250: Q4 = 250 - 300 < 0, the signature
+    of an FY taken from a different, smaller concept than its quarters."""
+    rows = []
+    for y in (2019, 2020, 2021):
+        for fp, m in (("Q1", 3), ("Q2", 6), ("Q3", 9)):
+            pe = pd.Timestamp(y, m, 1) + pd.offsets.MonthEnd(0)
+            rows.append(
+                ("revenue", pe, fp, pe + pd.Timedelta(days=35), 100.0, q_concept)
+            )
+        pe = pd.Timestamp(y, 12, 31)
+        rows.append(
+            ("revenue", pe, "FY", pe + pd.Timedelta(days=60), 250.0, fy_concept)
+        )
+    df = pd.DataFrame(
+        rows,
+        columns=["field", "period_end", "fiscal_period", "filed", "value", "concept"],
+    )
+    df["period_start"] = df["period_end"] - pd.to_timedelta(
+        df["fiscal_period"].map(lambda fp: 364 if fp == "FY" else 90), unit="D"
+    )
+    return df
+
+
+def test_negative_q4_from_mixed_concepts_is_counted_as_mismatch_not_negative():
+    f = dc.quarterly_flags(_q_facts_with_concepts("us-gaap:Revenues", "us-gaap:Sales"))
+    assert f["fy_years"] == 3
+    assert f["q4_concept_mismatch"] == 3 and f["q4_negative_in_mismatch"] == 3
+    assert f["q4_negative"] == 0
+    assert not f["flagged"]  # a concept mismatch is not a duration contamination
+
+
+def test_negative_q4_within_one_concept_is_still_counted_as_negative():
+    f = dc.quarterly_flags(
+        _q_facts_with_concepts("us-gaap:Revenues", "us-gaap:Revenues")
+    )
+    assert f["q4_negative"] == 3 and f["q4_concept_mismatch"] == 0

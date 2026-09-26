@@ -109,3 +109,4 @@ One line per checkpoint. Newest at the bottom.
   branch with the variants is gone. Both now say 12-0 is reproducible via `signal-eval` and the
   variants are not reproducible from `main`. No momentum re-implemented or re-run; the dated
   research write-up is untouched.
+- task 1 (Q4 concept): `concept` stored per row in the quarterly SEC cache; `pead_events.quarterly_series` imputes Q4 only when FY and Q1-Q3 share a concept and counts skips in `diagnostics`; caches without `concept` raise `LegacyCacheError` in `pead-eval` unless `--allow-legacy-cache`; the duration check separates `q4_negative` from `q4_concept_mismatch`. Code and tests only; cache rebuild and study #5 re-run are the next tasks.

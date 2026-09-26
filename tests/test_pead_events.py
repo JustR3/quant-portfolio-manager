@@ -7,13 +7,14 @@ import pytest
 from src.research import pead_events as pe
 
 
-def _row(field, pe_, fp, filed, value):
+def _row(field, pe_, fp, filed, value, concept="us-gaap:NetIncomeLoss"):
     return dict(
         field=field,
         period_end=pd.Timestamp(pe_),
         fiscal_period=fp,
         filed=pd.Timestamp(filed),
         value=float(value),
+        concept=concept,
     )
 
 
@@ -63,6 +64,71 @@ def test_q4_imputation_arithmetic_and_filed_date():
     assert len(q4) == 1
     assert q4.iloc[0]["value"] == pytest.approx(40.0)  # FY(100) - (10+20+30)
     assert q4.iloc[0]["filed"] == pd.Timestamp("2020-12-31") + pd.Timedelta(days=55)
+
+
+def test_q4_imputed_only_when_fy_and_siblings_share_concept():
+    stats = {}
+    q = pe.quarterly_series(
+        pe.first_filed(pd.DataFrame(_year_rows(2020, [10, 20, 30, 40]))),
+        "net_income",
+        stats,
+    )
+    q4 = q[q["period_end"] == pd.Timestamp("2020-12-31")]
+    assert len(q4) == 1 and q4.iloc[0]["value"] == pytest.approx(40.0)
+    assert stats.get("q4_concept_mismatch", 0) == 0
+
+
+@pytest.mark.parametrize("odd_index", [0, 1, 2, 3])  # any one of Q1/Q2/Q3/FY differs
+def test_q4_skipped_when_any_row_uses_a_different_concept(odd_index):
+    rows = _year_rows(2020, [10, 20, 30, 40])
+    rows[odd_index]["concept"] = "us-gaap:ProfitLoss"
+    stats = {}
+    q = pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "net_income", stats)
+    assert (q["period_end"] != pd.Timestamp("2020-12-31")).all()  # no Q4 row
+    assert len(q) == 3  # Q1-Q3 direct rows are untouched
+    assert stats["q4_concept_mismatch"] == 1
+
+
+def test_q4_fy_concept_a_siblings_concept_b_no_q4_row():
+    rows = _year_rows(2020, [10, 20, 30, 40])
+    for r in rows[:3]:
+        r["concept"] = "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
+    rows[3]["concept"] = "us-gaap:Revenues"
+    q = pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "net_income")
+    assert (q["period_end"] != pd.Timestamp("2020-12-31")).all()
+
+
+def test_q4_mismatch_count_ignores_years_already_skipped_for_other_reasons():
+    rows = [
+        r
+        for r in _year_rows(2020, [10, 20, 30, 40])
+        if r["period_end"] != pd.Timestamp("2020-06-30")
+    ]  # Q2 missing AND concept differs: skipped by the sibling rule, not counted
+    rows[0]["concept"] = "us-gaap:ProfitLoss"
+    stats = {}
+    pe.quarterly_series(pe.first_filed(pd.DataFrame(rows)), "net_income", stats)
+    assert stats.get("q4_concept_mismatch", 0) == 0
+
+
+def test_legacy_facts_without_concept_column_keep_old_q4_behaviour():
+    rows = [
+        {k: v for k, v in r.items() if k != "concept"}
+        for r in _year_rows(2020, [10, 20, 30, 40])
+    ]
+    ff = pe.first_filed(pd.DataFrame(rows))
+    assert "concept" not in ff.columns
+    q = pe.quarterly_series(ff, "net_income")
+    assert (q["period_end"] == pd.Timestamp("2020-12-31")).any()
+
+
+def test_first_filed_carries_the_first_filed_rows_concept():
+    facts = pd.DataFrame(
+        [
+            _row("net_income", "2020-03-31", "Q1", "2020-05-05", 100, "us-gaap:A"),
+            _row("net_income", "2020-03-31", "Q1", "2021-05-04", 120, "us-gaap:B"),
+        ]
+    )
+    assert pe.first_filed(facts).iloc[0]["concept"] == "us-gaap:A"
 
 
 def test_q4_requires_three_siblings():

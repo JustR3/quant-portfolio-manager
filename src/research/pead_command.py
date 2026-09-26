@@ -31,8 +31,9 @@ ALL_MEASURES = ("sue_e", "sue_r", "ear")
 MEASURE_FIELD = {"sue_e": "net_income", "sue_r": "revenue"}
 
 LEGACY_CACHE_CAVEAT = (
-    "LEGACY SEC QUARTERLY CACHE (--allow-legacy-cache): no period_start; Q2/Q3 may be 6-/9-month "
-    "YTD values. Pre-errata reproduction only — NOT a canonical verdict."
+    "LEGACY SEC QUARTERLY CACHE (--allow-legacy-cache): no period_start and/or no concept; Q2/Q3 "
+    "may be 6-/9-month YTD values and imputed Q4s may mix XBRL concepts. Pre-errata reproduction "
+    "only — NOT a canonical verdict."
 )
 
 CAVEATS = [
@@ -67,20 +68,25 @@ def build_events(
     spy: pd.Series,
     calendar: pd.Index,
     allow_legacy: bool = False,
+    stats: dict | None = None,
 ) -> pd.DataFrame:
-    """Per-measure event table [ticker, entry, score] under the spec's PIT rules."""
+    """Per-measure event table [ticker, entry, score] under the spec's PIT rules.
+
+    `stats`, if given, accumulates `q4_concept_mismatch`: Q4 quarters skipped because the FY
+    row and its Q1-Q3 siblings came from different XBRL concepts (pead_events.same_concept)."""
     rows = []
     for t in tickers:
         facts = sq.load_facts_q(t, sec_q_dir)
         if facts is None or facts.empty:
             continue
-        if sf.is_legacy_cache(facts) and not allow_legacy:
-            raise sf.LegacyCacheError(f"{t}: SEC quarterly {sf.LEGACY_CACHE_HINT}")
+        missing = sq.legacy_missing_column(facts)
+        if missing and not allow_legacy:
+            raise sf.LegacyCacheError(sq.legacy_error_message(t, missing))
         ff = pev.first_filed(facts)
         ev_f = pev.event_dates(ff)
         ev_f = ev_f[ev_f >= calendar[0]]  # never force-map pre-calendar filings forward
         if measure in MEASURE_FIELD:
-            s = pev.sue_series(pev.quarterly_series(ff, MEASURE_FIELD[measure]))
+            s = pev.sue_series(pev.quarterly_series(ff, MEASURE_FIELD[measure], stats))
             s = s.dropna(subset=["sue"])
             for _, r in s.iterrows():
                 f = ev_f.get(r["period_end"])
@@ -148,6 +154,7 @@ def run_pead_eval_measures(
     out_measures = []
     diagnostics = {}
     for m in measures:
+        ev_stats: dict = {}
         ev = build_events(
             m,
             tickers,
@@ -156,7 +163,12 @@ def run_pead_eval_measures(
             spy,
             calendar,
             allow_legacy=allow_legacy,
+            stats=ev_stats,
         )
+        if m in MEASURE_FIELD:  # ear has no Q4 imputation
+            diagnostics[f"{m}_q4_concept_mismatch_skipped"] = ev_stats.get(
+                "q4_concept_mismatch", 0
+            )
         ev = ev[ev["ticker"].isin(closes)]
         ev = ev[ev["entry"] <= entry_cap]
         if ev.empty:

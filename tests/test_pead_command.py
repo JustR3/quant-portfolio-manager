@@ -8,6 +8,7 @@ from src.research import pead_command as pc
 
 N_TICKERS = 30
 CAL = pd.bdate_range("2014-01-01", periods=900)  # ~2014-2017
+CONCEPT = {"net_income": "us-gaap:NetIncomeLoss", "revenue": "us-gaap:Revenues"}
 
 
 def _mini_world(tmp_path):
@@ -51,6 +52,7 @@ def _mini_world(tmp_path):
                         period_start=pe_ - pd.Timedelta(days=364 if fp == "FY" else 90),
                         filed=pe_ + pd.Timedelta(days=40 if fp != "FY" else 55),
                         value=val * (10 if field == "revenue" else 1),
+                        concept=CONCEPT[field],
                     )
                 )
         pd.DataFrame(rows).to_parquet(secq / f"{t}.parquet", index=False)
@@ -108,3 +110,48 @@ def test_legacy_cache_is_refused_unless_explicitly_allowed(tmp_path):
     res = pc.run_pead_eval_measures(allow_legacy=True, **kw)
     assert res.caveats[0].startswith("LEGACY SEC QUARTERLY CACHE")
     assert res.params["allow_legacy_cache"] is True
+
+
+def _run_kw(secq, main, ts):
+    return dict(
+        measures=["sue_e"],
+        sec_q_dir=secq,
+        price_dir=main,
+        ts_dir=ts,
+        horizon=20,
+        min_leg=2,
+        n_boot=50,
+    )
+
+
+def test_cache_without_concept_column_is_refused_unless_explicitly_allowed(tmp_path):
+    """A quarterly cache with period_start but no concept (pre-Q4-concept-fix) must not feed
+    a canonical verdict: Q4 imputation could mix concepts. --allow-legacy-cache reproduces it."""
+    secq, main, ts = _mini_world(tmp_path)
+    for f in secq.glob("*.parquet"):
+        pd.read_parquet(f).drop(columns="concept").to_parquet(f, index=False)
+    kw = _run_kw(secq, main, ts)
+    with pytest.raises(pc.sf.LegacyCacheError, match="concept"):
+        pc.run_pead_eval_measures(**kw)
+    res = pc.run_pead_eval_measures(allow_legacy=True, **kw)
+    assert res.caveats[0].startswith("LEGACY SEC QUARTERLY CACHE")
+    assert "concept" in res.caveats[0]
+    assert res.params["allow_legacy_cache"] is True
+
+
+def test_q4_concept_mismatches_are_counted_in_artifact_diagnostics(tmp_path):
+    secq, main, ts = _mini_world(tmp_path)
+    clean = pc.run_pead_eval_measures(**_run_kw(secq, main, ts))
+    assert clean.params["diagnostics"]["sue_e_q4_concept_mismatch_skipped"] == 0
+    # give every FY net_income row of two tickers a different concept than its quarters
+    n_fy = 0
+    for t in ("T00", "T01"):
+        f = secq / f"{t}.parquet"
+        df = pd.read_parquet(f)
+        is_fy = (df["fiscal_period"] == "FY") & (df["field"] == "net_income")
+        df.loc[is_fy, "concept"] = "us-gaap:ProfitLoss"
+        n_fy += int(is_fy.sum())
+        df.to_parquet(f, index=False)
+    res = pc.run_pead_eval_measures(**_run_kw(secq, main, ts))
+    skipped = res.params["diagnostics"]["sue_e_q4_concept_mismatch_skipped"]
+    assert 0 < skipped <= n_fy

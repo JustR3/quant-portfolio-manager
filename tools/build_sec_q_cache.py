@@ -5,8 +5,9 @@ true 10-Q filed dates (lag 20-90d), whether NetIncomeLoss resolves, and coverage
 >30% unusable -> do NOT run the full build; escalate (possible data NO-GO verdict).
 
 Full build: every ticker in the existing FY cache (data/historical/fundamentals_sec/), skipping
-already-built parquets that carry `period_start` (the 2026-09-26 duration fix); legacy parquets
-without it are rebuilt automatically, and --refresh rebuilds everything. Network: one
+already-built parquets that carry `period_start` (the 2026-09-26 duration fix) and `concept` (the
+Q4-concept fix); legacy parquets missing either are rebuilt automatically, and --refresh rebuilds
+everything. Network: one
 companyfacts fetch per ticker via edgartools.
 """
 
@@ -24,10 +25,12 @@ FY_CACHE = Path("data/historical/fundamentals_sec")
 
 
 def is_legacy_file(path: Path) -> bool:
-    """True for a cache parquet written before the duration fix (no period_start column)."""
+    """True for a cache parquet written before the duration fix (no period_start column) or the
+    Q4-concept fix (no concept column)."""
     import pyarrow.parquet as pq
 
-    return "period_start" not in pq.read_schema(path).names
+    names = pq.read_schema(path).names
+    return "period_start" not in names or "concept" not in names
 
 
 def universe() -> list[str]:

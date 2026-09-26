@@ -4,8 +4,11 @@ Separate, additive sibling of sec_fundamentals: keeps Q1/Q2/Q3/FY rows (with fis
 minimal field set, cached per ticker under data/historical/fundamentals_sec_q/ — the phase #2/#3
 FY-only cache is untouched and stays reproducible.
 
-Schema: (field, period_end, fiscal_period, filed, value). The harness consumes FIRST-filed values
-only (as-first-reported; see pead_events.first_filed).
+Schema: (field, period_end, period_start, fiscal_period, filed, value, concept). `concept` is the
+XBRL concept each row came from: the walk below can source a ticker's FY row from one concept and
+its Q1-Q3 rows from another, and Q4 = FY - (Q1+Q2+Q3) is only valid within one concept (see
+pead_events.same_concept). The harness consumes FIRST-filed values only (as-first-reported; see
+pead_events.first_filed).
 
 Spec: docs/superpowers/specs/2026-06-10-pead-event-drift-design.md §2.
 """
@@ -18,7 +21,13 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from src.pipeline.sec_fundamentals import CONCEPT_MAP, start_or_nat, duration_mask
+from src.pipeline.sec_fundamentals import (
+    CONCEPT_MAP,
+    LEGACY_CACHE_HINT,
+    duration_mask,
+    is_legacy_cache,
+    start_or_nat,
+)
 
 QUARTERLY_CONCEPT_MAP = {
     # ProfitLoss fallback: some filers (e.g. CMI, IRM) switched tags ~2011; probe-driven,
@@ -28,7 +37,32 @@ QUARTERLY_CONCEPT_MAP = {
 }
 KEEP_PERIODS = {"Q1", "Q2", "Q3", "FY"}
 SEC_FUND_Q_DIR = Path("data/historical/fundamentals_sec_q")
-COLUMNS = ["field", "period_end", "period_start", "fiscal_period", "filed", "value"]
+COLUMNS = [
+    "field",
+    "period_end",
+    "period_start",
+    "fiscal_period",
+    "filed",
+    "value",
+    "concept",
+]
+CONCEPT_LEGACY_HINT = (
+    "cache predates the 2026-09-26 Q4-concept fix (no concept column): rebuild it "
+    "(tools/build_sec_q_cache.py --refresh), or pass --allow-legacy-cache to reproduce the "
+    "pre-fix numbers"
+)
+
+
+def legacy_missing_column(facts: pd.DataFrame) -> Optional[str]:
+    """The schema column whose absence makes a quarterly cache legacy, else None."""
+    if is_legacy_cache(facts):
+        return "period_start"
+    return None if "concept" in facts.columns else "concept"
+
+
+def legacy_error_message(ticker: str, missing: str) -> str:
+    hint = LEGACY_CACHE_HINT if missing == "period_start" else CONCEPT_LEGACY_HINT
+    return f"{ticker}: SEC quarterly {hint}"
 
 
 def cache_path(ticker: str, base_dir: Path = SEC_FUND_Q_DIR) -> Path:
@@ -86,6 +120,7 @@ def fetch_facts_quarterly(ticker: str) -> pd.DataFrame:
                         "fiscal_period": fp,
                         "filed": fd,
                         "value": float(r["numeric_value"]),
+                        "concept": concept,
                     }
                 )
     return pd.DataFrame(rows, columns=COLUMNS).astype(
