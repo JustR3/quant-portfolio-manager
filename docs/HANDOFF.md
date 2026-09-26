@@ -109,3 +109,4 @@ One line per checkpoint. Newest at the bottom.
   branch with the variants is gone. Both now say 12-0 is reproducible via `signal-eval` and the
   variants are not reproducible from `main`. No momentum re-implemented or re-run; the dated
   research write-up is untouched.
+- task 1: `evaluate_factor`/`simulate_power` now take a required `horizon_months` and annualize spreads by `12 / horizon_months` (was observation spacing, overstating `ann_mean`/`ann_vol` by horizon/spacing when they differ). Artifact `*_spread.periods_per_year` records the scale; OVERLAP caveat extended. No published number changes (all studies used horizon == spacing); no study re-run.

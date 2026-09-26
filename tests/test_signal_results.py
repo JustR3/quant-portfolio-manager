@@ -24,7 +24,13 @@ def _predictive_panel(factor_col, periods=30, names=200, seed=0):  # >= MIN_IC_P
 def test_evaluate_factor_passes_strong_signal():
     panel = _predictive_panel("momentum_raw")
     res = R.evaluate_factor(
-        panel, "momentum", q=5, min_names=10, frequency="monthly", cost_bps=10
+        panel,
+        "momentum",
+        q=5,
+        min_names=10,
+        frequency="monthly",
+        horizon_months=1,
+        cost_bps=10,
     )
     assert res.factor == "momentum"
     assert res.ic["t_stat"] > 2
@@ -47,7 +53,13 @@ def test_evaluate_factor_fails_pure_noise():
         frames.append(df)
     panel = pd.concat(frames, ignore_index=True)
     res = R.evaluate_factor(
-        panel, "value", q=5, min_names=10, frequency="monthly", cost_bps=10
+        panel,
+        "value",
+        q=5,
+        min_names=10,
+        frequency="monthly",
+        horizon_months=1,
+        cost_bps=10,
     )
     assert res.passed is False
 
@@ -56,7 +68,13 @@ def test_evaluate_factor_wrong_sign_fails_even_if_significant():
     panel = _predictive_panel("momentum_raw")
     panel["momentum_raw"] = -panel["momentum_raw"]  # significant but NEGATIVE IC
     res = R.evaluate_factor(
-        panel, "momentum", q=5, min_names=10, frequency="monthly", cost_bps=10
+        panel,
+        "momentum",
+        q=5,
+        min_names=10,
+        frequency="monthly",
+        horizon_months=1,
+        cost_bps=10,
     )
     assert res.ic["t_stat"] < -2
     assert res.passed is False
@@ -85,7 +103,13 @@ def test_build_caveats_sec_source_drops_thin_yfinance_note():
 def test_signal_eval_result_json_roundtrip(tmp_path):
     panel = _predictive_panel("momentum_raw")
     fr = R.evaluate_factor(
-        panel, "momentum", q=5, min_names=10, frequency="monthly", cost_bps=10
+        panel,
+        "momentum",
+        q=5,
+        min_names=10,
+        frequency="monthly",
+        horizon_months=1,
+        cost_bps=10,
     )
     result = R.SignalEvalResult(
         factors=[fr],
@@ -103,7 +127,13 @@ def test_signal_eval_result_json_roundtrip(tmp_path):
 def test_signal_eval_result_render_contains_verdict_and_caveats():
     panel = _predictive_panel("momentum_raw")
     fr = R.evaluate_factor(
-        panel, "momentum", q=5, min_names=10, frequency="monthly", cost_bps=10
+        panel,
+        "momentum",
+        q=5,
+        min_names=10,
+        frequency="monthly",
+        horizon_months=1,
+        cost_bps=10,
     )
     text = R.SignalEvalResult(
         factors=[fr], caveats=["SURVIVORSHIP note"], params={}
@@ -198,7 +228,7 @@ def test_evaluate_factor_respects_t_gate():
     from src.research import results as R
 
     panel = _strong_factor_panel()
-    common = dict(q=5, min_names=10, frequency="monthly", cost_bps=10)
+    common = dict(q=5, min_names=10, frequency="monthly", horizon_months=1, cost_bps=10)
     res_low = R.evaluate_factor(panel, "gross_profitability", t_gate=2.0, **common)
     res_high = R.evaluate_factor(panel, "gross_profitability", t_gate=1e9, **common)
     assert res_low.passed is True
@@ -229,6 +259,7 @@ def test_short_or_empty_sample_is_inconclusive_never_fail():
         q=5,
         min_names=10,
         frequency="monthly",
+        horizon_months=1,
         cost_bps=10,
     )
     assert short.gate_met is True and short.passed is False
@@ -237,7 +268,13 @@ def test_short_or_empty_sample_is_inconclusive_never_fail():
     )
     empty = _predictive_panel("momentum_raw").iloc[0:0]
     res = R.evaluate_factor(
-        empty, "momentum", q=5, min_names=10, frequency="monthly", cost_bps=10
+        empty,
+        "momentum",
+        q=5,
+        min_names=10,
+        frequency="monthly",
+        horizon_months=1,
+        cost_bps=10,
     )
     assert res.verdict == V.INCONCLUSIVE and res.passed is False
     assert "INCONCLUSIVE" in R.SignalEvalResult(factors=[res], caveats=[]).render()
