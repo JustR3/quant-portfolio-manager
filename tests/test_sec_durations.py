@@ -197,16 +197,51 @@ def test_documented_allow_legacy_cache_commands_run(tmp_path):
     build_synthetic_store(base)
     _legacyify(base)
     main = str(Path(__file__).parent.parent / "main.py")
-    sig = [sys.executable, main, "signal-eval", "--factors", "value", "--fundamentals", "sec",
-           "--start", "2018-03-01", "--end", "2019-01-01", "--quantiles", "2",
-           "--min-names-per-bucket", "2", "--export", str(tmp_path / "out")]
-    pead = [sys.executable, main, "pead-eval", "--min-leg", "1", "--bootstrap-n", "50",
-            "--export", str(tmp_path / "out")]
+    sig = [
+        sys.executable,
+        main,
+        "signal-eval",
+        "--factors",
+        "value",
+        "--fundamentals",
+        "sec",
+        "--start",
+        "2018-03-01",
+        "--end",
+        "2019-01-01",
+        "--quantiles",
+        "2",
+        "--min-names-per-bucket",
+        "2",
+        "--export",
+        str(tmp_path / "out"),
+    ]
+    pead = [
+        sys.executable,
+        main,
+        "pead-eval",
+        "--min-leg",
+        "1",
+        "--bootstrap-n",
+        "50",
+        "--export",
+        str(tmp_path / "out"),
+    ]
     for cmd, tag in ((sig, "LEGACY SEC CACHE"), (pead, "LEGACY SEC QUARTERLY CACHE")):
-        refused = subprocess.run(cmd, cwd=tmp_path, capture_output=True, text=True, timeout=300)
-        assert refused.returncode == 1 and "period_start" in refused.stdout + refused.stderr
-        ok = subprocess.run(cmd + ["--allow-legacy-cache"], cwd=tmp_path, capture_output=True,
-                            text=True, timeout=300)
+        refused = subprocess.run(
+            cmd, cwd=tmp_path, capture_output=True, text=True, timeout=300
+        )
+        assert (
+            refused.returncode == 1
+            and "period_start" in refused.stdout + refused.stderr
+        )
+        ok = subprocess.run(
+            cmd + ["--allow-legacy-cache"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
         # short synthetic windows -> INCONCLUSIVE verdicts -> exit 3 (still a completed run)
         assert ok.returncode in (0, 3), ok.stdout[-1500:] + ok.stderr[-1500:]
         assert tag in ok.stdout

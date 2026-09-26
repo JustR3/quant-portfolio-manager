@@ -6,10 +6,10 @@ All magic numbers are imported from constants.py for easy modification.
 
 Usage:
     from src.config import config
-    
+
     # Access configuration
     risk_free_rate = config.default_risk_free_rate
-    
+
     # Check if features are enabled
     if config.enable_macro_adjustment:
         apply_cape_adjustment()
@@ -81,23 +81,23 @@ from src.constants import (
 class Config:
     """
     Immutable application configuration.
-    
+
     All values are set from constants.py defaults.
     The frozen=True ensures configuration cannot be accidentally modified at runtime.
     """
-    
+
     # =========================================================================
     # Feature Flags
     # =========================================================================
     # Macro God (Shiller CAPE) - DISABLED pending long-term validation
     enable_macro_adjustment: bool = False
-    
+
     # Factor God (Fama-French) - VALIDATED: 25-year backtest shows value
     enable_factor_regimes: bool = True
-    
+
     # Regime Detection - Risk management feature (optional)
     enable_regime_adjustment: bool = False
-    
+
     # =========================================================================
     # Factor Model Parameters
     # =========================================================================
@@ -106,7 +106,7 @@ class Config:
     value_weight: float = VALUE_FACTOR_WEIGHT
     quality_weight: float = QUALITY_FACTOR_WEIGHT
     momentum_weight: float = MOMENTUM_FACTOR_WEIGHT
-    
+
     # =========================================================================
     # Portfolio Optimization
     # =========================================================================
@@ -115,7 +115,7 @@ class Config:
     max_position_size: float = MAX_POSITION_SIZE
     min_position_size: float = MIN_POSITION_SIZE
     default_top_n: int = DEFAULT_TOP_N_STOCKS
-    
+
     # =========================================================================
     # Macro God (CAPE) Configuration
     # =========================================================================
@@ -124,7 +124,7 @@ class Config:
     cape_scalar_low: float = CAPE_SCALAR_LOW
     cape_scalar_high: float = CAPE_SCALAR_HIGH
     cape_cache_hours: int = CAPE_CACHE_EXPIRY_HOURS
-    
+
     # =========================================================================
     # Factor God (Fama-French) Configuration
     # =========================================================================
@@ -132,7 +132,7 @@ class Config:
     ff_regime_window: int = FF_REGIME_WINDOW_MONTHS
     ff_cache_hours: int = FF_CACHE_EXPIRY_HOURS
     ff_tilt_strength: float = FF_TILT_STRENGTH
-    
+
     # =========================================================================
     # Regime Detection
     # =========================================================================
@@ -141,26 +141,26 @@ class Config:
     regime_caution_exposure: float = REGIME_CAUTION_EXPOSURE
     regime_sma_window: int = SMA_WINDOW_DAYS
     regime_lookback_days: int = REGIME_LOOKBACK_DAYS
-    
+
     # =========================================================================
     # Cache Configuration
     # =========================================================================
     cache_dir: str = DEFAULT_CACHE_DIR
     cache_expiry_hours: int = DEFAULT_CACHE_EXPIRY_HOURS
     market_data_cache_hours: int = MARKET_DATA_CACHE_HOURS
-    
+
     # =========================================================================
     # API Configuration
     # =========================================================================
     api_calls_per_minute: int = API_CALLS_PER_MINUTE
-    
+
     # =========================================================================
     # Monte Carlo Simulation
     # =========================================================================
     monte_carlo_iterations: int = MONTE_CARLO_ITERATIONS
     monte_carlo_seed: int = MONTE_CARLO_SEED
     monte_carlo_high_precision: int = MONTE_CARLO_HIGH_PRECISION_ITERATIONS
-    
+
     # =========================================================================
     # Forecast Parameters (for projection models)
     # =========================================================================
@@ -170,20 +170,20 @@ class Config:
     default_forecast_years: int = DEFAULT_FORECAST_YEARS
     market_risk_premium: float = MARKET_RISK_PREMIUM
     default_beta: float = DEFAULT_BETA
-    
+
     # =========================================================================
     # Conviction Thresholds
     # =========================================================================
     conviction_upside_threshold: float = CONVICTION_UPSIDE_THRESHOLD
     conviction_high_probability: float = CONVICTION_HIGH_PROBABILITY
     conviction_moderate_probability: float = CONVICTION_MODERATE_PROBABILITY
-    
+
     # =========================================================================
     # Bayesian Priors
     # =========================================================================
     bayesian_prior_weight: float = BAYESIAN_PRIOR_WEIGHT
     bayesian_analyst_weight: float = BAYESIAN_ANALYST_WEIGHT
-    
+
     # =========================================================================
     # Sector Data (as properties to avoid mutable default)
     # =========================================================================
@@ -191,12 +191,12 @@ class Config:
     def exit_multiples(self) -> Dict[str, float]:
         """Sector-specific exit multiples (EV/FCF)."""
         return EXIT_MULTIPLES.copy()
-    
+
     @property
     def sector_growth_priors(self) -> Dict[str, float]:
         """Sector growth priors for Bayesian cleaning."""
         return SECTOR_GROWTH_PRIORS.copy()
-    
+
     @property
     def ev_sales_multiples(self) -> Dict[str, float]:
         """EV/Sales multiples by sector."""

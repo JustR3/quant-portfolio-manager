@@ -6,13 +6,16 @@ per ticker wins; per-day quintile ranks use that day's active set only (PIT by c
 
 Spec: docs/superpowers/specs/2026-06-10-pead-event-drift-design.md §4.
 """
+
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
 
-def _active_memberships(events: pd.DataFrame, calendar: pd.Index, horizon: int) -> pd.DataFrame:
+def _active_memberships(
+    events: pd.DataFrame, calendar: pd.Index, horizon: int
+) -> pd.DataFrame:
     """Expand events into per-day (day_pos, ticker, score) memberships.
 
     Event at calendar position p is active for day positions p+1 .. p+horizon; a newer event for
@@ -27,18 +30,28 @@ def _active_memberships(events: pd.DataFrame, calendar: pd.Index, horizon: int) 
     end = np.minimum(end, len(calendar) - 1).astype(int)
     lengths = np.maximum(end - start + 1, 0)
     keep = lengths > 0
-    day_pos = np.concatenate([np.arange(s, e + 1)
-                              for s, e in zip(start[keep], end[keep])]) if keep.any() else np.array([], int)
-    return pd.DataFrame({
-        "day_pos": day_pos,
-        "ticker": np.repeat(ev["ticker"].to_numpy()[keep], lengths[keep]),
-        "score": np.repeat(ev["score"].to_numpy()[keep], lengths[keep]),
-    })
+    day_pos = (
+        np.concatenate([np.arange(s, e + 1) for s, e in zip(start[keep], end[keep])])
+        if keep.any()
+        else np.array([], int)
+    )
+    return pd.DataFrame(
+        {
+            "day_pos": day_pos,
+            "ticker": np.repeat(ev["ticker"].to_numpy()[keep], lengths[keep]),
+            "score": np.repeat(ev["score"].to_numpy()[keep], lengths[keep]),
+        }
+    )
 
 
-def calendar_spread(events: pd.DataFrame, returns: dict, calendar: pd.Index,
-                    horizon: int = 60, min_leg: int = 10,
-                    cost_bps: float = 10.0) -> pd.DataFrame:
+def calendar_spread(
+    events: pd.DataFrame,
+    returns: dict,
+    calendar: pd.Index,
+    horizon: int = 60,
+    min_leg: int = 10,
+    cost_bps: float = 10.0,
+) -> pd.DataFrame:
     """Daily long-short quintile spread in calendar time.
 
     events: DataFrame[ticker, entry (on `calendar`), score]. returns: {ticker: daily Series}.
@@ -48,11 +61,14 @@ def calendar_spread(events: pd.DataFrame, returns: dict, calendar: pd.Index,
     min_leg are excluded (NaN row; counts still reported).
     """
     mem = _active_memberships(events, calendar, horizon)
-    R = pd.DataFrame({t: returns[t] for t in mem["ticker"].unique()
-                      if t in returns}).reindex(calendar)
-    out = pd.DataFrame(index=calendar,
-                       columns=["gross", "net", "cost", "turnover", "n_long", "n_short"],
-                       dtype=float)
+    R = pd.DataFrame(
+        {t: returns[t] for t in mem["ticker"].unique() if t in returns}
+    ).reindex(calendar)
+    out = pd.DataFrame(
+        index=calendar,
+        columns=["gross", "net", "cost", "turnover", "n_long", "n_short"],
+        dtype=float,
+    )
     prev_w: dict[tuple, float] = {}
     per_side = cost_bps / 1e4
     for day_pos, sub in mem.groupby("day_pos"):
@@ -79,12 +95,23 @@ def calendar_spread(events: pd.DataFrame, returns: dict, calendar: pd.Index,
         prev_w = w
         gross = float(rl.mean() - rs.mean())
         cost = per_side * turnover
-        out.loc[day, ["gross", "net", "cost", "turnover"]] = [gross, gross - cost, cost, turnover]
+        out.loc[day, ["gross", "net", "cost", "turnover"]] = [
+            gross,
+            gross - cost,
+            cost,
+            turnover,
+        ]
     return out
 
 
-def quintile_drift(events: pd.DataFrame, close: dict, spy: pd.Series, calendar: pd.Index,
-                   horizon: int = 60, q: int = 5) -> pd.Series:
+def quintile_drift(
+    events: pd.DataFrame,
+    close: dict,
+    spy: pd.Series,
+    calendar: pd.Index,
+    horizon: int = 60,
+    q: int = 5,
+) -> pd.Series:
     """DESCRIPTIVE event-level mean abnormal drift per score quintile (full-sample buckets).
 
     Abnormal drift = stock cumret(entry -> entry+horizon) - SPY same window. Events without a
@@ -98,7 +125,12 @@ def quintile_drift(events: pd.DataFrame, close: dict, spy: pd.Series, calendar: 
             continue
         px = close[e["ticker"]]
         d0, d1 = calendar[i], calendar[j]
-        if d0 not in px.index or d1 not in px.index or d0 not in spy.index or d1 not in spy.index:
+        if (
+            d0 not in px.index
+            or d1 not in px.index
+            or d0 not in spy.index
+            or d1 not in spy.index
+        ):
             continue
         drift = (px.loc[d1] / px.loc[d0] - 1.0) - (spy.loc[d1] / spy.loc[d0] - 1.0)
         if not np.isnan(drift):

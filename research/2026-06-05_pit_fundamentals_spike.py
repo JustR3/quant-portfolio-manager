@@ -15,6 +15,7 @@ Checks, for a sector-diverse sample of S&P names, whether yfinance returns:
 Throwaway / research only. Output drives the GO/NO-GO in
 docs/research/2026-06-05-pit-fundamentals-feasibility.md
 """
+
 from __future__ import annotations
 
 import warnings
@@ -23,8 +24,20 @@ import yfinance as yf
 
 warnings.filterwarnings("ignore")
 
-SAMPLE = ["AAPL", "MSFT", "JPM", "XOM", "PFE", "KO",
-          "CAT", "NVDA", "WMT", "DUK", "BA", "AMZN"]
+SAMPLE = [
+    "AAPL",
+    "MSFT",
+    "JPM",
+    "XOM",
+    "PFE",
+    "KO",
+    "CAT",
+    "NVDA",
+    "WMT",
+    "DUK",
+    "BA",
+    "AMZN",
+]
 
 INCOME_FIELDS = ["EBIT", "Gross Profit", "Total Revenue"]
 BALANCE_FIELDS = ["Total Assets", "Current Liabilities"]
@@ -91,12 +104,16 @@ def main() -> None:
         try:
             rows.append(probe(tk))
             r = rows[-1]
-            print(f"  {tk:5s} inc={r['inc_periods']}p "
-                  f"({r['inc_earliest']}..{r['inc_latest']}) "
-                  f"fields[i/b/c]={int(r['inc_fields_ok'])}/{int(r['bal_fields_ok'])}/{int(r['cf_fields_ok'])} "
-                  f"shares_n={r['shares_n']} ({r['shares_start']}..{r['shares_end']})")
+            print(
+                f"  {tk:5s} inc={r['inc_periods']}p "
+                f"({r['inc_earliest']}..{r['inc_latest']}) "
+                f"fields[i/b/c]={int(r['inc_fields_ok'])}/{int(r['bal_fields_ok'])}/{int(r['cf_fields_ok'])} "
+                f"shares_n={r['shares_n']} ({r['shares_start']}..{r['shares_end']})"
+            )
             if r["inc_missing"] or r["bal_missing"] or r["cf_missing"]:
-                print(f"         MISSING: inc={r['inc_missing']} bal={r['bal_missing']} cf={r['cf_missing']}")
+                print(
+                    f"         MISSING: inc={r['inc_missing']} bal={r['bal_missing']} cf={r['cf_missing']}"
+                )
         except Exception as e:
             print(f"  {tk:5s} ERROR: {e}")
 
@@ -109,18 +126,27 @@ def main() -> None:
     print(f"All income fields present:   {df['inc_fields_ok'].sum()}/{n}")
     print(f"All balance fields present:  {df['bal_fields_ok'].sum()}/{n}")
     print(f"All cashflow fields present: {df['cf_fields_ok'].sum()}/{n}")
-    print(f"Annual periods (min/median/max): "
-          f"{df['inc_periods'].min()}/{int(df['inc_periods'].median())}/{df['inc_periods'].max()}")
-    earliest = pd.to_datetime(df['inc_earliest'].dropna())
+    print(
+        f"Annual periods (min/median/max): "
+        f"{df['inc_periods'].min()}/{int(df['inc_periods'].median())}/{df['inc_periods'].max()}"
+    )
+    earliest = pd.to_datetime(df["inc_earliest"].dropna())
     if len(earliest):
-        print(f"Earliest annual period-end across sample: {earliest.min().date()} "
-              f"(latest-earliest: {earliest.max().date()})")
+        print(
+            f"Earliest annual period-end across sample: {earliest.min().date()} "
+            f"(latest-earliest: {earliest.max().date()})"
+        )
     print(f"Shares history available: {df['shares_n'].notna().sum()}/{n}")
-    sh_start = pd.to_datetime(df['shares_start'].dropna())
+    sh_start = pd.to_datetime(df["shares_start"].dropna())
     if len(sh_start):
-        print(f"Shares history earliest start (min/max across sample): "
-              f"{sh_start.min().date()} / {sh_start.max().date()}")
-    all_ok = df[['inc_fields_ok', 'bal_fields_ok', 'cf_fields_ok']].all(axis=1) & df['shares_n'].notna()
+        print(
+            f"Shares history earliest start (min/max across sample): "
+            f"{sh_start.min().date()} / {sh_start.max().date()}"
+        )
+    all_ok = (
+        df[["inc_fields_ok", "bal_fields_ok", "cf_fields_ok"]].all(axis=1)
+        & df["shares_n"].notna()
+    )
     print(f"\nTickers with EVERYTHING (all fields + shares): {all_ok.sum()}/{n}")
 
 

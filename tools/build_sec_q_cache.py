@@ -70,7 +70,9 @@ def main():
         help="Probe N sampled tickers and exit (no cache writes)",
     )
     ap.add_argument(
-        "--refresh", action="store_true", help="Rebuild every cache file, not just legacy ones"
+        "--refresh",
+        action="store_true",
+        help="Rebuild every cache file, not just legacy ones",
     )
     args = ap.parse_args()
     set_identity(

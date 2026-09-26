@@ -4,6 +4,7 @@ Real files store yf.download output with MultiIndex columns (field, ticker)
 plus a ('ticker','') column. This module normalizes that to a clean Close
 series and provides strict as-of lookup (excludes same-day and future).
 """
+
 from __future__ import annotations
 from pathlib import Path
 from typing import Optional
@@ -18,8 +19,9 @@ def _prices_path(ticker: str, base_dir: Path) -> Path:
     return base_dir / "prices" / f"{ticker}.parquet"
 
 
-def load_prices(ticker: str, field: str = "Close",
-                base_dir: Path = DEFAULT_BASE_DIR) -> Optional[pd.Series]:
+def load_prices(
+    ticker: str, field: str = "Close", base_dir: Path = DEFAULT_BASE_DIR
+) -> Optional[pd.Series]:
     """Return a tz-naive Date-indexed Series of `field` for one ticker, or None.
 
     Ticker-identity guard: for MultiIndex (field, ticker) files, the requested
@@ -37,7 +39,12 @@ def load_prices(ticker: str, field: str = "Close",
         if not cols:
             logger.warning(
                 "load_prices(%s): no (%s, %s) column in %s — refusing "
-                "(mislabeled/corrupt file)", ticker, field, ticker, path.name)
+                "(mislabeled/corrupt file)",
+                ticker,
+                field,
+                ticker,
+                path.name,
+            )
             return None
         s = df[cols[0]]
     else:
@@ -53,9 +60,9 @@ def load_prices(ticker: str, field: str = "Close",
     return s.dropna().sort_index()
 
 
-def price_asof(ticker: str, as_of,
-               field: str = "Close",
-               base_dir: Path = DEFAULT_BASE_DIR) -> Optional[float]:
+def price_asof(
+    ticker: str, as_of, field: str = "Close", base_dir: Path = DEFAULT_BASE_DIR
+) -> Optional[float]:
     """Most recent `field` strictly BEFORE `as_of` (no look-ahead). None if unavailable."""
     s = load_prices(ticker, field=field, base_dir=base_dir)
     if s is None:

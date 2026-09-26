@@ -9,6 +9,7 @@ Reports the coverage fraction that decides go/no-go (>=~70% FULL+PARTIAL => proc
 
 Run: uv run python tools/sp500_delisted_coverage_spike.py
 """
+
 import sys
 import warnings
 from pathlib import Path
@@ -23,8 +24,9 @@ import yfinance as yf  # noqa: E402
 
 def probe(ticker, removal_date):
     try:
-        df = yf.Ticker(ticker).history(start="2015-01-01", end="2026-06-01",
-                                       auto_adjust=True, raise_errors=False)
+        df = yf.Ticker(ticker).history(
+            start="2015-01-01", end="2026-06-01", auto_adjust=True, raise_errors=False
+        )
     except Exception:
         return ("NONE", 0, None, None)
     if df is None or df.empty:
@@ -51,10 +53,13 @@ if __name__ == "__main__":
         print(f"  {t:6} rm={rdate}  {status:8} n={n:5}  {first}..{last}")
     total = len(names)
     usable = counts["FULL"] + counts["PARTIAL"]
-    print(f"\n=== COVERAGE: FULL={counts['FULL']} PARTIAL={counts['PARTIAL']} "
-          f"NONE={counts['NONE']}  (total {total}) ===")
-    print(f"usable (FULL+PARTIAL) = {usable}/{total} = {usable/total:.0%}")
-    print(f"FULL-only = {counts['FULL']}/{total} = {counts['FULL']/total:.0%}")
-    pd.DataFrame(rows, columns=["ticker", "removed", "status", "n_rows", "first", "last"]).to_csv(
-        "data/research/sp500_delisted_coverage.csv", index=False)
+    print(
+        f"\n=== COVERAGE: FULL={counts['FULL']} PARTIAL={counts['PARTIAL']} "
+        f"NONE={counts['NONE']}  (total {total}) ==="
+    )
+    print(f"usable (FULL+PARTIAL) = {usable}/{total} = {usable / total:.0%}")
+    print(f"FULL-only = {counts['FULL']}/{total} = {counts['FULL'] / total:.0%}")
+    pd.DataFrame(
+        rows, columns=["ticker", "removed", "status", "n_rows", "first", "last"]
+    ).to_csv("data/research/sp500_delisted_coverage.csv", index=False)
     print("wrote data/research/sp500_delisted_coverage.csv")

@@ -24,6 +24,7 @@ from src.constants import TRANSACTION_COST_BPS_PER_SIDE
 # Try to import tqdm for progress bars
 try:
     from tqdm import tqdm
+
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
@@ -34,27 +35,27 @@ logger = get_logger(__name__)
 class BacktestEngine:
     """
     Walk-forward backtesting engine for systematic factor strategies.
-    
+
     Features:
     - Point-in-time data integrity (no look-ahead bias)
     - Configurable rebalance frequency (monthly, quarterly)
     - Benchmark comparison (SPY buy-and-hold)
     - Detailed performance analytics
     """
-    
+
     def __init__(
         self,
         start_date: str,
         end_date: str,
-        universe: str = 'sp500',
+        universe: str = "sp500",
         top_n: int = 50,
         top_n_for_optimization: Optional[int] = None,
-        rebalance_frequency: str = 'monthly',
+        rebalance_frequency: str = "monthly",
         initial_capital: float = 10000.0,
         risk_free_rate: float = 0.04,
         factor_alpha_scalar: float = 0.05,
         transaction_cost_bps: float = TRANSACTION_COST_BPS_PER_SIDE,
-        objective: str = 'max_sharpe',
+        objective: str = "max_sharpe",
         weight_bounds: Tuple[float, float] = (0.0, 0.30),
         use_macro: bool = False,
         use_french: bool = False,
@@ -62,11 +63,11 @@ class BacktestEngine:
         regime_method: str = "combined",
         regime_risk_off_exposure: float = 0.50,
         regime_caution_exposure: float = 0.75,
-        custom_tickers: Optional[List[str]] = None
+        custom_tickers: Optional[List[str]] = None,
     ):
         """
         Initialize backtest engine.
-        
+
         Args:
             start_date: Backtest start date (YYYY-MM-DD)
             end_date: Backtest end date (YYYY-MM-DD)
@@ -106,61 +107,62 @@ class BacktestEngine:
         self.regime_risk_off_exposure = regime_risk_off_exposure
         self.regime_caution_exposure = regime_caution_exposure
         self.custom_tickers = custom_tickers
-        
+
         # State tracking
         self.rebalance_dates = []
         self.weights_history = []
         self.portfolio_values = []
         self.dates = []
-        self.exclusions_total = 0  # tickers excluded (missing PIT fields) across rebalances
-        self.skipped_rebalances = 0  # rebalances dropped due to errors / no measurable data
+        self.exclusions_total = (
+            0  # tickers excluded (missing PIT fields) across rebalances
+        )
+        self.skipped_rebalances = (
+            0  # rebalances dropped due to errors / no measurable data
+        )
         self.total_transaction_cost = 0.0  # cumulative $ paid in costs
         self.expected_sharpes = []  # per-rebalance optimizer (in-sample) Sharpe
-        
+
         # Benchmark
         self.benchmark_values = []
-        
+
     def _generate_rebalance_dates(self) -> List[pd.Timestamp]:
         """
         Generate rebalance dates between start and end.
-        
+
         Returns:
             List of rebalance timestamps
         """
         dates = []
         current = self.start_date
-        
-        if self.rebalance_frequency == 'monthly':
+
+        if self.rebalance_frequency == "monthly":
             # Monthly rebalance on first trading day
             while current <= self.end_date:
                 dates.append(current)
                 current = current + relativedelta(months=1)
-        
-        elif self.rebalance_frequency == 'quarterly':
+
+        elif self.rebalance_frequency == "quarterly":
             # Quarterly rebalance
             while current <= self.end_date:
                 dates.append(current)
                 current = current + relativedelta(months=3)
-        
+
         else:
             raise ValueError(f"Unknown rebalance frequency: {self.rebalance_frequency}")
-        
+
         return dates
-    
+
     def _get_prices_for_period(
-        self,
-        tickers: List[str],
-        start: pd.Timestamp,
-        end: pd.Timestamp
+        self, tickers: List[str], start: pd.Timestamp, end: pd.Timestamp
     ) -> pd.DataFrame:
         """
         Fetch historical prices for a period.
-        
+
         Args:
             tickers: List of stock tickers
             start: Period start date
             end: Period end date
-            
+
         Returns:
             DataFrame of adjusted close prices
         """
@@ -174,147 +176,168 @@ class BacktestEngine:
                     start=start,
                     end=end,
                     progress=False,
-                    auto_adjust=True  # Returns 'Close' instead of 'Adj Close'
+                    auto_adjust=True,  # Returns 'Close' instead of 'Adj Close'
                 )
-            
+
             # Handle empty data
             if data.empty:
-                print(f"⚠️  Warning: yf.download returned empty DataFrame for {tickers} from {start} to {end}")
+                print(
+                    f"⚠️  Warning: yf.download returned empty DataFrame for {tickers} from {start} to {end}"
+                )
                 return pd.DataFrame()
-            
+
             # Extract close prices - handle different column structures
             if isinstance(data.columns, pd.MultiIndex):
                 # Multi-ticker download has MultiIndex
-                if 'Close' in data.columns.get_level_values(0):
-                    prices = data['Close']
+                if "Close" in data.columns.get_level_values(0):
+                    prices = data["Close"]
                 else:
-                    print(f"⚠️  Warning: 'Close' not found in columns: {data.columns.get_level_values(0).unique().tolist()}")
+                    print(
+                        f"⚠️  Warning: 'Close' not found in columns: {data.columns.get_level_values(0).unique().tolist()}"
+                    )
                     return pd.DataFrame()
             else:
                 # Single ticker or flat columns
-                if 'Close' in data.columns:
+                if "Close" in data.columns:
                     if len(tickers) == 1:
-                        prices = data['Close'].to_frame(tickers[0])
+                        prices = data["Close"].to_frame(tickers[0])
                     else:
-                        prices = data['Close']
+                        prices = data["Close"]
                 else:
-                    print(f"⚠️  Warning: 'Close' not found in flat columns: {data.columns.tolist()}")
+                    print(
+                        f"⚠️  Warning: 'Close' not found in flat columns: {data.columns.tolist()}"
+                    )
                     return pd.DataFrame()
-            
+
             # Forward fill missing data (handle weekends/holidays)
             prices = prices.ffill()
-            
+
             return prices
-        
+
         except Exception as e:
-            print(f"⚠️  Warning: Failed to fetch prices for period {start} to {end}: {e}")
+            print(
+                f"⚠️  Warning: Failed to fetch prices for period {start} to {end}: {e}"
+            )
             return pd.DataFrame()
-    
+
     def _calculate_portfolio_value(
-        self,
-        weights: Dict[str, float],
-        prices: pd.DataFrame,
-        initial_value: float
+        self, weights: Dict[str, float], prices: pd.DataFrame, initial_value: float
     ) -> pd.Series:
         """
         Calculate portfolio value over time given weights and prices.
-        
+
         Args:
             weights: Dictionary of {ticker: weight}
             prices: DataFrame of prices
             initial_value: Starting portfolio value
-            
+
         Returns:
             Series of portfolio values
         """
         # Filter prices to tickers in portfolio
-        portfolio_prices = prices[[ticker for ticker in weights.keys() if ticker in prices.columns]]
-        
+        portfolio_prices = prices[
+            [ticker for ticker in weights.keys() if ticker in prices.columns]
+        ]
+
         # Calculate returns
         returns = portfolio_prices.pct_change()
-        
+
         # Calculate weighted returns
         weight_series = pd.Series(weights)
         weight_series = weight_series[portfolio_prices.columns]  # Align
-        
+
         portfolio_returns = (returns * weight_series).sum(axis=1)
-        
+
         # Calculate portfolio value
         portfolio_value = initial_value * (1 + portfolio_returns).cumprod()
         portfolio_value.iloc[0] = initial_value  # Set initial value
-        
+
         return portfolio_value
-    
+
     def run(self, verbose: bool = True) -> BacktestResult:
         """
         Execute backtest with walk-forward validation.
-        
+
         Args:
             verbose: Print progress updates
-            
+
         Returns:
             BacktestResult with comprehensive metrics
         """
         # Generate rebalance dates
         rebalance_dates = self._generate_rebalance_dates()
-        
+
         if verbose:
-            print(f"\n🚀 Backtesting {self.universe} ({self.start_date.strftime('%Y-%m-%d')} → {self.end_date.strftime('%Y-%m-%d')})")
-            print(f"   {len(rebalance_dates)} rebalances | Top {self.top_n} stocks | ${self.initial_capital:,.0f} capital\n")
-        
+            print(
+                f"\n🚀 Backtesting {self.universe} ({self.start_date.strftime('%Y-%m-%d')} → {self.end_date.strftime('%Y-%m-%d')})"
+            )
+            print(
+                f"   {len(rebalance_dates)} rebalances | Top {self.top_n} stocks | ${self.initial_capital:,.0f} capital\n"
+            )
+
         # Initialize portfolio (net = after costs, gross = costs ignored)
         current_value_net = self.initial_capital
         current_value_gross = self.initial_capital
         current_weights = {}
 
         # Track equity curves
-        equity_curve = []       # NET (after transaction costs)
-        gross_curve = []        # GROSS (parallel to equity_curve / equity_dates)
+        equity_curve = []  # NET (after transaction costs)
+        gross_curve = []  # GROSS (parallel to equity_curve / equity_dates)
         equity_dates = []
-        
+
         # Download benchmark data (SPY) - suppress all output
         logging.disable(logging.CRITICAL)  # Disable ALL logging temporarily
-        
+
         import warnings as warn
+
         with warn.catch_warnings():
             warn.simplefilter("ignore")
             spy_data = yf.download(
-                'SPY',
+                "SPY",
                 start=self.start_date,
                 end=self.end_date,
                 progress=False,
-                auto_adjust=False  # Keep Adj Close column
+                auto_adjust=False,  # Keep Adj Close column
             )
-        
+
         logging.disable(logging.NOTSET)  # Re-enable logging
         # Handle both single-column and multi-column DataFrames
         if isinstance(spy_data.columns, pd.MultiIndex):
-            spy_prices = spy_data[('Adj Close', 'SPY')]
+            spy_prices = spy_data[("Adj Close", "SPY")]
         else:
-            spy_prices = spy_data['Adj Close']
-        
+            spy_prices = spy_data["Adj Close"]
+
         # Suppress all logs except CRITICAL during backtest iterations (cleaner output)
         logging.disable(logging.CRITICAL)
-        
+
         # Progress bar
-        iterator = tqdm(rebalance_dates, desc="Backtesting") if HAS_TQDM and verbose else rebalance_dates
-        
+        iterator = (
+            tqdm(rebalance_dates, desc="Backtesting")
+            if HAS_TQDM and verbose
+            else rebalance_dates
+        )
+
         for i, rebalance_date in enumerate(iterator):
             try:
                 # === REBALANCING LOGIC ===
-                
+
                 if verbose and not HAS_TQDM:
                     print(f"\n{'─' * 80}")
-                    print(f"📅 Rebalance {i+1}/{len(rebalance_dates)}: {rebalance_date.strftime('%Y-%m-%d')}")
-                
+                    print(
+                        f"📅 Rebalance {i + 1}/{len(rebalance_dates)}: {rebalance_date.strftime('%Y-%m-%d')}"
+                    )
+
                 # Point-in-time as-of date: only data strictly before the rebalance.
-                as_of_date = (rebalance_date - timedelta(days=1)).strftime('%Y-%m-%d')
+                as_of_date = (rebalance_date - timedelta(days=1)).strftime("%Y-%m-%d")
 
                 # 1. Load universe ranked by POINT-IN-TIME market cap as of this date.
-                universe_df = get_universe(self.universe, top_n=self.top_n,
-                                           custom_tickers=self.custom_tickers,
-                                           as_of_date=as_of_date)
-                tickers = universe_df['ticker'].tolist()
+                universe_df = get_universe(
+                    self.universe,
+                    top_n=self.top_n,
+                    custom_tickers=self.custom_tickers,
+                    as_of_date=as_of_date,
+                )
+                tickers = universe_df["ticker"].tolist()
 
                 if verbose and not HAS_TQDM:
                     print(f"   Universe: {len(tickers)} stocks")
@@ -330,62 +353,71 @@ class BacktestEngine:
 
                 factor_scores = factor_engine.rank_universe()
                 self.exclusions_total += len(factor_engine.excluded)
-                
+
                 # 3. Select top N stocks by factor score
-                top_stocks = factor_scores.head(self.top_n)['Ticker'].tolist()
-                
+                top_stocks = factor_scores.head(self.top_n)["Ticker"].tolist()
+
                 if verbose and not HAS_TQDM:
                     print(f"   Top stocks: {len(top_stocks)} selected")
-                
+
                 # 4. Optimize portfolio with market-cap-weighted BL priors (PIT caps).
-                sel = universe_df[universe_df['ticker'].isin(top_stocks)]
-                total_mc = sel['market_cap'].sum()
-                mc_weights = (dict(zip(sel['ticker'], sel['market_cap'] / total_mc))
-                              if total_mc > 0 else None)
+                sel = universe_df[universe_df["ticker"].isin(top_stocks)]
+                total_mc = sel["market_cap"].sum()
+                mc_weights = (
+                    dict(zip(sel["ticker"], sel["market_cap"] / total_mc))
+                    if total_mc > 0
+                    else None
+                )
                 optimizer = BlackLittermanOptimizer(
                     tickers=top_stocks,
                     risk_free_rate=self.risk_free_rate,
                     factor_alpha_scalar=self.factor_alpha_scalar,
                     market_cap_weights=mc_weights,
-                    verbose=False  # Suppress prints during backtest iterations
+                    verbose=False,  # Suppress prints during backtest iterations
                 )
-                
+
                 # Fetch price data for optimization using ONLY historical data
                 # Use 2 years of history ENDING at the day before rebalance
-                lookback_start = (rebalance_date - timedelta(days=730)).strftime('%Y-%m-%d')
-                lookback_end = as_of_date  # Day before rebalance
-                
-                optimizer.fetch_price_data(
-                    start_date=lookback_start,
-                    end_date=lookback_end
+                lookback_start = (rebalance_date - timedelta(days=730)).strftime(
+                    "%Y-%m-%d"
                 )
-                
+                lookback_end = as_of_date  # Day before rebalance
+
+                optimizer.fetch_price_data(
+                    start_date=lookback_start, end_date=lookback_end
+                )
+
                 # Generate views and optimize
                 optimizer.generate_views_from_scores(factor_scores)
-                
+
                 try:
                     opt_result = optimizer.optimize(
-                        objective=self.objective,
-                        weight_bounds=self.weight_bounds
+                        objective=self.objective, weight_bounds=self.weight_bounds
                     )
                     new_weights = opt_result.weights
                     self.expected_sharpes.append(opt_result.sharpe_ratio)
                 except (ValueError, Exception) as opt_error:
                     # Fallback to equal-weight if optimization fails
                     if verbose and not HAS_TQDM:
-                        print(f"   ⚠️  Optimization failed ({str(opt_error)}), using equal-weight")
-                    new_weights = {ticker: 1.0 / len(top_stocks) for ticker in top_stocks}
-                
+                        print(
+                            f"   ⚠️  Optimization failed ({str(opt_error)}), using equal-weight"
+                        )
+                    new_weights = {
+                        ticker: 1.0 / len(top_stocks) for ticker in top_stocks
+                    }
+
                 # Apply regime adjustment if enabled
                 if self.use_regime:
                     from src.utils.regime_adjustment import apply_regime_adjustment
-                    
+
                     # Build weights DataFrame for adjustment (lowercase 'weight' to match adjuster)
-                    weights_df = pd.DataFrame([
-                        {'ticker': ticker, 'weight': weight}
-                        for ticker, weight in new_weights.items()
-                    ])
-                    
+                    weights_df = pd.DataFrame(
+                        [
+                            {"ticker": ticker, "weight": weight}
+                            for ticker, weight in new_weights.items()
+                        ]
+                    )
+
                     # Apply adjustment using HISTORICAL regime (critical: no look-ahead bias)
                     adjusted_weights_df, regime_metadata = apply_regime_adjustment(
                         weights_df=weights_df,
@@ -393,47 +425,55 @@ class BacktestEngine:
                         caution_exposure=self.regime_caution_exposure,
                         method=self.regime_method,
                         verbose=False,  # Don't print during backtest
-                        as_of_date=as_of_date  # Use historical regime, not current!
+                        as_of_date=as_of_date,  # Use historical regime, not current!
                     )
-                    
+
                     # Convert back to dict
-                    new_weights = dict(zip(adjusted_weights_df['ticker'], adjusted_weights_df['weight']))
-                    
+                    new_weights = dict(
+                        zip(
+                            adjusted_weights_df["ticker"], adjusted_weights_df["weight"]
+                        )
+                    )
+
                     if verbose and not HAS_TQDM:
-                        regime_name = regime_metadata['regime']
-                        exposure = regime_metadata['exposure']
+                        regime_name = regime_metadata["regime"]
+                        exposure = regime_metadata["exposure"]
                         print(f"   Regime: {regime_name} ({exposure:.1%} equity)")
-                
+
                 if verbose and not HAS_TQDM:
                     print(f"   Portfolio: {len(new_weights)} positions")
                     print(f"   Expected Sharpe: {opt_result.sharpe_ratio:.2f}")
-                
+
                 # Store weights
-                self.weights_history.append({
-                    'date': rebalance_date.strftime('%Y-%m-%d'),
-                    'weights': new_weights
-                })
-                self.rebalance_dates.append(rebalance_date.strftime('%Y-%m-%d'))
-                
+                self.weights_history.append(
+                    {
+                        "date": rebalance_date.strftime("%Y-%m-%d"),
+                        "weights": new_weights,
+                    }
+                )
+                self.rebalance_dates.append(rebalance_date.strftime("%Y-%m-%d"))
+
                 # === HOLDING PERIOD ===
-                
+
                 # Calculate next rebalance date (or end date + 1 day for final period)
                 if i < len(rebalance_dates) - 1:
                     next_rebalance = rebalance_dates[i + 1]
                 else:
                     # For final period, add 1 day to ensure we have a non-zero holding period
                     next_rebalance = self.end_date + timedelta(days=1)
-                
+
                 # Fetch prices for holding period
                 period_prices = self._get_prices_for_period(
                     tickers=list(new_weights.keys()),
                     start=rebalance_date,
-                    end=next_rebalance
+                    end=next_rebalance,
                 )
 
                 if period_prices.empty:
                     if verbose and not HAS_TQDM:
-                        print(f"   ⚠️  No price data for holding period ({rebalance_date} to {next_rebalance}), skipping...")
+                        print(
+                            f"   ⚠️  No price data for holding period ({rebalance_date} to {next_rebalance}), skipping..."
+                        )
                     continue
 
                 # Charge transaction costs on turnover from the PREVIOUS holding's
@@ -446,9 +486,15 @@ class BacktestEngine:
 
                 # Dual-track: net (costs charged) and gross (no costs), same prices.
                 net_values = self._calculate_portfolio_value(
-                    weights=new_weights, prices=period_prices, initial_value=value_net_start)
+                    weights=new_weights,
+                    prices=period_prices,
+                    initial_value=value_net_start,
+                )
                 gross_values = self._calculate_portfolio_value(
-                    weights=new_weights, prices=period_prices, initial_value=current_value_gross)
+                    weights=new_weights,
+                    prices=period_prices,
+                    initial_value=current_value_gross,
+                )
 
                 current_value_net = net_values.iloc[-1]
                 current_value_gross = gross_values.iloc[-1]
@@ -460,12 +506,15 @@ class BacktestEngine:
 
                 # Update weights for next period
                 current_weights = new_weights
-                
+
             except Exception as e:
                 # Hard guard: if nothing is measurable yet (start predates the available
                 # point-in-time fundamentals window), refuse rather than silently skipping.
-                if (isinstance(e, RuntimeError) and "No point-in-time fundamentals" in str(e)
-                        and not equity_curve):
+                if (
+                    isinstance(e, RuntimeError)
+                    and "No point-in-time fundamentals" in str(e)
+                    and not equity_curve
+                ):
                     raise ValueError(
                         f"Backtest start {self.start_date.strftime('%Y-%m-%d')} predates the "
                         f"available point-in-time fundamentals window (~2023). Use a later "
@@ -475,18 +524,21 @@ class BacktestEngine:
                 if verbose:
                     print(f"   ✗ Error at {rebalance_date}: {str(e)}")
                     import traceback
+
                     traceback.print_exc()
                 continue
-        
+
         # Restore logging
         logging.disable(logging.NOTSET)
 
         # Loudly surface skipped rebalances — a partial backtest must NOT look complete.
         total_planned = len(rebalance_dates)
         if self.skipped_rebalances:
-            msg = (f"⚠ {self.skipped_rebalances}/{total_planned} rebalances were SKIPPED "
-                   f"(errors or no measurable data); the equity curve has gaps — treat "
-                   f"results with caution.")
+            msg = (
+                f"⚠ {self.skipped_rebalances}/{total_planned} rebalances were SKIPPED "
+                f"(errors or no measurable data); the equity curve has gaps — treat "
+                f"results with caution."
+            )
             logger.warning(msg)
             if verbose:
                 print(msg)
@@ -497,30 +549,32 @@ class BacktestEngine:
                 )
 
         # === CALCULATE PERFORMANCE METRICS ===
-        
+
         if verbose:
             print("\n" + "=" * 80)
             print("📊 CALCULATING PERFORMANCE METRICS")
             print("=" * 80 + "\n")
-        
+
         # Check if we have any data
         if not equity_curve or not equity_dates:
             raise ValueError(
                 "Backtest failed: No equity curve data generated. "
                 "All rebalance attempts may have failed."
             )
-        
+
         # Create equity curve series
         equity_series = pd.Series(equity_curve, index=equity_dates)
-        equity_series = equity_series[~equity_series.index.duplicated(keep='last')]  # Remove duplicates
-        
+        equity_series = equity_series[
+            ~equity_series.index.duplicated(keep="last")
+        ]  # Remove duplicates
+
         # Check again after deduplication
         if len(equity_series) == 0:
             raise ValueError("Equity curve is empty after removing duplicates")
-        
+
         # Calculate returns
         returns = PerformanceMetrics.calculate_returns(equity_series)
-        
+
         # Performance metrics
         total_return = PerformanceMetrics.total_return(equity_series)
         cagr = PerformanceMetrics.cagr(equity_series)
@@ -533,53 +587,63 @@ class BacktestEngine:
         # Gross (cost-free) curve + expected (in-sample optimizer) Sharpe, for the
         # expected-vs-realized split. equity_series above is the NET curve.
         gross_series = pd.Series(gross_curve, index=equity_dates)
-        gross_series = gross_series[~gross_series.index.duplicated(keep='last')]
+        gross_series = gross_series[~gross_series.index.duplicated(keep="last")]
         gross_returns = PerformanceMetrics.calculate_returns(gross_series)
         gross_total_return = PerformanceMetrics.total_return(gross_series)
         gross_cagr = PerformanceMetrics.cagr(gross_series)
-        gross_sharpe = PerformanceMetrics.sharpe_ratio(gross_returns, self.risk_free_rate)
+        gross_sharpe = PerformanceMetrics.sharpe_ratio(
+            gross_returns, self.risk_free_rate
+        )
         expected_sharpe_in_sample = (
             sum(self.expected_sharpes) / len(self.expected_sharpes)
-            if self.expected_sharpes else None)
+            if self.expected_sharpes
+            else None
+        )
 
         # Benchmark metrics
-        spy_aligned = spy_prices.reindex(equity_series.index, method='ffill')
+        spy_aligned = spy_prices.reindex(equity_series.index, method="ffill")
         benchmark_returns = spy_aligned.pct_change().dropna()
-        
+
         if len(benchmark_returns) > 0:
             benchmark_equity = self.initial_capital * (1 + benchmark_returns).cumprod()
             if len(benchmark_equity) > 0:
                 benchmark_equity.iloc[0] = self.initial_capital
         else:
             # Fallback if no benchmark data available
-            benchmark_equity = pd.Series([self.initial_capital], index=equity_series.index[:1])
-        
+            benchmark_equity = pd.Series(
+                [self.initial_capital], index=equity_series.index[:1]
+            )
+
         benchmark_return = PerformanceMetrics.total_return(benchmark_equity)
-        benchmark_sharpe = PerformanceMetrics.sharpe_ratio(benchmark_returns, self.risk_free_rate)
-        
+        benchmark_sharpe = PerformanceMetrics.sharpe_ratio(
+            benchmark_returns, self.risk_free_rate
+        )
+
         # Alpha and beta
         alpha, beta = PerformanceMetrics.calculate_alpha_beta(
             returns, benchmark_returns, self.risk_free_rate
         )
-        
+
         # Trade statistics (returns between rebalances)
         rebalance_returns = []
         for i in range(len(self.rebalance_dates) - 1):
             start_date = pd.to_datetime(self.rebalance_dates[i])
             end_date = pd.to_datetime(self.rebalance_dates[i + 1])
-            
-            period_equity = equity_series[(equity_series.index >= start_date) & (equity_series.index < end_date)]
+
+            period_equity = equity_series[
+                (equity_series.index >= start_date) & (equity_series.index < end_date)
+            ]
             if len(period_equity) > 1:
                 period_return = (period_equity.iloc[-1] / period_equity.iloc[0]) - 1
                 rebalance_returns.append(period_return)
-        
+
         if rebalance_returns:
-            win_rate, avg_win, avg_loss, profit_factor = PerformanceMetrics.calculate_trade_stats(
-                pd.Series(rebalance_returns)
+            win_rate, avg_win, avg_loss, profit_factor = (
+                PerformanceMetrics.calculate_trade_stats(pd.Series(rebalance_returns))
             )
         else:
             win_rate = avg_win = avg_loss = profit_factor = None
-        
+
         # Data-integrity caveats surfaced on every result (see spec).
         data_caveats = (
             "Point-in-time fundamentals window ~2023-present (annual cadence) — an "
@@ -593,8 +657,8 @@ class BacktestEngine:
 
         # Create result
         result = BacktestResult(
-            start_date=self.start_date.strftime('%Y-%m-%d'),
-            end_date=self.end_date.strftime('%Y-%m-%d'),
+            start_date=self.start_date.strftime("%Y-%m-%d"),
+            end_date=self.end_date.strftime("%Y-%m-%d"),
             universe=self.universe,
             rebalance_frequency=self.rebalance_frequency,
             num_rebalances=len(self.rebalance_dates),
@@ -625,8 +689,8 @@ class BacktestEngine:
             total_transaction_cost=self.total_transaction_cost,
             transaction_cost_bps=self.transaction_cost_bps,
         )
-        
+
         if verbose:
             print(result.display_summary())
-        
+
         return result

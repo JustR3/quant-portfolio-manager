@@ -7,6 +7,7 @@ glob never sees ETFs/indices.
 
 Spec: docs/superpowers/specs/2026-06-10-ts-timing-study-design.md.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -44,7 +45,8 @@ def _series(ticker: str, base_dir: Path, field: str = "Adj Close") -> pd.Series:
         s = hstore.load_prices(ticker, field="Close", base_dir=base_dir)
     if s is None:
         raise FileNotFoundError(
-            f"missing {ticker} in {base_dir}/prices — run tools/download_ts_universe.py")
+            f"missing {ticker} in {base_dir}/prices — run tools/download_ts_universe.py"
+        )
     return s
 
 
@@ -59,8 +61,14 @@ def _window(idx: pd.Index, start, end) -> pd.Index:
     return idx[(idx >= lo) & (idx <= hi)]
 
 
-def _sliced_strategy(e: pd.Series, ret: pd.Series, cash: pd.Series, idx: pd.Index,
-                     cost_bps: float, shift: int) -> pd.DataFrame:
+def _sliced_strategy(
+    e: pd.Series,
+    ret: pd.Series,
+    cash: pd.Series,
+    idx: pd.Index,
+    cost_bps: float,
+    shift: int,
+) -> pd.DataFrame:
     """Full-history strategy sliced to the window; first window day charged as a flat entry
     (|e_first - 0|) per spec §4, replacing whatever in-flight turnover fell on that day."""
     sr = te.strategy_returns(e, ret, cash, cost_bps, shift=shift).loc[idx].copy()
@@ -74,31 +82,58 @@ def _sliced_strategy(e: pd.Series, ret: pd.Series, cash: pd.Series, idx: pd.Inde
     return sr
 
 
-def _metrics(rule: str, net: pd.Series, bench: pd.Series, cash: pd.Series, idx: pd.Index,
-             turnover: float, cost_drag: float, n_boot: int, seed: int,
-             p_gate: float) -> dict:
+def _metrics(
+    rule: str,
+    net: pd.Series,
+    bench: pd.Series,
+    cash: pd.Series,
+    idx: pd.Index,
+    turnover: float,
+    cost_drag: float,
+    n_boot: int,
+    seed: int,
+    p_gate: float,
+) -> dict:
     cash_w = cash.loc[idx]
     strat_x = (net - cash_w).dropna()
     bench_x = (bench - cash_w).dropna()
     subs = te.sub_windows(idx, 3)
-    sub_dom = [te.excess_sharpe(net.loc[w], cash_w.loc[w])
-               > te.excess_sharpe(bench.loc[w], cash_w.loc[w]) for w in subs]
+    sub_dom = [
+        te.excess_sharpe(net.loc[w], cash_w.loc[w])
+        > te.excess_sharpe(bench.loc[w], cash_w.loc[w])
+        for w in subs
+    ]
     boot = te.timing_alpha_bootstrap(strat_x, bench_x, n_boot=n_boot, seed=seed)
-    m = dict(rule=rule, window=f"{idx[0].date()}..{idx[-1].date()}",
-             sharpe_strat=te.excess_sharpe(net, cash_w),
-             sharpe_bench=te.excess_sharpe(bench, cash_w),
-             sub_dominance=[bool(x) for x in sub_dom],
-             alpha=boot["alpha"], beta=boot["beta"], p_boot=boot["p_boot"],
-             nw_t=te.newey_west_t(strat_x, bench_x),
-             n_days=int(len(idx)), turnover=float(turnover), cost_drag=float(cost_drag))
+    m = dict(
+        rule=rule,
+        window=f"{idx[0].date()}..{idx[-1].date()}",
+        sharpe_strat=te.excess_sharpe(net, cash_w),
+        sharpe_bench=te.excess_sharpe(bench, cash_w),
+        sub_dominance=[bool(x) for x in sub_dom],
+        alpha=boot["alpha"],
+        beta=boot["beta"],
+        p_boot=boot["p_boot"],
+        nw_t=te.newey_west_t(strat_x, bench_x),
+        n_days=int(len(idx)),
+        turnover=float(turnover),
+        cost_drag=float(cost_drag),
+    )
     # Report-only power on annualized timing alpha (NW SE; the gate itself is unchanged).
     a_nw, se_nw = te.newey_west_alpha_se(strat_x, bench_x)
-    m["power"] = pw.power_block(a_nw, se_nw, z_gate=pw.z_for_one_sided_p(p_gate),
-                                ref_effect=pw.REF_TS_ALPHA_ANN, scale=pw.TRADING_DAYS)
+    m["power"] = pw.power_block(
+        a_nw,
+        se_nw,
+        z_gate=pw.z_for_one_sided_p(p_gate),
+        ref_effect=pw.REF_TS_ALPHA_ANN,
+        scale=pw.TRADING_DAYS,
+    )
     m["gate_met"] = tr.gate_pass(m, p_gate)
-    computable = not any(_isnan(m[k]) for k in ("p_boot", "sharpe_strat", "sharpe_bench"))
-    m["verdict"], m["inconclusive_reason"] = V.decide(m["gate_met"], computable, m["n_days"],
-                                                      V.MIN_DAYS, "trading days")
+    computable = not any(
+        _isnan(m[k]) for k in ("p_boot", "sharpe_strat", "sharpe_bench")
+    )
+    m["verdict"], m["inconclusive_reason"] = V.decide(
+        m["gate_met"], computable, m["n_days"], V.MIN_DAYS, "trading days"
+    )
     m["pass"] = m["verdict"] == V.PASS
     return m
 
@@ -128,20 +163,32 @@ def _a_rule_exposure(rule: str, base_dir: Path):
     return spy, e, start
 
 
-def _eval_a_rule(rule: str, base_dir: Path, start, end, cost_bps, n_boot, seed, shift,
-                 p_gate) -> dict:
+def _eval_a_rule(
+    rule: str, base_dir: Path, start, end, cost_bps, n_boot, seed, shift, p_gate
+) -> dict:
     spy, e, avail_start = _a_rule_exposure(rule, base_dir)
     ret = spy.pct_change()
     cash = _cash(base_dir, spy.index)
     idx = _window(spy.index[spy.index >= avail_start], start, end)
     sr = _sliced_strategy(e, ret, cash, idx, cost_bps, shift)
     bench = ret.loc[idx]
-    return _metrics(rule, sr["net"], bench, cash, idx, sr["turnover"].sum(),
-                    sr["cost"].mean() * 252, n_boot, seed, p_gate)
+    return _metrics(
+        rule,
+        sr["net"],
+        bench,
+        cash,
+        idx,
+        sr["turnover"].sum(),
+        sr["cost"].mean() * 252,
+        n_boot,
+        seed,
+        p_gate,
+    )
 
 
-def _eval_b_rule(rule: str, base_dir: Path, start, end, cost_bps, n_boot, seed, shift,
-                 p_gate) -> dict:
+def _eval_b_rule(
+    rule: str, base_dir: Path, start, end, cost_bps, n_boot, seed, shift, p_gate
+) -> dict:
     """Equal-weight portfolio of the rule across the 10 ETFs vs equal-weight B&H (spec §3):
     one shared window = first day BOTH B-rules are defined for ALL 10 assets."""
     closes = {t: _series(t, base_dir) for t in ETFS}
@@ -171,13 +218,31 @@ def _eval_b_rule(rule: str, base_dir: Path, start, end, cost_bps, n_boot, seed, 
     bench_p = pd.concat(benches, axis=1).mean(axis=1, skipna=True)
     idx = net_p.dropna().index
     n = len(ETFS)
-    return _metrics(rule, net_p, bench_p, cash_union, idx, sum(tos) / n,
-                    sum(cds) / n, n_boot, seed, p_gate)
+    return _metrics(
+        rule,
+        net_p,
+        bench_p,
+        cash_union,
+        idx,
+        sum(tos) / n,
+        sum(cds) / n,
+        n_boot,
+        seed,
+        p_gate,
+    )
 
 
-def run_ts_eval_rules(rules=None, base_dir: Path = TS_BASE, start=None, end: str = END_DEFAULT,
-                      cost_bps: float = 10.0, n_boot: int = 10_000, seed: int = 42,
-                      shift: int = 1, p_gate: float = tr.P_GATE) -> tr.TSEvalResult:
+def run_ts_eval_rules(
+    rules=None,
+    base_dir: Path = TS_BASE,
+    start=None,
+    end: str = END_DEFAULT,
+    cost_bps: float = 10.0,
+    n_boot: int = 10_000,
+    seed: int = 42,
+    shift: int = 1,
+    p_gate: float = tr.P_GATE,
+) -> tr.TSEvalResult:
     rules = list(rules) if rules else list(ALL_RULES)
     bad = [r for r in rules if r not in ALL_RULES]
     if bad:
@@ -185,10 +250,21 @@ def run_ts_eval_rules(rules=None, base_dir: Path = TS_BASE, start=None, end: str
     out = []
     for r in rules:
         fn = _eval_b_rule if r.startswith("b") else _eval_a_rule
-        out.append(fn(r, Path(base_dir), start, end, cost_bps, n_boot, seed, shift, p_gate))
-    params = {"rules": rules, "start": start, "end": end, "cost_bps": cost_bps,
-              "n_boot": n_boot, "seed": seed, "shift": shift, "p_gate": p_gate,
-              "etfs": ETFS, "base_dir": str(base_dir)}
+        out.append(
+            fn(r, Path(base_dir), start, end, cost_bps, n_boot, seed, shift, p_gate)
+        )
+    params = {
+        "rules": rules,
+        "start": start,
+        "end": end,
+        "cost_bps": cost_bps,
+        "n_boot": n_boot,
+        "seed": seed,
+        "shift": shift,
+        "p_gate": p_gate,
+        "etfs": ETFS,
+        "base_dir": str(base_dir),
+    }
     return tr.TSEvalResult(rules=out, params=params, caveats=list(CAVEATS))
 
 
@@ -196,8 +272,14 @@ def run_ts_eval(args) -> tr.TSEvalResult:
     """CLI entry (mirrors run_signal_eval): evaluate, render, save the JSON artifact."""
     rules = [r.strip() for r in args.rules.split(",") if r.strip()]
     result = run_ts_eval_rules(
-        rules=rules, start=args.start, end=args.end, cost_bps=args.cost_bps,
-        n_boot=args.bootstrap_n, seed=args.seed, shift=args.shift)
+        rules=rules,
+        start=args.start,
+        end=args.end,
+        cost_bps=args.cost_bps,
+        n_boot=args.bootstrap_n,
+        seed=args.seed,
+        shift=args.shift,
+    )
     print(result.render())
     export_dir = Path(args.export) if args.export else Path("data/research")
     out = export_dir / f"ts-eval-{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"

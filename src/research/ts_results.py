@@ -5,6 +5,7 @@ Two-part pre-registered gate per rule (spec §5), Bonferroni k=5 -> p_gate 0.01:
   2. Significance: bootstrapped one-sided p < p_gate on net timing alpha.
 NaN p (degenerate strategy) fails by construction.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,7 +23,12 @@ def gate_pass(metrics: dict, p_gate: float = P_GATE) -> bool:
     if p is None or (isinstance(p, float) and math.isnan(p)) or not (p < p_gate):
         return False
     sharpe_s, sharpe_b = metrics.get("sharpe_strat"), metrics.get("sharpe_bench")
-    if sharpe_s is None or sharpe_b is None or math.isnan(sharpe_s) or math.isnan(sharpe_b):
+    if (
+        sharpe_s is None
+        or sharpe_b is None
+        or math.isnan(sharpe_s)
+        or math.isnan(sharpe_b)
+    ):
         return False
     if not (sharpe_s > sharpe_b):
         return False
@@ -37,11 +43,16 @@ class TSEvalResult:
     caveats: list[str] = field(default_factory=list)
 
     def render(self) -> str:
-        head = (f"{'rule':14} {'window':24} {'Sharpe s/b':>12} {'sub-dom':>8} "
-                f"{'alpha/d':>9} {'p_boot':>7} {'NW-t':>6} {'turnover':>9} {'verdict':>12}")
-        lines = ["TS TIMING STUDY — pre-registered gate "
-                 f"(p<{self.params.get('p_gate', P_GATE)}, Sharpe dominance full + >=2/3 subs)",
-                 head, "-" * len(head)]
+        head = (
+            f"{'rule':14} {'window':24} {'Sharpe s/b':>12} {'sub-dom':>8} "
+            f"{'alpha/d':>9} {'p_boot':>7} {'NW-t':>6} {'turnover':>9} {'verdict':>12}"
+        )
+        lines = [
+            "TS TIMING STUDY — pre-registered gate "
+            f"(p<{self.params.get('p_gate', P_GATE)}, Sharpe dominance full + >=2/3 subs)",
+            head,
+            "-" * len(head),
+        ]
         for m in self.rules:
             sub = m.get("sub_dominance") or []
             sub_str = f"{sum(bool(x) for x in sub)}/{len(sub)}"
@@ -51,12 +62,15 @@ class TSEvalResult:
                 f"{m.get('sharpe_strat', float('nan')):5.2f}/{m.get('sharpe_bench', float('nan')):5.2f} "
                 f"{sub_str:>8} {m.get('alpha', float('nan')):9.2e} "
                 f"{m.get('p_boot', float('nan')):7.4f} {m.get('nw_t', float('nan')):6.2f} "
-                f"{m.get('turnover', float('nan')):9.2f} {verdict:>12}")
+                f"{m.get('turnover', float('nan')):9.2f} {verdict:>12}"
+            )
             if m.get("inconclusive_reason"):
                 lines.append(f"{'':14} INCONCLUSIVE: {m['inconclusive_reason']}")
             if m.get("power"):
-                lines.append(f"{'':14} {render_power(m['power'], '{:+.2%}')}  "
-                             "(alpha/yr; report-only)")
+                lines.append(
+                    f"{'':14} {render_power(m['power'], '{:+.2%}')}  "
+                    "(alpha/yr; report-only)"
+                )
         if self.caveats:
             lines.append("")
             lines.append("CAVEATS:")
@@ -76,5 +90,7 @@ class TSEvalResult:
                 return [_clean(v) for v in o]
             return o
 
-        payload = _clean({"rules": self.rules, "params": self.params, "caveats": self.caveats})
+        payload = _clean(
+            {"rules": self.rules, "params": self.params, "caveats": self.caveats}
+        )
         path.write_text(json.dumps(payload, indent=2, default=str))

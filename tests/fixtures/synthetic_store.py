@@ -89,15 +89,24 @@ def _write_fy_facts(path: Path, seed: int) -> None:
         filed = pd.Timestamp(f"{year + 1}-02-15")
         start = pd.Timestamp(f"{year}-01-01")  # duration facts span the fiscal year
         rows += [
-            {"field": f, "period_end": pe, "filed": filed, "value": v,
-             "period_start": start if f in DURATION_FIELDS else pd.NaT}
+            {
+                "field": f,
+                "period_end": pe,
+                "filed": filed,
+                "value": v,
+                "period_start": start if f in DURATION_FIELDS else pd.NaT,
+            }
             for f, v in vals.items()
         ]
     facts = pd.DataFrame(
         rows, columns=["field", "period_end", "period_start", "filed", "value"]
     ).astype(
-        {"period_end": "datetime64[ns]", "period_start": "datetime64[ns]",
-         "filed": "datetime64[ns]", "value": "float"}
+        {
+            "period_end": "datetime64[ns]",
+            "period_start": "datetime64[ns]",
+            "filed": "datetime64[ns]",
+            "value": "float",
+        }
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     facts.to_parquet(path)
@@ -162,10 +171,22 @@ def _write_quarterly_facts(path: Path, seed: int) -> None:
             }
         )
     facts = pd.DataFrame(
-        rows, columns=["field", "period_end", "period_start", "fiscal_period", "filed", "value"]
+        rows,
+        columns=[
+            "field",
+            "period_end",
+            "period_start",
+            "fiscal_period",
+            "filed",
+            "value",
+        ],
     ).astype(
-        {"period_end": "datetime64[ns]", "period_start": "datetime64[ns]",
-         "filed": "datetime64[ns]", "value": "float"}
+        {
+            "period_end": "datetime64[ns]",
+            "period_start": "datetime64[ns]",
+            "filed": "datetime64[ns]",
+            "value": "float",
+        }
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     facts.to_parquet(path)

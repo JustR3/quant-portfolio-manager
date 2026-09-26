@@ -5,6 +5,7 @@ Outputs gitignored parquets under data/historical/fundamentals_sec/. Always rebu
 so one run upgrades a legacy (pre-2026-09-26, no period_start) cache to the duration-filtered schema.
 Run: EDGAR_IDENTITY="you@example.com" uv run python tools/build_sec_fundamentals_cache.py
 """
+
 from __future__ import annotations
 import os
 import sys
@@ -36,7 +37,9 @@ def _one(ticker: str):
 def main() -> None:
     set_identity(os.environ.get("EDGAR_IDENTITY", "whispersdi3@gmail.com"))
     tickers = sp.universe_tickers()
-    print(f"Building SEC fundamentals cache for {len(tickers)} tickers ({WORKERS} workers)...")
+    print(
+        f"Building SEC fundamentals cache for {len(tickers)} tickers ({WORKERS} workers)..."
+    )
     ok = fail = 0
     with ThreadPoolExecutor(max_workers=WORKERS) as ex:
         for fut in as_completed([ex.submit(_one, t) for t in tickers]):
@@ -46,7 +49,9 @@ def main() -> None:
             else:
                 fail += 1
                 print(f"  {ticker}: {info}")
-    print(f"\nDone: {ok} cached, {fail} empty/failed -> data/historical/fundamentals_sec/")
+    print(
+        f"\nDone: {ok} cached, {fail} empty/failed -> data/historical/fundamentals_sec/"
+    )
 
 
 if __name__ == "__main__":

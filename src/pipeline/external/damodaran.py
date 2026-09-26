@@ -144,7 +144,7 @@ class DamodaranLoader:
         self._cache_file_betas = CACHE_DIR / "betas_cache.parquet"
         self._cache_file_margins = CACHE_DIR / "margins_cache.parquet"
         self._cache_metadata_file = CACHE_DIR / "cache_metadata.json"
-        
+
         # Try to load from disk cache first
         self._load_from_disk_cache()
 
@@ -204,9 +204,7 @@ class DamodaranLoader:
             )
             self._beta_cache.columns = self._beta_cache.columns.str.strip()
 
-            logger.info(
-                f"Loaded {len(self._beta_cache)} industries from beta dataset"
-            )
+            logger.info(f"Loaded {len(self._beta_cache)} industries from beta dataset")
 
         except Exception as e:
             logger.error(f"Failed to load beta data: {e}")
@@ -235,7 +233,7 @@ class DamodaranLoader:
             self._margin_cache = None
 
         self._cache_timestamp = datetime.now()
-        
+
         # Save to disk cache
         self._save_to_disk_cache()
 
@@ -245,17 +243,17 @@ class DamodaranLoader:
             if not self._cache_metadata_file.exists():
                 logger.debug("No disk cache metadata found")
                 return
-            
-            with open(self._cache_metadata_file, 'r') as f:
+
+            with open(self._cache_metadata_file, "r") as f:
                 metadata = json.load(f)
-            
-            cache_timestamp = datetime.fromisoformat(metadata['timestamp'])
+
+            cache_timestamp = datetime.fromisoformat(metadata["timestamp"])
             age_days = (datetime.now() - cache_timestamp).days
-            
+
             if age_days >= self.cache_days:
                 logger.debug(f"Disk cache expired ({age_days} days old)")
                 return
-            
+
             if self._cache_file_betas.exists() and self._cache_file_margins.exists():
                 self._beta_cache = pd.read_parquet(self._cache_file_betas)
                 self._margin_cache = pd.read_parquet(self._cache_file_margins)
@@ -266,29 +264,29 @@ class DamodaranLoader:
                 )
             else:
                 logger.debug("Disk cache files not found")
-                
+
         except Exception as e:
             logger.debug(f"Failed to load disk cache: {e}")
             self._beta_cache = None
             self._margin_cache = None
             self._cache_timestamp = None
-    
+
     def _save_to_disk_cache(self) -> None:
         """Save current cache to disk."""
         try:
             if self._beta_cache is not None and self._margin_cache is not None:
                 self._beta_cache.to_parquet(self._cache_file_betas)
                 self._margin_cache.to_parquet(self._cache_file_margins)
-                
+
                 metadata = {
-                    'timestamp': self._cache_timestamp.isoformat(),
-                    'beta_industries': len(self._beta_cache),
-                    'margin_industries': len(self._margin_cache),
+                    "timestamp": self._cache_timestamp.isoformat(),
+                    "beta_industries": len(self._beta_cache),
+                    "margin_industries": len(self._margin_cache),
                 }
-                
-                with open(self._cache_metadata_file, 'w') as f:
+
+                with open(self._cache_metadata_file, "w") as f:
                     json.dump(metadata, f, indent=2)
-                
+
                 logger.info("Saved Damodaran data to disk cache")
         except Exception as e:
             logger.warning(f"Failed to save disk cache: {e}")

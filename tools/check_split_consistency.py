@@ -42,7 +42,9 @@ def share_series(facts: pd.DataFrame) -> list[tuple]:
 
 def compare(series: list[tuple], yf_splits: pd.Series) -> dict:
     """Gap-by-gap comparison between consecutive SEC share counts."""
-    yf_splits = splits.normalize_splits(yf_splits)  # tz-naive DatetimeIndex even when empty
+    yf_splits = splits.normalize_splits(
+        yf_splits
+    )  # tz-naive DatetimeIndex even when empty
     out = {
         "gaps": 0,
         "consistent": 0,

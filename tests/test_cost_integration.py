@@ -5,8 +5,13 @@ pytestmark = pytest.mark.integration
 
 
 def test_costs_reduce_realized_return_and_zero_bps_matches_gross():
-    common = dict(start_date="2023-07-01", end_date="2024-07-01",
-                  universe="sp500", top_n=15, rebalance_frequency="quarterly")
+    common = dict(
+        start_date="2023-07-01",
+        end_date="2024-07-01",
+        universe="sp500",
+        top_n=15,
+        rebalance_frequency="quarterly",
+    )
     free = BacktestEngine(transaction_cost_bps=0.0, **common).run(verbose=False)
     costed = BacktestEngine(transaction_cost_bps=10.0, **common).run(verbose=False)
 

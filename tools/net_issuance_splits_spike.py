@@ -3,6 +3,7 @@
 Validates against known splits/buybacks. No network — reads data/historical/fundamentals_sec/.
 Run: uv run python tools/net_issuance_splits_spike.py
 """
+
 import math
 import sys
 from pathlib import Path
@@ -43,7 +44,9 @@ def split_factor(series):  # series = [(pe, value)] sorted by pe
             mult = nearest_split(r)
             if mult is not None:
                 factor *= mult
-                jumps.append((str(pd.Timestamp(series[i][0]).date()), round(r, 3), mult))
+                jumps.append(
+                    (str(pd.Timestamp(series[i][0]).date()), round(r, 3), mult)
+                )
     return factor, jumps
 
 
@@ -64,17 +67,27 @@ def annual_issuance(ticker, as_of):
     sfac, jumps = split_factor([(prior[0], prior[1])] + win)
     raw = -(math.log(now[1]) - math.log(prior[1]))
     adj = -(math.log(now[1] / sfac) - math.log(prior[1]))
-    return {"sh_prior": f"{prior[1]:.3e}", "sh_now": f"{now[1]:.3e}",
-            "raw_iss": round(raw, 4), "split_factor": sfac, "adj_iss": round(adj, 4),
-            "jumps": jumps}
+    return {
+        "sh_prior": f"{prior[1]:.3e}",
+        "sh_now": f"{now[1]:.3e}",
+        "raw_iss": round(raw, 4),
+        "split_factor": sfac,
+        "adj_iss": round(adj, 4),
+        "jumps": jumps,
+    }
 
 
 if __name__ == "__main__":
-    cases = [("AAPL", "2021-06-01"),  # 4:1 split Aug 2020 -> must neutralize; buybacks -> negative
-             ("NVDA", "2022-06-01"),  # 4:1 split July 2021
-             ("TSLA", "2021-06-01"),  # 5:1 split Aug 2020
-             ("AMZN", "2023-06-01"),  # 20:1 split June 2022
-             ("AAPL", "2019-06-01"),  # no split: steady buybacks -> small negative
-             ("MSFT", "2019-06-01")]  # mild
+    cases = [
+        (
+            "AAPL",
+            "2021-06-01",
+        ),  # 4:1 split Aug 2020 -> must neutralize; buybacks -> negative
+        ("NVDA", "2022-06-01"),  # 4:1 split July 2021
+        ("TSLA", "2021-06-01"),  # 5:1 split Aug 2020
+        ("AMZN", "2023-06-01"),  # 20:1 split June 2022
+        ("AAPL", "2019-06-01"),  # no split: steady buybacks -> small negative
+        ("MSFT", "2019-06-01"),
+    ]  # mild
     for t, d in cases:
         print(f"{t} @ {d}:", annual_issuance(t, d))

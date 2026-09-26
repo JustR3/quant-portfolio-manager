@@ -89,7 +89,9 @@ def duration_mask(df: pd.DataFrame, field: str) -> pd.Series:
         return pd.Series(True, index=df.index)
     if "period_start" not in df.columns:
         return pd.Series(False, index=df.index)
-    days = (pd.to_datetime(df["period_end"]) - pd.to_datetime(df["period_start"])).dt.days
+    days = (
+        pd.to_datetime(df["period_end"]) - pd.to_datetime(df["period_start"])
+    ).dt.days
     fp = df["fiscal_period"].astype(str)
     quarter = fp.isin(["Q1", "Q2", "Q3"]) & days.between(*QUARTER_DAYS)
     annual = (fp == "FY") & days.between(*ANNUAL_DAYS)
@@ -98,6 +100,7 @@ def duration_mask(df: pd.DataFrame, field: str) -> pd.Series:
 
 def start_or_nat(v) -> pd.Timestamp:
     return pd.Timestamp(v) if v is not None and pd.notna(v) else pd.NaT
+
 
 # Phase #3 (new factor inputs): prior-year lookup + net-issuance split adjustment.
 PRIOR_YEAR_MIN_GAP_DAYS = 300  # prior-FY period must be at least this much older
@@ -373,7 +376,9 @@ def pit_factors_from_prepared(
                 )
             else:
                 sfac = split_factor_in_window(prep, prior_sh[0], shares_res[0], as_of64)
-                pf.net_issuance_raw = net_issuance_factor(shares_res[1] / sfac, prior_sh[1])
+                pf.net_issuance_raw = net_issuance_factor(
+                    shares_res[1] / sfac, prior_sh[1]
+                )
     return pf
 
 

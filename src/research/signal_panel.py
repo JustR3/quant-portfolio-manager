@@ -6,6 +6,7 @@ without exclusion-dropping, so Momentum keeps full coverage where Value/Quality
 are unavailable. Pure assembly (`build_panel`) is separated from I/O
 (`load_inputs`) so the panel logic is unit-testable on synthetic dicts.
 """
+
 from __future__ import annotations
 from pathlib import Path
 from typing import Optional
@@ -26,7 +27,9 @@ def observation_dates(start, end, frequency: str) -> list[pd.Timestamp]:
     """Period-end observation grid (inclusive) between start and end."""
     if frequency not in _FREQ:
         raise ValueError(f"Unknown frequency: {frequency} (use monthly|quarterly)")
-    return list(pd.date_range(pd.Timestamp(start), pd.Timestamp(end), freq=_FREQ[frequency]))
+    return list(
+        pd.date_range(pd.Timestamp(start), pd.Timestamp(end), freq=_FREQ[frequency])
+    )
 
 
 def momentum_asof(prices: pd.Series, as_of: pd.Timestamp) -> float:
@@ -49,7 +52,9 @@ def price_asof_series(prices: pd.Series, as_of: pd.Timestamp) -> Optional[float]
     return float(s.iloc[-1]) if len(s) else None
 
 
-def forward_return(prices: pd.Series, as_of: pd.Timestamp, horizon_months: int) -> float:
+def forward_return(
+    prices: pd.Series, as_of: pd.Timestamp, horizon_months: int
+) -> float:
     """Total return from the last close <= as_of to the last close <= as_of+horizon.
 
     Returns NaN if there is no genuinely future price within the horizon.
@@ -66,8 +71,14 @@ def forward_return(prices: pd.Series, as_of: pd.Timestamp, horizon_months: int) 
     return (p1 / p0) - 1 if p0 > 0 else np.nan
 
 
-def build_panel(tickers, obs_dates, horizon_months,
-                close_prices: dict, adj_prices: dict, fundamentals) -> pd.DataFrame:
+def build_panel(
+    tickers,
+    obs_dates,
+    horizon_months,
+    close_prices: dict,
+    adj_prices: dict,
+    fundamentals,
+) -> pd.DataFrame:
     """Assemble the long panel. Momentum/forward-returns from prices; Value/Quality
     from the `fundamentals` provider (`pit_factors(ticker, as_of, price)`)."""
     rows = []
@@ -81,20 +92,35 @@ def build_panel(tickers, obs_dates, horizon_months,
             fwd = forward_return(adj, as_of, horizon_months)
             price = price_asof_series(close, as_of)
             pf = fundamentals.pit_factors(t, as_of, price)
-            rows.append({
-                "date": as_of, "ticker": t,
-                "momentum_raw": mom,
-                "value_raw": np.nan if pf.excluded else pf.value_raw,
-                "quality_raw": np.nan if pf.excluded else pf.quality_raw,
-                "gross_profitability_raw": np.nan if pf.excluded else pf.gross_profitability_raw,
-                "net_issuance_raw": np.nan if pf.excluded else pf.net_issuance_raw,
-                "asset_growth_raw": np.nan if pf.excluded else pf.asset_growth_raw,
-                "fwd_return": fwd,
-            })
-    return pd.DataFrame(rows, columns=["date", "ticker", "momentum_raw",
-                                       "value_raw", "quality_raw",
-                                       "gross_profitability_raw", "net_issuance_raw",
-                                       "asset_growth_raw", "fwd_return"])
+            rows.append(
+                {
+                    "date": as_of,
+                    "ticker": t,
+                    "momentum_raw": mom,
+                    "value_raw": np.nan if pf.excluded else pf.value_raw,
+                    "quality_raw": np.nan if pf.excluded else pf.quality_raw,
+                    "gross_profitability_raw": np.nan
+                    if pf.excluded
+                    else pf.gross_profitability_raw,
+                    "net_issuance_raw": np.nan if pf.excluded else pf.net_issuance_raw,
+                    "asset_growth_raw": np.nan if pf.excluded else pf.asset_growth_raw,
+                    "fwd_return": fwd,
+                }
+            )
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "date",
+            "ticker",
+            "momentum_raw",
+            "value_raw",
+            "quality_raw",
+            "gross_profitability_raw",
+            "net_issuance_raw",
+            "asset_growth_raw",
+            "fwd_return",
+        ],
+    )
 
 
 def universe_tickers(base_dir: Path = DEFAULT_PRICE_BASE) -> list[str]:

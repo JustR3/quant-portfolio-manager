@@ -6,6 +6,7 @@ Two-part pre-registered gate per measure (spec §5), Bonferroni k=3 -> p_gate 0.
   2. Statistical: bootstrapped one-sided p < p_gate on the net spread's alpha vs SPY excess.
 NaN p or missing pieces fail by construction.
 """
+
 from __future__ import annotations
 
 import json
@@ -42,11 +43,16 @@ class PEADResult:
     caveats: list[str] = field(default_factory=list)
 
     def render(self) -> str:
-        head = (f"{'measure':8} {'window':24} {'events':>7} {'net/yr':>8} {'thirds':>7} "
-                f"{'mono':>5} {'alpha/d':>9} {'p_boot':>7} {'NW-t':>6} {'verdict':>12}")
-        lines = ["PEAD EVENT-DRIFT STUDY — pre-registered gate "
-                 f"(p<{self.params.get('p_gate', P_GATE):.4f}, net>0 + >=2/3 thirds + monotone)",
-                 head, "-" * len(head)]
+        head = (
+            f"{'measure':8} {'window':24} {'events':>7} {'net/yr':>8} {'thirds':>7} "
+            f"{'mono':>5} {'alpha/d':>9} {'p_boot':>7} {'NW-t':>6} {'verdict':>12}"
+        )
+        lines = [
+            "PEAD EVENT-DRIFT STUDY — pre-registered gate "
+            f"(p<{self.params.get('p_gate', P_GATE):.4f}, net>0 + >=2/3 thirds + monotone)",
+            head,
+            "-" * len(head),
+        ]
         for m in self.measures:
             thirds = m.get("thirds_positive") or []
             ann = (m.get("net_mean") or float("nan")) * 252
@@ -57,12 +63,15 @@ class PEADResult:
                 f"{'Y' if m.get('monotone') else 'N':>5} "
                 f"{m.get('alpha', float('nan')):9.2e} {m.get('p_boot', float('nan')):7.4f} "
                 f"{m.get('nw_t', float('nan')):6.2f} "
-                f"{m.get('verdict') or ('PASS' if m.get('pass') else 'FAIL'):>12}")
+                f"{m.get('verdict') or ('PASS' if m.get('pass') else 'FAIL'):>12}"
+            )
             if m.get("inconclusive_reason"):
                 lines.append(f"{'':8} INCONCLUSIVE: {m['inconclusive_reason']}")
             if m.get("power"):
-                lines.append(f"{'':8} {render_power(m['power'], '{:+.2%}')}  "
-                             "(alpha/yr; report-only)")
+                lines.append(
+                    f"{'':8} {render_power(m['power'], '{:+.2%}')}  "
+                    "(alpha/yr; report-only)"
+                )
         if self.caveats:
             lines += ["", "CAVEATS:"] + [f"  - {c}" for c in self.caveats]
         return "\n".join(lines)
@@ -80,6 +89,7 @@ class PEADResult:
                 return [_clean(v) for v in o]
             return o
 
-        payload = _clean({"measures": self.measures, "params": self.params,
-                          "caveats": self.caveats})
+        payload = _clean(
+            {"measures": self.measures, "params": self.params, "caveats": self.caveats}
+        )
         path.write_text(json.dumps(payload, indent=2, default=str))

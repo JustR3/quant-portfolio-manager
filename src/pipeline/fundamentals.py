@@ -5,6 +5,7 @@ Caveat: yfinance returns latest-reported (possibly restated) annual figures,
 not strictly as-originally-reported. Residual look-ahead is small and noted
 in output; revisit if a paid PIT source is adopted later.
 """
+
 from __future__ import annotations
 import math
 from dataclasses import dataclass
@@ -42,22 +43,27 @@ def pit_shares_from_series(shares: pd.Series, as_of: pd.Timestamp) -> Optional[f
     return float(s.iloc[-1])
 
 
-def pit_market_cap_from(shares: pd.Series, price: Optional[float],
-                        as_of: pd.Timestamp) -> Optional[float]:
+def pit_market_cap_from(
+    shares: pd.Series, price: Optional[float], as_of: pd.Timestamp
+) -> Optional[float]:
     sh = pit_shares_from_series(shares, as_of)
     if sh is None or price is None or price <= 0:
         return None
     return sh * price
 
 
-def select_pit_statement(statement: pd.DataFrame, as_of: pd.Timestamp,
-                         lag_days: int) -> Optional[pd.Timestamp]:
+def select_pit_statement(
+    statement: pd.DataFrame, as_of: pd.Timestamp, lag_days: int
+) -> Optional[pd.Timestamp]:
     """Return the latest period-end column whose period_end + lag <= as_of, else None."""
     if statement is None or statement.empty:
         return None
     as_of = _to_naive(as_of)
-    eligible = [_to_naive(c) for c in statement.columns
-                if _to_naive(c) + pd.Timedelta(days=lag_days) < as_of]
+    eligible = [
+        _to_naive(c)
+        for c in statement.columns
+        if _to_naive(c) + pd.Timedelta(days=lag_days) < as_of
+    ]
     return max(eligible) if eligible else None
 
 
@@ -95,8 +101,12 @@ def asset_growth_factor(ta_now, ta_prior):
 def net_issuance_factor(shares_now, shares_prior):
     """Oriented -dlog(shares): net buyback -> higher expected return.
     Inputs must be split-adjusted by the caller."""
-    if (shares_now is None or shares_prior is None
-            or shares_now <= 0 or shares_prior <= 0):
+    if (
+        shares_now is None
+        or shares_prior is None
+        or shares_now <= 0
+        or shares_prior <= 0
+    ):
         return None
     return -(math.log(shares_now) - math.log(shares_prior))
 
@@ -117,8 +127,9 @@ def _cell(stmt: pd.DataFrame, field: str, col: pd.Timestamp) -> Optional[float]:
     return float(v) if pd.notna(v) else None
 
 
-def compute_pit_factors(income, balance, cashflow, market_cap,
-                        as_of, lag_days) -> PITFactors:
+def compute_pit_factors(
+    income, balance, cashflow, market_cap, as_of, lag_days
+) -> PITFactors:
     """Value/Quality from the PIT statement, or excluded with a reason.
 
     Value   = 0.5*FCF/MC + 0.5*EBIT/MC
@@ -131,7 +142,9 @@ def compute_pit_factors(income, balance, cashflow, market_cap,
     bal_col = select_pit_statement(balance, as_of, lag_days)
     cf_col = select_pit_statement(cashflow, as_of, lag_days)
     if inc_col is None or bal_col is None or cf_col is None:
-        return PITFactors(excluded=True, exclusion_reason="no statement before as_of+lag")
+        return PITFactors(
+            excluded=True, exclusion_reason="no statement before as_of+lag"
+        )
 
     # Flag (don't exclude) when the three selected period-ends span more than ~one
     # quarter — they may mix fiscal years if yfinance cadence differs (review #7).
@@ -140,18 +153,26 @@ def compute_pit_factors(income, balance, cashflow, market_cap,
     if period_misaligned:
         logger.warning(
             "PIT period mismatch for as_of=%s: income=%s balance=%s cashflow=%s (>1 quarter apart)",
-            _to_naive(as_of).date(), inc_col.date(), bal_col.date(), cf_col.date())
+            _to_naive(as_of).date(),
+            inc_col.date(),
+            bal_col.date(),
+            cf_col.date(),
+        )
 
     missing = []
-    for stmt, col, req in [(income, inc_col, REQUIRED_INCOME),
-                           (balance, bal_col, REQUIRED_BALANCE),
-                           (cashflow, cf_col, REQUIRED_CASHFLOW)]:
+    for stmt, col, req in [
+        (income, inc_col, REQUIRED_INCOME),
+        (balance, bal_col, REQUIRED_BALANCE),
+        (cashflow, cf_col, REQUIRED_CASHFLOW),
+    ]:
         for fld in req:
             if _cell(stmt, fld, col) is None:
                 missing.append(fld)
     if missing:
-        return PITFactors(excluded=True,
-                          exclusion_reason="missing fields: " + ",".join(sorted(set(missing))))
+        return PITFactors(
+            excluded=True,
+            exclusion_reason="missing fields: " + ",".join(sorted(set(missing))),
+        )
 
     ebit = _cell(income, "EBIT", inc_col)
     gp = _cell(income, "Gross Profit", inc_col)
@@ -162,13 +183,18 @@ def compute_pit_factors(income, balance, cashflow, market_cap,
 
     invested = ta - cl
     if rev <= 0 or invested <= 0:
-        return PITFactors(excluded=True, exclusion_reason="non-positive revenue/invested capital")
+        return PITFactors(
+            excluded=True, exclusion_reason="non-positive revenue/invested capital"
+        )
 
     value_raw = 0.5 * (fcf / market_cap) + 0.5 * (ebit / market_cap)
     quality_raw = 0.5 * (ebit / invested) + 0.5 * (gp / rev)
-    return PITFactors(value_raw=value_raw, quality_raw=quality_raw,
-                      gross_profitability_raw=gross_profitability(gp, ta),
-                      period_misaligned=period_misaligned)
+    return PITFactors(
+        value_raw=value_raw,
+        quality_raw=quality_raw,
+        gross_profitability_raw=gross_profitability(gp, ta),
+        period_misaligned=period_misaligned,
+    )
 
 
 # --- network layer (cached) -------------------------------------------------
@@ -187,9 +213,11 @@ def get_statements(ticker: str) -> dict:
     def _fetch():
         thread_safe_rate_limiter.wait()
         t = yf.Ticker(ticker)
-        return {"income": dedup_statement_columns(t.income_stmt),
-                "balance": dedup_statement_columns(t.balance_sheet),
-                "cashflow": dedup_statement_columns(t.cashflow)}
+        return {
+            "income": dedup_statement_columns(t.income_stmt),
+            "balance": dedup_statement_columns(t.balance_sheet),
+            "cashflow": dedup_statement_columns(t.cashflow),
+        }
 
     try:
         data = retry_with_backoff(_fetch, max_attempts=3)

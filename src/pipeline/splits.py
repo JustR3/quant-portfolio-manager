@@ -117,4 +117,3 @@ def load_adjuster(
     if close is None or close.empty:
         return None
     return make_adjuster(splits, close.index.max())
-

@@ -1,16 +1,28 @@
 """Pure metric functions over the signal panel: rank-IC, quantile spreads,
 long-short returns (gross + net of costs). No I/O. pandas spearman is native
 (rank-then-pearson), so no scipy dependency."""
+
 from __future__ import annotations
 import numpy as np
 import pandas as pd
 from src.backtesting.costs import compute_turnover, cost_fraction
 
-FACTOR_COLUMN = {"momentum": "momentum_raw", "value": "value_raw", "quality": "quality_raw",
-                 "gross_profitability": "gross_profitability_raw",
-                 "net_issuance": "net_issuance_raw", "asset_growth": "asset_growth_raw"}
-EXPECTED_SIGN = {"momentum": 1, "value": 1, "quality": 1,
-                 "gross_profitability": 1, "net_issuance": 1, "asset_growth": 1}
+FACTOR_COLUMN = {
+    "momentum": "momentum_raw",
+    "value": "value_raw",
+    "quality": "quality_raw",
+    "gross_profitability": "gross_profitability_raw",
+    "net_issuance": "net_issuance_raw",
+    "asset_growth": "asset_growth_raw",
+}
+EXPECTED_SIGN = {
+    "momentum": 1,
+    "value": 1,
+    "quality": 1,
+    "gross_profitability": 1,
+    "net_issuance": 1,
+    "asset_growth": 1,
+}
 
 
 def rank_ic(panel: pd.DataFrame, factor_col: str) -> pd.Series:
@@ -43,7 +55,9 @@ def _bucketize(sub: pd.DataFrame, factor_col: str, q: int) -> pd.DataFrame:
     return s
 
 
-def quantile_returns(panel: pd.DataFrame, factor_col: str, q: int, min_names: int) -> pd.Series:
+def quantile_returns(
+    panel: pd.DataFrame, factor_col: str, q: int, min_names: int
+) -> pd.Series:
     """Average forward return per quantile bucket, averaged across dates.
 
     Returns a Series indexed 1..q (1 = lowest factor). Dates with fewer than
@@ -90,13 +104,23 @@ def _leg_members(panel: pd.DataFrame, factor_col: str, q: int, min_names: int):
         bot = b[b["bucket"] == 1]
         if top.empty or bot.empty:
             continue
-        yield (date, list(top["ticker"]), list(bot["ticker"]),
-               float(top["fwd_return"].mean()), float(bot["fwd_return"].mean()))
+        yield (
+            date,
+            list(top["ticker"]),
+            list(bot["ticker"]),
+            float(top["fwd_return"].mean()),
+            float(bot["fwd_return"].mean()),
+        )
 
 
-def long_short_gross(panel: pd.DataFrame, factor_col: str, q: int, min_names: int) -> pd.Series:
+def long_short_gross(
+    panel: pd.DataFrame, factor_col: str, q: int, min_names: int
+) -> pd.Series:
     """Per-date top-bucket minus bottom-bucket equal-weight forward return."""
-    out = {d: tr - br for d, _t, _b, tr, br in _leg_members(panel, factor_col, q, min_names)}
+    out = {
+        d: tr - br
+        for d, _t, _b, tr, br in _leg_members(panel, factor_col, q, min_names)
+    }
     return pd.Series(out, dtype=float).sort_index()
 
 
@@ -104,9 +128,16 @@ def spread_summary(ls: pd.Series, periods_per_year: int) -> dict:
     """Annualized mean, vol, and Sharpe of a per-period spread series."""
     n = int(len(ls))
     ann_mean = float(ls.mean() * periods_per_year) if n else float("nan")
-    ann_vol = float(ls.std(ddof=1) * np.sqrt(periods_per_year)) if n > 1 else float("nan")
+    ann_vol = (
+        float(ls.std(ddof=1) * np.sqrt(periods_per_year)) if n > 1 else float("nan")
+    )
     sharpe = ann_mean / ann_vol if (ann_vol and ann_vol > 0) else float("nan")
-    return {"ann_mean": ann_mean, "ann_vol": ann_vol, "sharpe": float(sharpe), "n_periods": n}
+    return {
+        "ann_mean": ann_mean,
+        "ann_vol": ann_vol,
+        "sharpe": float(sharpe),
+        "n_periods": n,
+    }
 
 
 def _equal_weights(tickers) -> dict:
@@ -114,8 +145,9 @@ def _equal_weights(tickers) -> dict:
     return {t: 1.0 / n for t in tickers} if n else {}
 
 
-def long_short_net(panel: pd.DataFrame, factor_col: str, q: int, min_names: int,
-                   cost_bps: float) -> pd.Series:
+def long_short_net(
+    panel: pd.DataFrame, factor_col: str, q: int, min_names: int, cost_bps: float
+) -> pd.Series:
     """Long-short spread net of per-side transaction costs on leg turnover.
 
     Cost each period = cost_fraction(turnover_long + turnover_short, cost_bps),
@@ -126,7 +158,9 @@ def long_short_net(panel: pd.DataFrame, factor_col: str, q: int, min_names: int,
     prev_top, prev_bot = {}, {}
     for date, top_t, bot_t, tr, br in _leg_members(panel, factor_col, q, min_names):
         cur_top, cur_bot = _equal_weights(top_t), _equal_weights(bot_t)
-        turnover = compute_turnover(prev_top, cur_top) + compute_turnover(prev_bot, cur_bot)
+        turnover = compute_turnover(prev_top, cur_top) + compute_turnover(
+            prev_bot, cur_bot
+        )
         cost = cost_fraction(turnover, cost_bps)
         out[date] = (tr - br) - cost
         prev_top, prev_bot = cur_top, cur_bot
