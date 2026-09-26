@@ -104,3 +104,8 @@ One line per checkpoint. Newest at the bottom.
   `qpm` mentions. Left as-is: `CLAUDE.md` line 13 and the earlier entries in this file, which name
   the `qpm` bug itself as history, and everything dated under `docs/research/`,
   `docs/superpowers/specs/` and `docs/superpowers/plans/`. `tests/test_cli_help.py` passes (13).
+- task 4: README row #1 and `CLAUDE.md` "#1 Momentum" claimed 12-1/6-1/sector-neutral variants "all
+  fail", but `main` only implements 12-0 (`src/research/signal_panel.py::momentum_asof`) and the
+  branch with the variants is gone. Both now say 12-0 is reproducible via `signal-eval` and the
+  variants are not reproducible from `main`. No momentum re-implemented or re-run; the dated
+  research write-up is untouched.

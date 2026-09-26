@@ -70,7 +70,9 @@ strategy claim through an honest, costed, PIT-correct gate.
 ## Edge status (validated-edge phase — FIVE honest NEGATIVES; hunt CLOSED)
 No demonstrated edge on free data in any testable signal class — cross-sectional (`signal-eval`),
 time-series (`ts-eval`), or event-time (`pead-eval`):
-- **#1 Momentum** (~11yr): ~0 IC; 12-1/6-1/sector-neutral variants all fail (dead-end branch).
+- **#1 Momentum** (~11yr): ~0 IC. 12-0 (plain 12-month return, `src/research/signal_panel.py`) is
+  reproducible via `signal-eval`. The 12-1/6-1/sector-neutral variants were reported (all fail) from a
+  since-deleted branch and are not reproducible from `main`.
 - **#2 Value/Quality** on deep true-PIT SEC data: Value's thin lead was a small-sample mirage
   (IC +0.036/t=1.58 → +0.014/t=1.11); Quality flat. Closes "needs more data."
   **Corrected under errata (2026-09-26, split-basis + duration fixes): Value IC +0.014/t=1.11 →
