@@ -5,11 +5,21 @@ import socket
 import pytest
 
 
+def _family_supported(family) -> bool:
+    try:
+        socket.socket(family, socket.SOCK_STREAM).close()
+        return True
+    except OSError:  # e.g. a container with IPv6 disabled
+        return False
+
+
 @pytest.mark.parametrize("family", [socket.AF_INET, socket.AF_INET6])
 @pytest.mark.parametrize("method", ["connect", "connect_ex"])
 def test_unmarked_test_cannot_open_internet_connection(
     family, method, _block_network_in_unmarked_tests
 ):
+    if not _family_supported(family):
+        pytest.skip(f"{family.name} sockets unavailable on this host")
     address = ("127.0.0.1", 9) if family == socket.AF_INET else ("::1", 9, 0, 0)
     with socket.socket(family, socket.SOCK_STREAM) as sock:
         with pytest.raises(RuntimeError, match="network access in an unmarked test"):

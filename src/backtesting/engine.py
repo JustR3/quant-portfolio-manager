@@ -5,6 +5,7 @@ Walk-forward validation of systematic factor strategies.
 
 import warnings
 import logging
+from contextlib import contextmanager
 from datetime import timedelta
 from typing import Dict, List, Optional, Tuple
 
@@ -30,6 +31,16 @@ except ImportError:
     HAS_TQDM = False
 
 logger = get_logger(__name__)
+
+
+@contextmanager
+def _logging_disabled():
+    """Silence all logging inside the block; restore it even if the block raises."""
+    logging.disable(logging.CRITICAL)
+    try:
+        yield
+    finally:
+        logging.disable(logging.NOTSET)
 
 
 class BacktestEngine:
@@ -120,6 +131,8 @@ class BacktestEngine:
             0  # rebalances dropped due to errors / no measurable data
         )
         self.total_transaction_cost = 0.0  # cumulative $ paid in costs
+        # Position-periods whose ticker had no usable prices; that weight sits in 0% cash.
+        self.missing_price_positions = 0
         self.expected_sharpes = []  # per-rebalance optimizer (in-sample) Sharpe
 
         # Benchmark
@@ -233,6 +246,9 @@ class BacktestEngine:
 
         Returns:
             Series of portfolio values
+
+        The first row of `prices` is the base: `initial_value` is the value at that
+        close, and the first return applied is the NEXT row's.
         """
         # Filter prices to tickers in portfolio
         portfolio_prices = prices[
@@ -246,6 +262,9 @@ class BacktestEngine:
         weight_series = pd.Series(weights)
         weight_series = weight_series[portfolio_prices.columns]  # Align
 
+        # Known simplification (out of scope): the target weights are applied to every
+        # daily return, i.e. an implicit, cost-free daily rebalance back to target.
+        # Costs are charged only at the real rebalances, on target-to-target turnover.
         portfolio_returns = (returns * weight_series).sum(axis=1)
 
         # Calculate portfolio value
@@ -253,6 +272,34 @@ class BacktestEngine:
         portfolio_value.iloc[0] = initial_value  # Set initial value
 
         return portfolio_value
+
+    def _count_unpriced(self, weights: Dict[str, float], prices: pd.DataFrame) -> int:
+        """Count target positions with no usable prices in this holding period.
+
+        That weight earns 0% (sits in cash). Behaviour is unchanged; the count is
+        reported in the result caveats so it is visible. Call once per period.
+        """
+        priced = {t for t in weights if t in prices.columns and prices[t].notna().any()}
+        return len(weights) - len(priced)
+
+    @staticmethod
+    def _end_at_rebalance_close(
+        prices: pd.DataFrame, next_rebalance: pd.Timestamp, not_after: pd.Timestamp
+    ) -> pd.DataFrame:
+        """Trim a holding-period price window to end AT the next rebalance-day close.
+
+        The rebalance day is the first trading day on or after `next_rebalance`. Ending
+        the OLD holding on that close applies the old weights' return for that day; the
+        new holding starts from the same close and earns from the following day. Without
+        this the window stopped one trading day early and that day's return was applied
+        to neither holding. Never runs past `not_after` (the backtest end date), and if
+        the data ends first, everything is kept.
+        """
+        prices = prices.loc[:not_after]
+        on_or_after = prices.index[prices.index >= next_rebalance]
+        if len(on_or_after) == 0:
+            return prices
+        return prices.loc[: on_or_after[0]]
 
     def run(self, verbose: bool = True) -> BacktestResult:
         """
@@ -286,11 +333,9 @@ class BacktestEngine:
         equity_dates = []
 
         # Download benchmark data (SPY) - suppress all output
-        logging.disable(logging.CRITICAL)  # Disable ALL logging temporarily
-
         import warnings as warn
 
-        with warn.catch_warnings():
+        with _logging_disabled(), warn.catch_warnings():
             warn.simplefilter("ignore")
             spy_data = yf.download(
                 "SPY",
@@ -299,8 +344,6 @@ class BacktestEngine:
                 progress=False,
                 auto_adjust=False,  # Keep Adj Close column
             )
-
-        logging.disable(logging.NOTSET)  # Re-enable logging
         # Handle both single-column and multi-column DataFrames
         if isinstance(spy_data.columns, pd.MultiIndex):
             spy_prices = spy_data[("Adj Close", "SPY")]
@@ -308,8 +351,6 @@ class BacktestEngine:
             spy_prices = spy_data["Adj Close"]
 
         # Suppress all logs except CRITICAL during backtest iterations (cleaner output)
-        logging.disable(logging.CRITICAL)
-
         # Progress bar
         iterator = (
             tqdm(rebalance_dates, desc="Backtesting")
@@ -317,219 +358,247 @@ class BacktestEngine:
             else rebalance_dates
         )
 
-        for i, rebalance_date in enumerate(iterator):
-            try:
-                # === REBALANCING LOGIC ===
-
-                if verbose and not HAS_TQDM:
-                    print(f"\n{'─' * 80}")
-                    print(
-                        f"📅 Rebalance {i + 1}/{len(rebalance_dates)}: {rebalance_date.strftime('%Y-%m-%d')}"
-                    )
-
-                # Point-in-time as-of date: only data strictly before the rebalance.
-                as_of_date = (rebalance_date - timedelta(days=1)).strftime("%Y-%m-%d")
-
-                # 1. Load universe ranked by POINT-IN-TIME market cap as of this date.
-                universe_df = get_universe(
-                    self.universe,
-                    top_n=self.top_n,
-                    custom_tickers=self.custom_tickers,
-                    as_of_date=as_of_date,
-                )
-                tickers = universe_df["ticker"].tolist()
-
-                if verbose and not HAS_TQDM:
-                    print(f"   Universe: {len(tickers)} stocks")
-
-                # 2. Calculate factors using ONLY point-in-time data (no look-ahead).
-                factor_engine = FactorEngine(
-                    tickers=tickers,
-                    batch_size=50,
-                    cache_expiry_hours=24,
-                    as_of_date=as_of_date,
-                    verbose=False,
-                )
-
-                factor_scores = factor_engine.rank_universe()
-                self.exclusions_total += len(factor_engine.excluded)
-
-                # 3. Select top N stocks by factor score
-                top_stocks = factor_scores.head(self.top_n)["Ticker"].tolist()
-
-                if verbose and not HAS_TQDM:
-                    print(f"   Top stocks: {len(top_stocks)} selected")
-
-                # 4. Optimize portfolio with market-cap-weighted BL priors (PIT caps).
-                sel = universe_df[universe_df["ticker"].isin(top_stocks)]
-                total_mc = sel["market_cap"].sum()
-                mc_weights = (
-                    dict(zip(sel["ticker"], sel["market_cap"] / total_mc))
-                    if total_mc > 0
-                    else None
-                )
-                optimizer = BlackLittermanOptimizer(
-                    tickers=top_stocks,
-                    risk_free_rate=self.risk_free_rate,
-                    factor_alpha_scalar=self.factor_alpha_scalar,
-                    market_cap_weights=mc_weights,
-                    verbose=False,  # Suppress prints during backtest iterations
-                )
-
-                # Fetch price data for optimization using ONLY historical data
-                # Use 2 years of history ENDING at the day before rebalance
-                lookback_start = (rebalance_date - timedelta(days=730)).strftime(
-                    "%Y-%m-%d"
-                )
-                lookback_end = as_of_date  # Day before rebalance
-
-                optimizer.fetch_price_data(
-                    start_date=lookback_start, end_date=lookback_end
-                )
-
-                # Generate views and optimize
-                optimizer.generate_views_from_scores(factor_scores)
-
+        with _logging_disabled():
+            for i, rebalance_date in enumerate(iterator):
                 try:
-                    opt_result = optimizer.optimize(
-                        objective=self.objective, weight_bounds=self.weight_bounds
-                    )
-                    new_weights = opt_result.weights
-                    self.expected_sharpes.append(opt_result.sharpe_ratio)
-                except (ValueError, Exception) as opt_error:
-                    # Fallback to equal-weight if optimization fails
+                    # === REBALANCING LOGIC ===
+
                     if verbose and not HAS_TQDM:
+                        print(f"\n{'─' * 80}")
                         print(
-                            f"   ⚠️  Optimization failed ({str(opt_error)}), using equal-weight"
+                            f"📅 Rebalance {i + 1}/{len(rebalance_dates)}: {rebalance_date.strftime('%Y-%m-%d')}"
                         )
-                    new_weights = {
-                        ticker: 1.0 / len(top_stocks) for ticker in top_stocks
-                    }
 
-                # Apply regime adjustment if enabled
-                if self.use_regime:
-                    from src.utils.regime_adjustment import apply_regime_adjustment
-
-                    # Build weights DataFrame for adjustment (lowercase 'weight' to match adjuster)
-                    weights_df = pd.DataFrame(
-                        [
-                            {"ticker": ticker, "weight": weight}
-                            for ticker, weight in new_weights.items()
-                        ]
+                    # Point-in-time as-of date: only data strictly before the rebalance.
+                    as_of_date = (rebalance_date - timedelta(days=1)).strftime(
+                        "%Y-%m-%d"
                     )
 
-                    # Apply adjustment using HISTORICAL regime (critical: no look-ahead bias)
-                    adjusted_weights_df, regime_metadata = apply_regime_adjustment(
-                        weights_df=weights_df,
-                        risk_off_exposure=self.regime_risk_off_exposure,
-                        caution_exposure=self.regime_caution_exposure,
-                        method=self.regime_method,
-                        verbose=False,  # Don't print during backtest
-                        as_of_date=as_of_date,  # Use historical regime, not current!
+                    # 1. Load universe ranked by POINT-IN-TIME market cap as of this date.
+                    universe_df = get_universe(
+                        self.universe,
+                        top_n=self.top_n,
+                        custom_tickers=self.custom_tickers,
+                        as_of_date=as_of_date,
                     )
-
-                    # Convert back to dict
-                    new_weights = dict(
-                        zip(
-                            adjusted_weights_df["ticker"], adjusted_weights_df["weight"]
-                        )
-                    )
+                    tickers = universe_df["ticker"].tolist()
 
                     if verbose and not HAS_TQDM:
-                        regime_name = regime_metadata["regime"]
-                        exposure = regime_metadata["exposure"]
-                        print(f"   Regime: {regime_name} ({exposure:.1%} equity)")
+                        print(f"   Universe: {len(tickers)} stocks")
 
-                if verbose and not HAS_TQDM:
-                    print(f"   Portfolio: {len(new_weights)} positions")
-                    print(f"   Expected Sharpe: {opt_result.sharpe_ratio:.2f}")
+                    # 2. Calculate factors using ONLY point-in-time data (no look-ahead).
+                    factor_engine = FactorEngine(
+                        tickers=tickers,
+                        batch_size=50,
+                        cache_expiry_hours=24,
+                        as_of_date=as_of_date,
+                        verbose=False,
+                    )
 
-                # Store weights
-                self.weights_history.append(
-                    {
-                        "date": rebalance_date.strftime("%Y-%m-%d"),
-                        "weights": new_weights,
-                    }
-                )
-                self.rebalance_dates.append(rebalance_date.strftime("%Y-%m-%d"))
+                    factor_scores = factor_engine.rank_universe()
+                    self.exclusions_total += len(factor_engine.excluded)
 
-                # === HOLDING PERIOD ===
+                    # 3. Select top N stocks by factor score
+                    top_stocks = factor_scores.head(self.top_n)["Ticker"].tolist()
 
-                # Calculate next rebalance date (or end date + 1 day for final period)
-                if i < len(rebalance_dates) - 1:
-                    next_rebalance = rebalance_dates[i + 1]
-                else:
-                    # For final period, add 1 day to ensure we have a non-zero holding period
-                    next_rebalance = self.end_date + timedelta(days=1)
-
-                # Fetch prices for holding period
-                period_prices = self._get_prices_for_period(
-                    tickers=list(new_weights.keys()),
-                    start=rebalance_date,
-                    end=next_rebalance,
-                )
-
-                if period_prices.empty:
                     if verbose and not HAS_TQDM:
-                        print(
-                            f"   ⚠️  No price data for holding period ({rebalance_date} to {next_rebalance}), skipping..."
+                        print(f"   Top stocks: {len(top_stocks)} selected")
+
+                    # 4. Optimize portfolio with market-cap-weighted BL priors (PIT caps).
+                    sel = universe_df[universe_df["ticker"].isin(top_stocks)]
+                    total_mc = sel["market_cap"].sum()
+                    mc_weights = (
+                        dict(zip(sel["ticker"], sel["market_cap"] / total_mc))
+                        if total_mc > 0
+                        else None
+                    )
+                    optimizer = BlackLittermanOptimizer(
+                        tickers=top_stocks,
+                        risk_free_rate=self.risk_free_rate,
+                        factor_alpha_scalar=self.factor_alpha_scalar,
+                        market_cap_weights=mc_weights,
+                        verbose=False,  # Suppress prints during backtest iterations
+                    )
+
+                    # Fetch price data for optimization using ONLY historical data
+                    # Use 2 years of history ENDING at the day before rebalance
+                    lookback_start = (rebalance_date - timedelta(days=730)).strftime(
+                        "%Y-%m-%d"
+                    )
+                    lookback_end = as_of_date  # Day before rebalance
+
+                    optimizer.fetch_price_data(
+                        start_date=lookback_start, end_date=lookback_end
+                    )
+
+                    # Generate views and optimize
+                    optimizer.generate_views_from_scores(factor_scores)
+
+                    opt_sharpe = None  # stays None on the equal-weight fallback
+                    try:
+                        opt_result = optimizer.optimize(
+                            objective=self.objective, weight_bounds=self.weight_bounds
                         )
+                        new_weights = opt_result.weights
+                        opt_sharpe = opt_result.sharpe_ratio
+                        self.expected_sharpes.append(opt_sharpe)
+                    except (ValueError, Exception) as opt_error:
+                        # Fallback to equal-weight if optimization fails
+                        if verbose and not HAS_TQDM:
+                            print(
+                                f"   ⚠️  Optimization failed ({str(opt_error)}), using equal-weight"
+                            )
+                        new_weights = {
+                            ticker: 1.0 / len(top_stocks) for ticker in top_stocks
+                        }
+
+                    # Apply regime adjustment if enabled
+                    if self.use_regime:
+                        from src.utils.regime_adjustment import apply_regime_adjustment
+
+                        # Build weights DataFrame for adjustment (lowercase 'weight' to match adjuster)
+                        weights_df = pd.DataFrame(
+                            [
+                                {"ticker": ticker, "weight": weight}
+                                for ticker, weight in new_weights.items()
+                            ]
+                        )
+
+                        # Apply adjustment using HISTORICAL regime (critical: no look-ahead bias)
+                        adjusted_weights_df, regime_metadata = apply_regime_adjustment(
+                            weights_df=weights_df,
+                            risk_off_exposure=self.regime_risk_off_exposure,
+                            caution_exposure=self.regime_caution_exposure,
+                            method=self.regime_method,
+                            verbose=False,  # Don't print during backtest
+                            as_of_date=as_of_date,  # Use historical regime, not current!
+                        )
+
+                        # Convert back to dict
+                        new_weights = dict(
+                            zip(
+                                adjusted_weights_df["ticker"],
+                                adjusted_weights_df["weight"],
+                            )
+                        )
+
+                        if verbose and not HAS_TQDM:
+                            regime_name = regime_metadata["regime"]
+                            exposure = regime_metadata["exposure"]
+                            print(f"   Regime: {regime_name} ({exposure:.1%} equity)")
+
+                    if verbose and not HAS_TQDM:
+                        print(f"   Portfolio: {len(new_weights)} positions")
+                        if opt_sharpe is None:
+                            print("   Expected Sharpe: n/a (equal-weight fallback)")
+                        else:
+                            print(f"   Expected Sharpe: {opt_sharpe:.2f}")
+
+                    # Store weights
+                    self.weights_history.append(
+                        {
+                            "date": rebalance_date.strftime("%Y-%m-%d"),
+                            "weights": new_weights,
+                        }
+                    )
+                    self.rebalance_dates.append(rebalance_date.strftime("%Y-%m-%d"))
+
+                    # === HOLDING PERIOD ===
+
+                    # Calculate next rebalance date (or end date + 1 day for final period)
+                    is_final = i >= len(rebalance_dates) - 1
+                    if not is_final:
+                        next_rebalance = rebalance_dates[i + 1]
+                    else:
+                        # For final period, add 1 day to ensure we have a non-zero holding period
+                        next_rebalance = self.end_date + timedelta(days=1)
+
+                    # Fetch prices for the holding period. The window must include the
+                    # NEXT rebalance-day close (the old weights earn that day's return),
+                    # so fetch a few days past `next_rebalance` (it may be a weekend or
+                    # holiday) and trim to that close. The final period ends at end_date.
+                    fetch_end = (
+                        next_rebalance
+                        if is_final
+                        else next_rebalance + timedelta(days=7)
+                    )
+                    period_prices = self._get_prices_for_period(
+                        tickers=list(new_weights.keys()),
+                        start=rebalance_date,
+                        end=fetch_end,
+                    )
+                    if not is_final and not period_prices.empty:
+                        period_prices = self._end_at_rebalance_close(
+                            period_prices, next_rebalance, not_after=self.end_date
+                        )
+
+                    if period_prices.empty:
+                        if verbose and not HAS_TQDM:
+                            print(
+                                f"   ⚠️  No price data for holding period ({rebalance_date} to {next_rebalance}), skipping..."
+                            )
+                        continue
+
+                    # Charge transaction costs on turnover from the PREVIOUS holding's
+                    # target weights to the new target weights (target-to-target).
+                    turnover = compute_turnover(current_weights, new_weights)
+                    frac = cost_fraction(turnover, self.transaction_cost_bps)
+                    cost_paid = current_value_net * frac
+                    self.total_transaction_cost += cost_paid
+                    value_net_start = current_value_net - cost_paid
+
+                    unpriced = self._count_unpriced(new_weights, period_prices)
+                    if unpriced:
+                        self.missing_price_positions += unpriced
+                        if verbose and not HAS_TQDM:
+                            print(
+                                f"   ⚠️  {unpriced} position(s) had no price data; "
+                                "their weight is held as 0% cash this period"
+                            )
+
+                    # Dual-track: net (costs charged) and gross (no costs), same prices.
+                    net_values = self._calculate_portfolio_value(
+                        weights=new_weights,
+                        prices=period_prices,
+                        initial_value=value_net_start,
+                    )
+                    gross_values = self._calculate_portfolio_value(
+                        weights=new_weights,
+                        prices=period_prices,
+                        initial_value=current_value_gross,
+                    )
+
+                    current_value_net = net_values.iloc[-1]
+                    current_value_gross = gross_values.iloc[-1]
+
+                    # Append to equity curves
+                    equity_curve.extend(net_values.tolist())
+                    gross_curve.extend(gross_values.tolist())
+                    equity_dates.extend(net_values.index.tolist())
+
+                    # Update weights for next period
+                    current_weights = new_weights
+
+                except Exception as e:
+                    # Hard guard: if nothing is measurable yet (start predates the available
+                    # point-in-time fundamentals window), refuse rather than silently skipping.
+                    if (
+                        isinstance(e, RuntimeError)
+                        and "No point-in-time fundamentals" in str(e)
+                        and not equity_curve
+                    ):
+                        raise ValueError(
+                            f"Backtest start {self.start_date.strftime('%Y-%m-%d')} predates the "
+                            f"available point-in-time fundamentals window (~2023). Use a later "
+                            f"start date. (Underlying: {e})"
+                        )
+                    self.skipped_rebalances += 1
+                    if verbose:
+                        print(f"   ✗ Error at {rebalance_date}: {str(e)}")
+                        import traceback
+
+                        traceback.print_exc()
                     continue
-
-                # Charge transaction costs on turnover from the PREVIOUS holding's
-                # target weights to the new target weights (target-to-target).
-                turnover = compute_turnover(current_weights, new_weights)
-                frac = cost_fraction(turnover, self.transaction_cost_bps)
-                cost_paid = current_value_net * frac
-                self.total_transaction_cost += cost_paid
-                value_net_start = current_value_net - cost_paid
-
-                # Dual-track: net (costs charged) and gross (no costs), same prices.
-                net_values = self._calculate_portfolio_value(
-                    weights=new_weights,
-                    prices=period_prices,
-                    initial_value=value_net_start,
-                )
-                gross_values = self._calculate_portfolio_value(
-                    weights=new_weights,
-                    prices=period_prices,
-                    initial_value=current_value_gross,
-                )
-
-                current_value_net = net_values.iloc[-1]
-                current_value_gross = gross_values.iloc[-1]
-
-                # Append to equity curves
-                equity_curve.extend(net_values.tolist())
-                gross_curve.extend(gross_values.tolist())
-                equity_dates.extend(net_values.index.tolist())
-
-                # Update weights for next period
-                current_weights = new_weights
-
-            except Exception as e:
-                # Hard guard: if nothing is measurable yet (start predates the available
-                # point-in-time fundamentals window), refuse rather than silently skipping.
-                if (
-                    isinstance(e, RuntimeError)
-                    and "No point-in-time fundamentals" in str(e)
-                    and not equity_curve
-                ):
-                    raise ValueError(
-                        f"Backtest start {self.start_date.strftime('%Y-%m-%d')} predates the "
-                        f"available point-in-time fundamentals window (~2023). Use a later "
-                        f"start date. (Underlying: {e})"
-                    )
-                self.skipped_rebalances += 1
-                if verbose:
-                    print(f"   ✗ Error at {rebalance_date}: {str(e)}")
-                    import traceback
-
-                    traceback.print_exc()
-                continue
-
-        # Restore logging
-        logging.disable(logging.NOTSET)
 
         # Loudly surface skipped rebalances — a partial backtest must NOT look complete.
         total_planned = len(rebalance_dates)
@@ -651,6 +720,7 @@ class BacktestEngine:
             "membership is the CURRENT constituent list, not point-in-time. "
             f"Excluded (missing required fields): {self.exclusions_total} ticker-rebalances. "
             f"Skipped rebalances (errors/no data): {self.skipped_rebalances}/{len(rebalance_dates)}. "
+            f"Target weight with no price data (held as 0% cash): {self.missing_price_positions} position-periods. "
             f"Transaction costs: {self.transaction_cost_bps:.0f} bps/side on turnover "
             f"(target-to-target; intra-period drift not modeled)."
         )

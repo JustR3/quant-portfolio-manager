@@ -112,3 +112,15 @@ One line per checkpoint. Newest at the bottom.
 - task 1 (Q4 concept): `concept` stored per row in the quarterly SEC cache; `pead_events.quarterly_series` imputes Q4 only when FY and Q1-Q3 share a concept and counts skips in `diagnostics`; caches without `concept` raise `LegacyCacheError` in `pead-eval` unless `--allow-legacy-cache`; the duration check separates `q4_negative` from `q4_concept_mismatch`. Code and tests only; cache rebuild and study #5 re-run are the next tasks.
 - task 2 (Q4 concept): STOP. Cache rebuilt with `--refresh` (498/498, 0 failed; pre-rebuild copy kept at `data/historical/fundamentals_sec_q.bak-2026-09-26`). Duration check: `q4_negative` 52 -> 25, above the brief's 10 limit: 460 of 6,679 FY years mix concepts and 27 of the 52 negatives were among them, but 25 negatives remain within one concept. Study #5 was NOT re-run and README/CLAUDE.md were NOT edited. Evidence: `docs/research/errata-artifacts/duration_check_v3.json`.
 - task 1: `evaluate_factor`/`simulate_power` now take a required `horizon_months` and annualize spreads by `12 / horizon_months` (was observation spacing, overstating `ann_mean`/`ann_vol` by horizon/spacing when they differ). Artifact `*_spread.periods_per_year` records the scale; OVERLAP caveat extended. No published number changes (all studies used horizon == spacing); no study re-run.
+- task 1 (branch `claude/backtest-day-drop`): legacy backtest engine dropped one trading day per
+  rebalance — the period window ended before `next_rebalance` and the next one started at the
+  rebalance-day close, so the previous-close → rebalance-day-close return was applied to neither
+  holding (SPY kept it). Windows now end AT the next rebalance-day close, so every day is applied
+  once (old weights through that close, new weights after costs from the next day). Also: fixed
+  `opt_result` NameError in the verbose equal-weight fallback (it was swallowed and counted as a
+  skipped rebalance), `logging.disable` now restored via `try/finally`, and target weight with no
+  price data (still 0% cash) is counted in `data_caveats`. New offline
+  `tests/test_backtest_continuity.py` (all 6 fail on `main`). Documented command re-run:
+  realized CAGR quarterly 17.91→18.57%, monthly 18.66→18.02% (inside the ±5%/yr stop rule). Not
+  fixed, noticed: net `total_return` excludes the first deployment cost; SPY benchmark loses one
+  return day (`iloc[0]` overwrite); trade stats still stop the day before each rebalance date.
