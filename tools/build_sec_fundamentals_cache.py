@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """Build the per-ticker SEC companyfacts fundamentals cache for the universe.
 
-Outputs gitignored parquets under data/historical/fundamentals_sec/.
+Outputs gitignored parquets under data/historical/fundamentals_sec/. Always rebuilds every ticker,
+so one run upgrades a legacy (pre-2026-09-26, no period_start) cache to the duration-filtered schema.
 Run: EDGAR_IDENTITY="you@example.com" uv run python tools/build_sec_fundamentals_cache.py
 """
 from __future__ import annotations

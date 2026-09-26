@@ -22,6 +22,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from src.pipeline.sec_fundamentals import DURATION_FIELDS
+from src.pipeline.splits import cache_path as splits_cache_path
+from src.pipeline.splits import save_splits
+
 START_DATE = "2015-01-02"
 N_DAYS = (
     1100  # ~4.3 trading years: >=250-obs momentum floor, a 3-yr SEC/PEAD fact history,
@@ -83,14 +87,17 @@ def _write_fy_facts(path: Path, seed: int) -> None:
         }
         pe = pd.Timestamp(f"{year}-12-31")
         filed = pd.Timestamp(f"{year + 1}-02-15")
+        start = pd.Timestamp(f"{year}-01-01")  # duration facts span the fiscal year
         rows += [
-            {"field": f, "period_end": pe, "filed": filed, "value": v}
+            {"field": f, "period_end": pe, "filed": filed, "value": v,
+             "period_start": start if f in DURATION_FIELDS else pd.NaT}
             for f, v in vals.items()
         ]
     facts = pd.DataFrame(
-        rows, columns=["field", "period_end", "filed", "value"]
+        rows, columns=["field", "period_end", "period_start", "filed", "value"]
     ).astype(
-        {"period_end": "datetime64[ns]", "filed": "datetime64[ns]", "value": "float"}
+        {"period_end": "datetime64[ns]", "period_start": "datetime64[ns]",
+         "filed": "datetime64[ns]", "value": "float"}
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     facts.to_parquet(path)
@@ -107,12 +114,14 @@ def _write_quarterly_facts(path: Path, seed: int) -> None:
         q_ni, q_rev = [], []
         for q, (m, d) in QUARTER_END_MONTH_DAY.items():
             pe = pd.Timestamp(year=year, month=m, day=d)
+            q_start = pe - pd.offsets.MonthBegin(3)  # 3-month quarter, never YTD
             filed = pe + pd.Timedelta(days=45)
             ni, rev = 12.0 * scale * growth, 50.0 * scale * growth
             rows.append(
                 {
                     "field": "net_income",
                     "period_end": pe,
+                    "period_start": q_start,
                     "fiscal_period": q,
                     "filed": filed,
                     "value": ni,
@@ -122,6 +131,7 @@ def _write_quarterly_facts(path: Path, seed: int) -> None:
                 {
                     "field": "revenue",
                     "period_end": pe,
+                    "period_start": q_start,
                     "fiscal_period": q,
                     "filed": filed,
                     "value": rev,
@@ -135,6 +145,7 @@ def _write_quarterly_facts(path: Path, seed: int) -> None:
             {
                 "field": "net_income",
                 "period_end": fy_pe,
+                "period_start": pd.Timestamp(f"{year}-01-01"),
                 "fiscal_period": "FY",
                 "filed": fy_filed,
                 "value": sum(q_ni) * 1.3,
@@ -144,15 +155,17 @@ def _write_quarterly_facts(path: Path, seed: int) -> None:
             {
                 "field": "revenue",
                 "period_end": fy_pe,
+                "period_start": pd.Timestamp(f"{year}-01-01"),
                 "fiscal_period": "FY",
                 "filed": fy_filed,
                 "value": sum(q_rev) * 1.3,
             }
         )
     facts = pd.DataFrame(
-        rows, columns=["field", "period_end", "fiscal_period", "filed", "value"]
+        rows, columns=["field", "period_end", "period_start", "fiscal_period", "filed", "value"]
     ).astype(
-        {"period_end": "datetime64[ns]", "filed": "datetime64[ns]", "value": "float"}
+        {"period_end": "datetime64[ns]", "period_start": "datetime64[ns]",
+         "filed": "datetime64[ns]", "value": "float"}
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     facts.to_parquet(path)
@@ -170,6 +183,8 @@ def build_synthetic_store(base_dir: Path) -> dict:
         )
         _write_fy_facts(base_dir / "fundamentals_sec" / f"{t}.parquet", seed=k)
         _write_quarterly_facts(base_dir / "fundamentals_sec_q" / f"{t}.parquet", seed=k)
+        # "fetched, no splits": SECFundamentals excludes names whose split history is missing.
+        save_splits(pd.Series(dtype=float), splits_cache_path(t, base_dir / "splits"))
 
     for k, t in enumerate(TS_ETFS + TS_VOL_RATE):
         base = TS_BASE_LEVEL.get(t, 100.0)

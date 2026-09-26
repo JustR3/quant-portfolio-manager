@@ -15,16 +15,24 @@ import numpy as np
 import pandas as pd
 
 from src.pipeline import historical_store as hstore
+from src.pipeline import sec_fundamentals as sf
 from src.pipeline import sec_quarterly as sq
 from src.research import pead_events as pev
 from src.research import pead_portfolio as pp
 from src.research import pead_results as pr
+from src.research import power as pw
 from src.research import ts_eval as te
+from src.research import verdict as V
 from src.research.signal_eval import is_broadly_monotone
 from src.research.ts_command import TS_BASE, _cash
 
 ALL_MEASURES = ("sue_e", "sue_r", "ear")
 MEASURE_FIELD = {"sue_e": "net_income", "sue_r": "revenue"}
+
+LEGACY_CACHE_CAVEAT = (
+    "LEGACY SEC QUARTERLY CACHE (--allow-legacy-cache): no period_start; Q2/Q3 may be 6-/9-month "
+    "YTD values. Pre-errata reproduction only — NOT a canonical verdict."
+)
 
 CAVEATS = [
     "Events are SEC FILING dates, not 8-K announcement dates — this tests post-filing drift, "
@@ -51,13 +59,15 @@ def _entry_at(t0, calendar: pd.Index, lag: int):
 
 
 def build_events(measure: str, tickers: list[str], sec_q_dir: Path, closes: dict,
-                 spy: pd.Series, calendar: pd.Index) -> pd.DataFrame:
+                 spy: pd.Series, calendar: pd.Index, allow_legacy: bool = False) -> pd.DataFrame:
     """Per-measure event table [ticker, entry, score] under the spec's PIT rules."""
     rows = []
     for t in tickers:
         facts = sq.load_facts_q(t, sec_q_dir)
         if facts is None or facts.empty:
             continue
+        if sf.is_legacy_cache(facts) and not allow_legacy:
+            raise sf.LegacyCacheError(f"{t}: SEC quarterly {sf.LEGACY_CACHE_HINT}")
         ff = pev.first_filed(facts)
         ev_f = pev.event_dates(ff)
         ev_f = ev_f[ev_f >= calendar[0]]   # never force-map pre-calendar filings forward
@@ -88,7 +98,8 @@ def run_pead_eval_measures(measures=None, sec_q_dir: Path = sq.SEC_FUND_Q_DIR,
                            price_dir: Path = hstore.DEFAULT_BASE_DIR, ts_dir: Path = TS_BASE,
                            horizon: int = 60, min_leg: int = 10, cost_bps: float = 10.0,
                            n_boot: int = 10_000, seed: int = 42,
-                           p_gate: float = pr.P_GATE) -> pr.PEADResult:
+                           p_gate: float = pr.P_GATE,
+                           allow_legacy: bool = False) -> pr.PEADResult:
     measures = list(measures) if measures else list(ALL_MEASURES)
     bad = [m for m in measures if m not in ALL_MEASURES]
     if bad:
@@ -112,12 +123,15 @@ def run_pead_eval_measures(measures=None, sec_q_dir: Path = sq.SEC_FUND_Q_DIR,
     out_measures = []
     diagnostics = {}
     for m in measures:
-        ev = build_events(m, tickers, Path(sec_q_dir), closes, spy, calendar)
+        ev = build_events(m, tickers, Path(sec_q_dir), closes, spy, calendar,
+                          allow_legacy=allow_legacy)
         ev = ev[ev["ticker"].isin(closes)]
         ev = ev[ev["entry"] <= entry_cap]
         if ev.empty:
             out_measures.append(dict(measure=m, window="", n_events=0, p_boot=float("nan"),
                                      net_mean=float("nan"), thirds_positive=[], monotone=False,
+                                     gate_met=False, verdict=V.INCONCLUSIVE,
+                                     inconclusive_reason="no events in the window",
                                      **{"pass": False}))
             continue
         spread = pp.calendar_spread(ev, returns, calendar, horizon=horizon,
@@ -140,7 +154,16 @@ def run_pead_eval_measures(measures=None, sec_q_dir: Path = sq.SEC_FUND_Q_DIR,
             turnover=float(spread["turnover"].sum(skipna=True)),
             cost_drag=float(spread["cost"].mean(skipna=True) * 252),
             excluded_days=int(spread["gross"].isna().sum()))
-        metrics["pass"] = pr.gate_pass(metrics, p_gate)
+        # Report-only power on annualized net-spread alpha (NW SE; the gate is unchanged).
+        a_nw, se_nw = te.newey_west_alpha_se(net, spy_x.loc[net.index])
+        metrics["power"] = pw.power_block(a_nw, se_nw, z_gate=pw.z_for_one_sided_p(p_gate),
+                                          ref_effect=pw.REF_PEAD_ALPHA_ANN,
+                                          scale=pw.TRADING_DAYS)
+        metrics["gate_met"] = pr.gate_pass(metrics, p_gate)
+        computable = not (np.isnan(metrics["p_boot"]) or np.isnan(metrics["net_mean"]))
+        metrics["verdict"], metrics["inconclusive_reason"] = V.decide(
+            metrics["gate_met"], computable, metrics["n_days"], V.MIN_DAYS, "spread days")
+        metrics["pass"] = metrics["verdict"] == V.PASS
         out_measures.append(metrics)
         # un-gated H=20 diagnostic line
         d20 = pp.calendar_spread(ev, returns, calendar, horizon=20,
@@ -150,8 +173,9 @@ def run_pead_eval_measures(measures=None, sec_q_dir: Path = sq.SEC_FUND_Q_DIR,
     params = {"measures": measures, "horizon": horizon, "min_leg": min_leg,
               "cost_bps": cost_bps, "n_boot": n_boot, "seed": seed, "p_gate": p_gate,
               "sec_q_dir": str(sec_q_dir), "price_dir": str(price_dir),
-              "diagnostics": diagnostics}
-    return pr.PEADResult(measures=out_measures, params=params, caveats=list(CAVEATS))
+              "diagnostics": diagnostics, "allow_legacy_cache": allow_legacy}
+    caveats = ([LEGACY_CACHE_CAVEAT] if allow_legacy else []) + list(CAVEATS)
+    return pr.PEADResult(measures=out_measures, params=params, caveats=caveats)
 
 
 def run_pead_eval(args) -> pr.PEADResult:
@@ -159,7 +183,8 @@ def run_pead_eval(args) -> pr.PEADResult:
     measures = [m.strip() for m in args.measures.split(",") if m.strip()]
     result = run_pead_eval_measures(
         measures=measures, horizon=args.horizon, min_leg=args.min_leg,
-        cost_bps=args.cost_bps, n_boot=args.bootstrap_n, seed=args.seed)
+        cost_bps=args.cost_bps, n_boot=args.bootstrap_n, seed=args.seed,
+        allow_legacy=getattr(args, "allow_legacy_cache", False))
     print(result.render())
     export_dir = Path(args.export) if args.export else Path("data/research")
     out = export_dir / f"pead-eval-{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"

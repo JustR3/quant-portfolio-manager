@@ -5,7 +5,9 @@ true 10-Q filed dates (lag 20-90d), whether NetIncomeLoss resolves, and coverage
 >30% unusable -> do NOT run the full build; escalate (possible data NO-GO verdict).
 
 Full build: every ticker in the existing FY cache (data/historical/fundamentals_sec/), skipping
-already-built parquets. Network: one companyfacts fetch per ticker via edgartools.
+already-built parquets that carry `period_start` (the 2026-09-26 duration fix); legacy parquets
+without it are rebuilt automatically, and --refresh rebuilds everything. Network: one
+companyfacts fetch per ticker via edgartools.
 """
 
 import argparse
@@ -19,6 +21,13 @@ from edgar import set_identity  # noqa: E402
 from src.pipeline import sec_quarterly as sq  # noqa: E402
 
 FY_CACHE = Path("data/historical/fundamentals_sec")
+
+
+def is_legacy_file(path: Path) -> bool:
+    """True for a cache parquet written before the duration fix (no period_start column)."""
+    import pyarrow.parquet as pq
+
+    return "period_start" not in pq.read_schema(path).names
 
 
 def universe() -> list[str]:
@@ -60,6 +69,9 @@ def main():
         metavar="N",
         help="Probe N sampled tickers and exit (no cache writes)",
     )
+    ap.add_argument(
+        "--refresh", action="store_true", help="Rebuild every cache file, not just legacy ones"
+    )
     args = ap.parse_args()
     set_identity(
         os.environ.get("EDGAR_IDENTITY", "whispersdi3@gmail.com")
@@ -86,7 +98,7 @@ def main():
     built = skipped = failed = 0
     for i, t in enumerate(tickers, 1):
         out = sq.cache_path(t)
-        if out.exists():
+        if out.exists() and not args.refresh and not is_legacy_file(out):
             skipped += 1
             continue
         try:

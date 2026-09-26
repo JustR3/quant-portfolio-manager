@@ -26,10 +26,20 @@ honored when it fired.
 | # | Study | Signal class | Verdict | Write-up |
 |---|-------|--------------|---------|----------|
 | 1 | Momentum (12-1, 6-1, sector-neutral) | Cross-sectional | ~0 IC over ~11yr; all variants fail | [signal-isolation results](docs/research/2026-06-07-signal-isolation-results.md) |
-| 2 | Value / Quality on deep SEC PIT data | Cross-sectional | Value's thin lead was a small-sample mirage (t 1.58 → 1.11 with *better* data); Quality flat | [deep-fundamentals results](docs/research/2026-06-08-deep-fundamentals-results.md) |
-| 3 | Gross profitability, net issuance, asset growth | Cross-sectional | All flat; best t = 0.73 vs a Bonferroni 2.4 bar | [new-factor-inputs results](docs/research/2026-06-09-new-factor-inputs-results.md) |
+| 2 | Value / Quality on deep SEC PIT data | Cross-sectional | Value's thin lead was a small-sample mirage (t 1.58 → 1.11 with *better* data); Quality flat. **Corrected under errata: t 1.11 → −0.88 (sign flip — confirmed split-basis look-ahead via a window-matched isolation); still FAIL** | [deep-fundamentals results](docs/research/2026-06-08-deep-fundamentals-results.md), [errata](docs/research/2026-09-26-split-basis-errata.md) |
+| 3 | Gross profitability, net issuance, asset growth | Cross-sectional | All flat; best t = 0.73 vs a Bonferroni 2.4 bar. **Corrected under errata: best t = 0.73 → 0.44; still all FAIL** | [new-factor-inputs results](docs/research/2026-06-09-new-factor-inputs-results.md), [errata](docs/research/2026-09-26-split-basis-errata.md) |
 | 4 | Regime overlay + vol-conditioning timing rules | Time-series | All five rules fail (best p = 0.070 vs 0.010); the legacy "validated 25-yr regime" claim killed with data | [TS timing results](docs/research/2026-06-10-ts-timing-study-results.md) |
-| 5 | PEAD / post-SEC-filing drift (SUE-E, SUE-R, EAR) | Event-time | All spreads *negative* net of costs; filing-reaction measure shows **reversal** (NW-t −2.04) | [PEAD results](docs/research/2026-06-10-pead-event-drift-results.md) |
+| 5 | PEAD / post-SEC-filing drift (SUE-E, SUE-R, EAR) | Event-time | All spreads *negative* net of costs; filing-reaction measure shows **reversal** (NW-t −2.04). **Corrected under errata: NW-t −2.04 → −1.96, still reversal; still FAIL** | [PEAD results](docs/research/2026-06-10-pead-event-drift-results.md), [errata](docs/research/2026-09-25-sec-duration-contamination-check.md) |
+
+**Power caveat (2026-09-26):** measured after the fact, these studies had only 9–39% power
+against literature-plausible effects (IC 0.02, 1–2%/yr alpha). They are failures to reject, not proof
+of absence; only EAR's CI excludes a positive effect. See
+[harness power & positive controls](docs/research/2026-09-26-harness-power-and-positive-controls.md).
+
+**Errata caveat (2026-09-26):** studies #2, #3, and #5 depended on two SEC pipeline bugs (as-filed
+share counts on the wrong split basis; 3-month vs year-to-date facts colliding under one cache key).
+Both are fixed; studies were re-run with their original locked parameters. **No verdict flipped —
+the corrected numbers above are now canonical.** See the errata docs linked in the table.
 
 Plus a data-feasibility verdict: the **survivorship-free S&P 500 spike**
 ([write-up](docs/research/2026-06-09-survivorship-free-sp500-spike.md)) — membership
@@ -71,12 +81,18 @@ All three are decoupled from the portfolio pipeline, run offline from local stor
 artifacts to `data/research/`.
 
 ### `signal-eval` — cross-sectional factor gate
-Rank-IC + quantile spreads (gross and net of costs) per factor, with a configurable t-gate.
+Rank-IC + quantile spreads (gross and net of costs) per factor. Defaults: true-PIT SEC fundamentals
+and a Bonferroni t-gate over the factors tested together (Φ⁻¹(1 − 0.025/k): 1.96 for one factor,
+2.39 for three); `--t-gate` overrides it. All three harnesses return PASS / FAIL / INCONCLUSIVE.
 
 ```bash
 uv run ./main.py signal-eval --factors momentum,value,quality \
   --fundamentals sec --t-gate 2.4 --start 2016-01-01 --end 2026-06-01
 ```
+
+Add `--power-sim 100 --workers 8` for positive and negative controls: synthetic factors of known IC
+(0, 0.02, 0.03, 0.05), injected into the real panel and calibrated to each real factor, run through
+the unchanged gate. The IC-0 row is the false-positive rate.
 
 ### `ts-eval` — time-series timing gate
 Pre-registered timing rules vs buy-and-hold on a 10-ETF multi-asset universe: net excess Sharpe
@@ -103,6 +119,7 @@ uv run ./main.py pead-eval          # all three pre-registered measures
 | `data/historical/prices/` | ~500 S&P names, daily, 2015→ | `tools/download_historical_data.py` | ticker-identity guard + `tools/verify_price_store.py` |
 | `data/historical/ts/` | 10 multi-asset ETFs + ^VIX/^VIX9D/^VIX3M/^IRX | `tools/download_ts_universe.py` | separate dir — never pollutes the cross-sectional universe |
 | `data/historical/fundamentals_sec/` | FY companyfacts, filed-stamped (498 names) | `tools/build_sec_fundamentals_cache.py` | PIT slicing `filed ≤ as_of` |
+| `data/historical/splits/` | Per-ticker split history (puts as-filed SEC shares on the price basis) | `tools/build_split_cache.py` | cross-checked by `tools/check_split_consistency.py`; missing → name excluded |
 | `data/historical/fundamentals_sec_q/` | Quarterly companyfacts incl. net income (498 names) | `tools/build_sec_q_cache.py` (probe mode first) | first-filed semantics; separate dir |
 
 ## The portfolio tool (legacy, still functional)
@@ -133,8 +150,13 @@ formally killed the regime overlay's legacy performance claims.
 3. Net of realistic costs, always; benchmarks get the benefit of the doubt.
 4. PIT or it doesn't exist: filed dates, first-filed values, trailing-only thresholds, enforced
    execution lags — each with an adversarial test that fails under leakage.
-5. Degenerate cases fail loudly (NaN p → FAIL); nothing silently degrades or falls back.
-6. Pre-register the stopping rule — and honor it. Negative results get the same write-up quality
+5. Degenerate cases are INCONCLUSIVE, loudly: no computable statistic or too short a sample
+   (< 24 IC periods / < 252 days) is never reported as FAIL, and the CLI exits 3. "No data" must
+   not read as "no edge". Nothing silently degrades or falls back.
+6. Report power next to every verdict: SE, 95% CI, 80%-power minimum detectable effect, and power
+   at a pre-set reference effect (report-only; gates unchanged). A FAIL is evidence of absence only
+   when the test could have seen a realistic effect.
+7. Pre-register the stopping rule — and honor it. Negative results get the same write-up quality
    as positives would have.
 
 ## Status: PARKED (2026-06-10)

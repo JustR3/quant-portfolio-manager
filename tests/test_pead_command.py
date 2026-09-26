@@ -43,6 +43,7 @@ def _mini_world(tmp_path):
                 val = 400 + rng.normal(0, 25)
             for field in ("net_income", "revenue"):
                 rows.append(dict(field=field, period_end=pe_, fiscal_period=fp,
+                                 period_start=pe_ - pd.Timedelta(days=364 if fp == "FY" else 90),
                                  filed=pe_ + pd.Timedelta(days=40 if fp != "FY" else 55),
                                  value=val * (10 if field == "revenue" else 1)))
         pd.DataFrame(rows).to_parquet(secq / f"{t}.parquet", index=False)
@@ -66,3 +67,18 @@ def test_unknown_measure_raises(tmp_path):
     secq, main, ts = _mini_world(tmp_path)
     with pytest.raises(ValueError, match="nope"):
         pc.run_pead_eval_measures(measures=["nope"], sec_q_dir=secq, price_dir=main, ts_dir=ts)
+
+
+def test_legacy_cache_is_refused_unless_explicitly_allowed(tmp_path):
+    """A quarterly cache without period_start (pre-duration-fix) must not silently feed a
+    verdict; --allow-legacy-cache reproduces it and marks the artifact non-canonical."""
+    secq, main, ts = _mini_world(tmp_path)
+    for f in secq.glob("*.parquet"):
+        pd.read_parquet(f).drop(columns="period_start").to_parquet(f, index=False)
+    kw = dict(measures=["sue_e"], sec_q_dir=secq, price_dir=main, ts_dir=ts, horizon=20,
+              min_leg=2, n_boot=50)
+    with pytest.raises(pc.sf.LegacyCacheError, match="period_start"):
+        pc.run_pead_eval_measures(**kw)
+    res = pc.run_pead_eval_measures(allow_legacy=True, **kw)
+    assert res.caveats[0].startswith("LEGACY SEC QUARTERLY CACHE")
+    assert res.params["allow_legacy_cache"] is True

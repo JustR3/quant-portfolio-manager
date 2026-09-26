@@ -50,7 +50,8 @@ PROG = "uv run ./main.py"
 
 def print_msg(msg: str, style: str = "info"):
     """Print a message with optional styling."""
-    symbols = {"success": ("✓", "green"), "error": ("✗", "red"), "info": ("ℹ", "blue")}
+    symbols = {"success": ("✓", "green"), "error": ("✗", "red"), "info": ("ℹ", "blue"),
+               "warning": ("⚠", "yellow")}
     sym, color = symbols.get(style, ("ℹ", "blue"))
     if HAS_RICH and console:
         console.print(f"[{color}]{sym}[/{color}] {msg}")
@@ -383,17 +384,51 @@ Examples:
     sig.add_argument(
         "--fundamentals",
         type=str,
-        default="yfinance",
+        default="sec",
         choices=["yfinance", "sec"],
-        help="Fundamentals source for Value/Quality (default: yfinance)",
+        help="Fundamentals source: sec = true point-in-time SEC cache, offline (default); "
+        "yfinance = thin, restated, network",
     )
     sig.add_argument(
         "--t-gate",
         dest="t_gate",
         type=float,
-        default=2.0,
+        default=None,
         metavar="T",
-        help="|t|-stat gate for PASS (default 2.0; pre-registered k=3 set uses 2.4)",
+        help="|t|-stat gate for PASS (default: Bonferroni over the k factors tested, "
+        "Phi^-1(1-0.025/k): 1.96 for k=1, 2.39 for k=3)",
+    )
+    sig.add_argument(
+        "--power-sim",
+        dest="power_sim",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Positive/negative control: inject N synthetic factors of known IC into the real "
+        "panel per target IC and report the gate's pass rate (report-only; default 0 = off)",
+    )
+    sig.add_argument(
+        "--power-sim-ics",
+        dest="power_sim_ics",
+        type=str,
+        default="0,0.02,0.03,0.05",
+        help="Comma-separated target mean rank-ICs for --power-sim (default: 0,0.02,0.03,0.05)",
+    )
+    sig.add_argument(
+        "--seed", type=int, default=42, help="Seed for --power-sim (default: 42)"
+    )
+    sig.add_argument(
+        "--allow-legacy-cache",
+        dest="allow_legacy_cache",
+        action="store_true",
+        help="Accept a pre-2026-09-26 SEC cache without period_start (reproduces pre-errata "
+        "numbers; the artifact is marked non-canonical)",
+    )
+    sig.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Processes for --power-sim (results identical for any count; default: 1)",
     )
     sig.add_argument(
         "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
@@ -498,6 +533,13 @@ Examples:
         "--seed", type=int, default=42, help="Bootstrap seed (default: 42)"
     )
     pead.add_argument(
+        "--allow-legacy-cache",
+        dest="allow_legacy_cache",
+        action="store_true",
+        help="Accept a pre-2026-09-26 quarterly SEC cache without period_start (reproduces "
+        "pre-errata numbers; the artifact is marked non-canonical)",
+    )
+    pead.add_argument(
         "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
     )
 
@@ -525,6 +567,20 @@ Examples:
     )
 
     return parser.parse_args()
+
+
+def _exit_if_inconclusive(result) -> None:
+    """Exit 3 when any verdict is INCONCLUSIVE, so scripts can't read 'no data' as 'no edge'."""
+    from src.research import verdict as V
+
+    items = (getattr(result, "factors", None) or getattr(result, "rules", None)
+             or getattr(result, "measures", None) or [])
+    verdicts = [(i.verdict if hasattr(i, "verdict") else i.get("verdict")) for i in items]
+    code = V.exit_code(verdicts)
+    if code:
+        print_msg(f"{verdicts.count(V.INCONCLUSIVE)} verdict(s) INCONCLUSIVE — not evidence "
+                  f"either way (exit {code}).", "warning")
+        sys.exit(code)
 
 
 def main():
@@ -873,39 +929,42 @@ def main():
     if args.module == "signal-eval":
         print_header("Signal-Isolation Study")
         try:
-            run_signal_eval(args)
+            result = run_signal_eval(args)
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             import traceback
 
             traceback.print_exc()
             sys.exit(1)
+        _exit_if_inconclusive(result)
         return
 
     # TS-eval command (iter-5 time-series timing study)
     if args.module == "ts-eval":
         print_header("TS Timing Study")
         try:
-            run_ts_eval(args)
+            result = run_ts_eval(args)
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             import traceback
 
             traceback.print_exc()
             sys.exit(1)
+        _exit_if_inconclusive(result)
         return
 
     # PEAD-eval command (iter-6 SEC-event drift study)
     if args.module == "pead-eval":
         print_header("PEAD Event-Drift Study")
         try:
-            run_pead_eval(args)
+            result = run_pead_eval(args)
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             import traceback
 
             traceback.print_exc()
             sys.exit(1)
+        _exit_if_inconclusive(result)
         return
 
     # Portfolio command

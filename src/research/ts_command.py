@@ -15,9 +15,11 @@ from pathlib import Path
 import pandas as pd
 
 from src.pipeline import historical_store as hstore
+from src.research import power as pw
 from src.research import ts_eval as te
 from src.research import ts_results as tr
 from src.research import ts_signals as ts
+from src.research import verdict as V
 
 TS_BASE = Path("data/historical/ts")
 END_DEFAULT = "2026-05-31"
@@ -89,8 +91,20 @@ def _metrics(rule: str, net: pd.Series, bench: pd.Series, cash: pd.Series, idx: 
              alpha=boot["alpha"], beta=boot["beta"], p_boot=boot["p_boot"],
              nw_t=te.newey_west_t(strat_x, bench_x),
              n_days=int(len(idx)), turnover=float(turnover), cost_drag=float(cost_drag))
-    m["pass"] = tr.gate_pass(m, p_gate)
+    # Report-only power on annualized timing alpha (NW SE; the gate itself is unchanged).
+    a_nw, se_nw = te.newey_west_alpha_se(strat_x, bench_x)
+    m["power"] = pw.power_block(a_nw, se_nw, z_gate=pw.z_for_one_sided_p(p_gate),
+                                ref_effect=pw.REF_TS_ALPHA_ANN, scale=pw.TRADING_DAYS)
+    m["gate_met"] = tr.gate_pass(m, p_gate)
+    computable = not any(_isnan(m[k]) for k in ("p_boot", "sharpe_strat", "sharpe_bench"))
+    m["verdict"], m["inconclusive_reason"] = V.decide(m["gate_met"], computable, m["n_days"],
+                                                      V.MIN_DAYS, "trading days")
+    m["pass"] = m["verdict"] == V.PASS
     return m
+
+
+def _isnan(x) -> bool:
+    return x is None or (isinstance(x, float) and x != x)
 
 
 def _a_rule_exposure(rule: str, base_dir: Path):

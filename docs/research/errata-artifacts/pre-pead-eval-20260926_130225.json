@@ -1,0 +1,162 @@
+{
+  "measures": [
+    {
+      "measure": "sue_e",
+      "window": "2015-01-05..2026-05-26",
+      "n_events": 25133,
+      "n_days": 2864,
+      "net_mean": -0.00010439962309311012,
+      "sharpe_net": -0.29786093005859693,
+      "thirds_positive": [
+        false,
+        false,
+        true
+      ],
+      "monotone": false,
+      "quintile_drift": {
+        "1": 0.0030221692861043185,
+        "2": -0.002872989960459186,
+        "3": -0.005525617726346791,
+        "4": -0.0012717984872607363,
+        "5": 0.007919924344915457
+      },
+      "alpha": -8.458247405855832e-05,
+      "beta": -0.03960912625571516,
+      "p_boot": 0.8375,
+      "nw_t": -0.9568939872683976,
+      "turnover": 417.22009796878694,
+      "cost_drag": 0.03671070694418098,
+      "excluded_days": 5532,
+      "power": {
+        "se": 0.022274968540248706,
+        "ci95": [
+          -0.06497372180164415,
+          0.022344154876130756
+        ],
+        "z_gate": 2.128045234184983,
+        "mde80": 0.06614922714433866,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.10931552738899886
+      },
+      "gate_met": false,
+      "verdict": "FAIL",
+      "inconclusive_reason": "",
+      "pass": false
+    },
+    {
+      "measure": "sue_r",
+      "window": "2015-01-05..2026-05-26",
+      "n_events": 22021,
+      "n_days": 2864,
+      "net_mean": -7.202371485233748e-05,
+      "sharpe_net": -0.2019236037121204,
+      "thirds_positive": [
+        false,
+        false,
+        false
+      ],
+      "monotone": false,
+      "quintile_drift": {
+        "1": 0.0003736535289131939,
+        "2": -0.0017024951333950635,
+        "3": -0.003200051059394703,
+        "4": 0.0036084186643160904,
+        "5": 0.0032140814561265082
+      },
+      "alpha": -6.85234338003332e-05,
+      "beta": -0.006996116034531332,
+      "p_boot": 0.7454,
+      "nw_t": -0.6749660715236742,
+      "turnover": 435.1436274303679,
+      "cost_drag": 0.038287777273901084,
+      "excluded_days": 5532,
+      "power": {
+        "se": 0.025583367885000857,
+        "ci95": [
+          -0.06741130637228564,
+          0.03287549573691772
+        ],
+        "z_gate": 2.128045234184983,
+        "mde80": 0.07597406974040133,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.08910493478157511
+      },
+      "gate_met": false,
+      "verdict": "FAIL",
+      "inconclusive_reason": "",
+      "pass": false
+    },
+    {
+      "measure": "ear",
+      "window": "2015-02-09..2026-05-27",
+      "n_events": 21498,
+      "n_days": 2841,
+      "net_mean": -0.00017755117466413956,
+      "sharpe_net": -0.7086849769576242,
+      "thirds_positive": [
+        false,
+        false,
+        false
+      ],
+      "monotone": false,
+      "quintile_drift": {
+        "1": 0.005076453378063813,
+        "2": 0.001086337948981506,
+        "3": -0.0010671698487475913,
+        "4": 0.0002092992811641764,
+        "5": 0.0030081669686672008
+      },
+      "alpha": -0.00015157704238564265,
+      "beta": -0.05157818626964653,
+      "p_boot": 0.9794,
+      "nw_t": -2.041610004461937,
+      "turnover": 401.351026601781,
+      "cost_drag": 0.035600302254012256,
+      "excluded_days": 5555,
+      "power": {
+        "se": 0.01870945704502893,
+        "ci95": [
+          -0.07486795048943864,
+          -0.0015268788729252288
+        ],
+        "z_gate": 2.128045234184983,
+        "mde80": 0.05556084721657918,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.14478460512498947
+      },
+      "gate_met": false,
+      "verdict": "FAIL",
+      "inconclusive_reason": "",
+      "pass": false
+    }
+  ],
+  "params": {
+    "measures": [
+      "sue_e",
+      "sue_r",
+      "ear"
+    ],
+    "horizon": 60,
+    "min_leg": 10,
+    "cost_bps": 10.0,
+    "n_boot": 10000,
+    "seed": 42,
+    "p_gate": 0.016666666666666666,
+    "sec_q_dir": "data/historical/fundamentals_sec_q",
+    "price_dir": "data/historical",
+    "diagnostics": {
+      "sue_e_h20_net_mean_ann": -0.11773155442654162,
+      "sue_r_h20_net_mean_ann": -0.1223341398745517,
+      "ear_h20_net_mean_ann": -0.11287881062509698
+    },
+    "allow_legacy_cache": true
+  },
+  "caveats": [
+    "LEGACY SEC QUARTERLY CACHE (--allow-legacy-cache): no period_start; Q2/Q3 may be 6-/9-month YTD values. Pre-errata reproduction only \u2014 NOT a canonical verdict.",
+    "Events are SEC FILING dates, not 8-K announcement dates \u2014 this tests post-filing drift, the implementable PIT version of PEAD on free data.",
+    "Universe = current SP500 membership (survivorship; financials INCLUDED, unlike phases #1-3).",
+    "First-filed values everywhere (as-first-reported; restatements never used).",
+    "Entry at the first close strictly after signal completion (SUE: t0+1; EAR: t0+2).",
+    "Spread is self-financing; costs 10 bps/side on daily weight changes; min 10 names/leg."
+  ]
+}

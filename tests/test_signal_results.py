@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
+import pytest
 from src.research import results as R
 
 
-def _predictive_panel(factor_col, periods=12, names=200, seed=0):
+def _predictive_panel(factor_col, periods=30, names=200, seed=0):  # >= MIN_IC_PERIODS
     rng = np.random.default_rng(seed)
     frames = []
     for m in range(periods):
@@ -34,7 +35,7 @@ def test_evaluate_factor_passes_strong_signal():
 def test_evaluate_factor_fails_pure_noise():
     rng = np.random.default_rng(7)
     frames = []
-    for m in range(12):
+    for m in range(30):
         df = pd.DataFrame({"value_raw": rng.normal(size=200),
                            "fwd_return": rng.normal(size=200)})
         df["ticker"] = [f"T{i}" for i in range(200)]
@@ -169,3 +170,41 @@ def test_build_caveats_has_qleg_and_issuance_notes():
                                    fundamentals_source="sec"))
     assert "issuance" in cav.lower() or "split" in cav.lower()
     assert "bonferroni" in cav.lower() or "q-leg" in cav.lower() or "rmw" in cav.lower()
+
+
+def test_short_or_empty_sample_is_inconclusive_never_fail():
+    """'No data' must not read as 'no edge': an empty panel or one below MIN_IC_PERIODS is
+    INCONCLUSIVE, even when the raw gate would pass on the short sample."""
+    from src.research import verdict as V
+
+    short = R.evaluate_factor(_predictive_panel("momentum_raw", periods=12), "momentum", q=5,
+                              min_names=10, frequency="monthly", cost_bps=10)
+    assert short.gate_met is True and short.passed is False
+    assert short.verdict == V.INCONCLUSIVE and "12 IC periods" in short.inconclusive_reason
+    empty = _predictive_panel("momentum_raw").iloc[0:0]
+    res = R.evaluate_factor(empty, "momentum", q=5, min_names=10, frequency="monthly",
+                            cost_bps=10)
+    assert res.verdict == V.INCONCLUSIVE and res.passed is False
+    assert "INCONCLUSIVE" in R.SignalEvalResult(factors=[res], caveats=[]).render()
+
+
+def test_bonferroni_default_t_gate_matches_preregistered_convention():
+    assert R.bonferroni_t_gate(1) == pytest.approx(1.96, abs=0.005)
+    assert R.bonferroni_t_gate(3) == pytest.approx(2.39, abs=0.005)
+
+
+def test_cli_on_empty_store_is_inconclusive_exit_3(tmp_path):
+    """Regression for the review finding: with NO data, signal-eval used to print 'no edge' and
+    exit 0. It must now say INCONCLUSIVE for every factor and exit 3."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    main = Path(__file__).parent.parent / "main.py"
+    res = subprocess.run([sys.executable, str(main), "signal-eval", "--export",
+                          str(tmp_path / "out")], cwd=tmp_path, capture_output=True, text=True,
+                         timeout=120)
+    assert res.returncode == 3, res.stdout[-1500:] + res.stderr[-1500:]
+    assert res.stdout.count("INCONCLUSIVE ⚠") == 3
+    assert "no edge" not in res.stdout.lower()
+    assert "auto Bonferroni (k=3)" in res.stdout

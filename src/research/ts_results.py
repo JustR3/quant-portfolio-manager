@@ -12,6 +12,8 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from src.research.power import render_power
+
 P_GATE = 0.01  # one-sided 0.05, Bonferroni k=5 (pre-registered)
 
 
@@ -36,20 +38,25 @@ class TSEvalResult:
 
     def render(self) -> str:
         head = (f"{'rule':14} {'window':24} {'Sharpe s/b':>12} {'sub-dom':>8} "
-                f"{'alpha/d':>9} {'p_boot':>7} {'NW-t':>6} {'turnover':>9} {'verdict':>8}")
+                f"{'alpha/d':>9} {'p_boot':>7} {'NW-t':>6} {'turnover':>9} {'verdict':>12}")
         lines = ["TS TIMING STUDY — pre-registered gate "
                  f"(p<{self.params.get('p_gate', P_GATE)}, Sharpe dominance full + >=2/3 subs)",
                  head, "-" * len(head)]
         for m in self.rules:
             sub = m.get("sub_dominance") or []
             sub_str = f"{sum(bool(x) for x in sub)}/{len(sub)}"
-            verdict = "PASS" if m.get("pass") else "FAIL"
+            verdict = m.get("verdict") or ("PASS" if m.get("pass") else "FAIL")
             lines.append(
                 f"{m.get('rule', '?'):14} {str(m.get('window', '')):24} "
                 f"{m.get('sharpe_strat', float('nan')):5.2f}/{m.get('sharpe_bench', float('nan')):5.2f} "
                 f"{sub_str:>8} {m.get('alpha', float('nan')):9.2e} "
                 f"{m.get('p_boot', float('nan')):7.4f} {m.get('nw_t', float('nan')):6.2f} "
-                f"{m.get('turnover', float('nan')):9.2f} {verdict:>8}")
+                f"{m.get('turnover', float('nan')):9.2f} {verdict:>12}")
+            if m.get("inconclusive_reason"):
+                lines.append(f"{'':14} INCONCLUSIVE: {m['inconclusive_reason']}")
+            if m.get("power"):
+                lines.append(f"{'':14} {render_power(m['power'], '{:+.2%}')}  "
+                             "(alpha/yr; report-only)")
         if self.caveats:
             lines.append("")
             lines.append("CAVEATS:")

@@ -7,14 +7,23 @@ def _full_facts():
     vals = {"revenue": 200.0, "gross_profit": 80.0, "ebit": 50.0,
             "total_assets": 300.0, "current_liabilities": 100.0,
             "cfo": 60.0, "capex": 20.0, "shares": 10.0}
-    return pd.DataFrame([(k, "2020-12-31", "2021-02-15", v) for k, v in vals.items()],
-                        columns=["field", "period_end", "filed", "value"]).astype(
-        {"period_end": "datetime64[ns]", "filed": "datetime64[ns]", "value": "float"})
+    return pd.DataFrame([(k, "2020-12-31", "2020-01-01", "2021-02-15", v)
+                         for k, v in vals.items()],
+                        columns=["field", "period_end", "period_start", "filed", "value"]).astype(
+        {"period_end": "datetime64[ns]", "period_start": "datetime64[ns]",
+         "filed": "datetime64[ns]", "value": "float"})
+
+
+def _no_split_adjuster(monkeypatch, splits=None):
+    s = splits if splits is not None else pd.Series(dtype=float)
+    monkeypatch.setattr(fp.splits, "load_adjuster",
+                        lambda t, *a, **k: fp.splits.make_adjuster(s, "2026-06-01"))
 
 
 def test_sec_provider_uses_cached_facts(monkeypatch):
     facts = _full_facts()
     monkeypatch.setattr(fp.sf, "load_facts", lambda t, **k: facts if t == "AAA" else None)
+    _no_split_adjuster(monkeypatch)
     pf = fp.SECFundamentals().pit_factors("AAA", pd.Timestamp("2021-06-30"), price=100.0)
     assert not pf.excluded
     assert pf.value_raw == pytest.approx(0.5 * (40.0 / 1000.0) + 0.5 * (50.0 / 1000.0))
@@ -35,6 +44,7 @@ def test_sec_provider_loads_facts_once_per_ticker(monkeypatch):
         return facts
 
     monkeypatch.setattr(fp.sf, "load_facts", _load)
+    _no_split_adjuster(monkeypatch)
     prov = fp.SECFundamentals()
     prov.pit_factors("AAA", pd.Timestamp("2021-06-30"), price=100.0)
     prov.pit_factors("AAA", pd.Timestamp("2022-06-30"), price=110.0)
@@ -54,3 +64,33 @@ def test_yfinance_provider_matches_legacy_path(monkeypatch):
     pf = fp.YFinanceFundamentals().pit_factors("AAA", pd.Timestamp("2022-06-30"), price=100.0)
     assert not pf.excluded
     assert pf.quality_raw == pytest.approx(0.5 * (50.0 / 200.0) + 0.5 * (80.0 / 200.0))
+
+
+def test_sec_provider_excludes_when_split_history_missing(monkeypatch):
+    """Never mis-size: no split cache -> excluded with an actionable reason, not raw shares."""
+    monkeypatch.setattr(fp.sf, "load_facts", lambda t, **k: _full_facts())
+    monkeypatch.setattr(fp.splits, "load_adjuster", lambda t, *a, **k: None)
+    pf = fp.SECFundamentals().pit_factors("AAA", pd.Timestamp("2021-06-30"), price=100.0)
+    assert pf.excluded
+    assert "split history" in pf.exclusion_reason
+
+
+def test_sec_provider_value_is_split_invariant(monkeypatch):
+    """A 4:1 split AFTER the share count: the store price is split-adjusted (100 -> 25), so the
+    as-filed 10 shares must become 40 -> the same market cap (1000) and the same Value."""
+    monkeypatch.setattr(fp.sf, "load_facts", lambda t, **k: _full_facts())
+    _no_split_adjuster(monkeypatch, pd.Series([4.0], index=[pd.Timestamp("2022-08-01")]))
+    pf = fp.SECFundamentals().pit_factors("AAA", pd.Timestamp("2021-06-30"), price=25.0)
+    assert not pf.excluded
+    assert pf.value_raw == pytest.approx(0.5 * (40.0 / 1000.0) + 0.5 * (50.0 / 1000.0))
+
+
+def test_sec_provider_refuses_legacy_cache_unless_allowed(monkeypatch):
+    legacy = _full_facts().drop(columns="period_start")
+    monkeypatch.setattr(fp.sf, "load_facts", lambda t, **k: legacy)
+    _no_split_adjuster(monkeypatch)
+    with pytest.raises(fp.sf.LegacyCacheError, match="period_start"):
+        fp.SECFundamentals().pit_factors("AAA", pd.Timestamp("2021-06-30"), price=100.0)
+    pf = fp.SECFundamentals(allow_legacy=True).pit_factors("AAA", pd.Timestamp("2021-06-30"),
+                                                           price=100.0)
+    assert not pf.excluded
