@@ -113,6 +113,7 @@ def simulate_power(
     q: int,
     min_names: int,
     frequency: str,
+    horizon_months: int,
     cost_bps: float,
     t_gate: float,
     n_sims: int = 100,
@@ -126,7 +127,12 @@ def simulate_power(
     cal = calibrate(panel, col)
     slim = panel[["date", "ticker", col, "fwd_return"]].copy()
     gate_kw = dict(
-        q=q, min_names=min_names, frequency=frequency, cost_bps=cost_bps, t_gate=t_gate
+        q=q,
+        min_names=min_names,
+        frequency=frequency,
+        horizon_months=horizon_months,
+        cost_bps=cost_bps,
+        t_gate=t_gate,
     )
     tasks = [
         (factor, col, float(t), ti, k, cal, seed, gate_kw)
