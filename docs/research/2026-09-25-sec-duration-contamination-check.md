@@ -192,12 +192,24 @@ CLEAN for both.
 **Cause.** The 52 residual `q4_negative` fiscal years (0.8% of 6,679) split into two groups: 27
 where the FY row and its Q1–Q3 siblings came from different XBRL concepts (`q4_concept_mismatch`,
 e.g. the ASC 606 tag switch where both concepts mean total revenue), and 25 where the FY row and
-its siblings share **one** concept yet the imputed Q4 is still negative. The working hypothesis for
-the 25 same-concept cases is a discontinued-ops recast: after a mid-year divestiture or spin-off,
-the FY row is filed later and restated without the divested unit, while the already-filed Q1–Q3
-values still include it — so `FY - (Q1+Q2+Q3)` goes negative even though every row is tagged with
-the same concept. Several of the 25 line up with known-to-us divestitures/spin-offs in that fiscal
-year (list below); this is pattern-matching against the data shown, not new research.
+its siblings share **one** concept yet the imputed Q4 is still negative. The same-concept 25 have
+more than one cause, and one tag string can carry different scopes of the business:
+- **Discontinued-ops recasts** (the most common pattern): after a mid-year divestiture or spin-off,
+  the FY row is filed later and restated without the divested unit, while the already-filed Q1–Q3
+  values still include it. 14 of the 25 line up with a known divestiture/spin-off that year (list
+  below; pattern-matching, not new research).
+- **A mis-scoped FY fact.** In AMT 2018, Q1–Q3 under
+  `RevenueFromContractWithCustomerExcludingAssessedTax` sum to $5.31B, but the first-filed FY row
+  under the same concept is $491M, about 1/15 of real revenue. It looks like a dimensional or
+  segment fact taken as the company total; a 2021 filing under `us-gaap:Revenues` shows $7.44B.
+  ERIE 2015 is similar: the same concept and period_end report $1.605B and, a year later, $351M.
+- **Two FY period_ends for one fiscal year.** YUM 2015 has a fiscal-calendar FY row (12/26) and a
+  later-filed 12/31 row (filed 2018, post-China-separation scope). The 370-day sibling window
+  matches the 12/31 row against the pre-separation first-filed quarters.
+
+(Evidence: the investigation comment on PR #14, read from the cached parquets and raw
+companyfacts.) None of these is a coding bug in the rule below. A negative imputed Q4 is simply
+the one symptom all of them share that can be detected without a new, unregistered heuristic.
 
 **Why the concept rule (branch `claude/q4-same-concept`, 2026-09-26) was rejected.** Storing
 `concept` and skipping any Q4 whose FY/Q1–Q3 concepts disagreed dropped `q4_negative` only
@@ -221,10 +233,11 @@ gates Q4 imputation or cache legacy-ness.
 **Skipped-event count.** Re-running the locked `uv run ./main.py pead-eval` command:
 `sue_r_q4_negative_revenue_skipped = 51` imputed Q4 revenues were skipped (of 6,679 fiscal years
 checked; `net_income`/SUE-E and EAR carry no such skip — EAR does not impute Q4 and `net_income`
-has no validity rule). This is close to, not identical to, the diagnostic's `q4_negative = 52`:
-the diagnostic scans every ticker in the quarterly cache, while `pead-eval` scans the SUE
-universe (SP500 current membership) actually used by the study, so a handful of `q4_negative`
-tickers outside that universe do not surface as a pead-eval skip.
+has no validity rule). This is close to, not identical to, the diagnostic's `q4_negative = 52`.
+The two filters differ: `pead-eval` also requires every sibling to be first-filed on or before
+the FY filing date (the PIT rule) and only scans tickers in the study's price universe, while the
+diagnostic has neither restriction. Which of the two accounts for the one-year gap was not
+checked.
 
 **Corrected numbers (previous canonical vs new, both under the split-basis and duration errata,
 locked `pead-eval` defaults, no parameter changed):**
@@ -241,8 +254,10 @@ locked `pead-eval` defaults, no parameter changed):**
 
 SUE-E and EAR are unchanged because neither reads the revenue Q4-imputation path (EAR uses no
 imputation at all; SUE-E imputes `net_income`, which the validity rule does not touch). Only
-SUE-R moves, and only slightly (51 events out of 22,073 removed, net/yr −2.49% → −2.36%); the
-verdict stays FAIL for all three measures. Raw artifacts: `duration_check_v4.json` and
+SUE-R moves, and only slightly (net/yr −2.49% → −2.36%). The event count fell by **84**
+(22,106 → 22,022), not 51. A skipped Q4 also disappears as the year-ago comparator and as a
+sigma-history diff for the following quarters' SUEs, so some of those become non-computable too.
+The verdict stays FAIL for all three measures. Raw artifacts: `duration_check_v4.json` and
 `pead-eval-...-q4neg.json` in `docs/research/errata-artifacts/`.
 
 **The 25 same-concept negative-Q4 fiscal years** (ticker, fiscal year, FY value, Q1+Q2+Q3 sum,
@@ -278,14 +293,23 @@ knowledge of that ticker/year, not new research, and are omitted where we have n
 | WMB | 2011 | 7,930,000,000 | 7,947,000,000 | 0.998 | WPX Energy spin-off (prep, completed early 2012) |
 | YUM | 2015 | 6,418,000,000 | 9,154,000,000 | 0.701 | Yum China separation (announced Oct 2015) |
 
-14 of the 25 have a plausible match; 11 do not (AMT ×2, CCI, CTVA, DOC, ERIE, JCI, LDOS, SPGI) —
-these remain unexplained beyond "same concept, FY restated lower than the sum of its quarters."
+14 of the 25 have a plausible match; 11 do not (AMT ×2, CCI, CTVA, DOC, ERIE, JCI, LDOS, SPGI).
+AMT and ERIE are the mis-scoped-fact cases above; the rest are unexplained beyond "same concept,
+FY lower than the sum of its quarters."
 
-**Residual risk.** Removing negative imputed Q4 revenue does not remove every discontinued-ops
-distortion — a divestiture that leaves the imputed Q4 *understated but still positive* (e.g. a
-partial-year unit sold in Q4 itself) is invisible to this rule and stays in the sample. This
-residual is small: the 51 skipped events are 0.23% of SUE-R's 22,073 pre-skip Q4-eligible
-observations, and understated-but-positive Q4s (not directly countable without per-filing
-restatement detail) are expected to be a similarly small fraction, well under 1% of events —
-consistent with the study's own power caveat that these are failures to reject, not proof of
+**Residual risk.** The rule removes only the cases that go negative. The same mechanisms can leave
+an imputed Q4 *understated but still positive*: a smaller recast, a mis-scoped FY that is not
+quite small enough, or a mismatched FY period_end. Those stay in the sample and can't be counted
+without per-filing restatement detail. The 84 SUE-R events removed are 0.38% of 22,106, and the
+undetected residual is expected to be of the same order, well under 1% of events. That is
+consistent with the study's power caveat: these results are failures to reject, not proof of
 absence.
+
+**Open follow-ups (not errata; would need their own rule, chosen blind to returns):**
+- **Duplicate FY period_ends.** A fiscal year can have two FY rows a few days apart (the YUM
+  pattern). A later-filed one can then be imputed against first-filed quarters, producing a Q4
+  event dated years after the quarter. Count how often this happens before deciding anything.
+- **Mis-scoped FY facts in the FY cache.** The AMT-type problem, a first-filed FY value that
+  isn't the company total, may also reach the FY cache that studies #2/#3 read. There it would be
+  the PIT value until a later filing replaces it. The duration check's `quarter_sized` flag
+  (INFO, 152 of 18,371 periods) is the place to start.
