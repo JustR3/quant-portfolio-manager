@@ -11,7 +11,8 @@ name: self-harden
 #      --refresh path is out of scope for the equivalent job in other repos).
 #   3. Check the remaining live feeds (FRED, French, Damodaran) for a staleness gap; Shiller CAPE
 #      already got one this session (src/pipeline/external/freshness.py).
-# Opens a PR if anything changed. Never writes to data/historical/, data/research/, or
+# Opens a PR if anything changed and merges it after the in-job checks
+# pass; opens an issue if the run fails. Never writes to data/historical/, data/research/, or
 # data/backtests/ for real.
 # Monthly (1st, 05:00 UTC), not weekly — no other scheduled workflow exists in this repo to avoid
 # colliding with, and the repo is PARKED (README "Status: PARKED") — no active development to
@@ -27,7 +28,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: read
+  issues: write # opens an issue when a run fails
   id-token: write # required by anthropics/claude-code-action's own OIDC token exchange
 
 concurrency:
@@ -153,13 +154,35 @@ jobs:
             nothing.
           claude_args: '--allowedTools "Read,Edit,Bash"'
 
+      - name: Discard changes outside the allowed paths
+        # The tree verified below must be exactly the tree the PR merges, so
+        # out-of-scope changes (for example data files rewritten by running a
+        # documented command) are discarded here, with a warning, before the
+        # checks run.
+        run: |
+          while IFS= read -r f; do
+            case "$f" in
+              src/*|tests/*) ;;
+              *)
+                echo "::warning::discarding change outside the allowed paths: $f"
+                if git ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
+                  git restore --source=HEAD --staged --worktree -- "$f"
+                else
+                  rm -rf -- "$f"
+                fi
+                ;;
+            esac
+          done < <(git status --porcelain --untracked-files=all | cut -c4-)
+
       - name: Verify tests and lint pass
         run: |
           uv run pytest -q
-          uv run ruff check src/ tests/
+          uv run ruff check .
+          uv run ruff format --check .
 
       - name: Open PR if anything changed
-        uses: peter-evans/create-pull-request@v7
+        id: cpr
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore(self-harden): fuzz fixes and regression tests"
           title: "self-harden: automated adversarial-QA fixes"
@@ -169,3 +192,33 @@ jobs:
           add-paths: |
             src/**
             tests/**
+
+      - name: Merge PR
+        # GitHub holds pull_request runs on bot-created PRs for manual approval
+        # (changelog 2026-06-11), so the PR's own `test` check never starts on
+        # its own. This job already ran the same tests and lint on the exact
+        # tree the PR contains, so it merges the PR itself. --match-head-commit
+        # refuses the merge if the branch moved after the checks ran.
+        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --merge --delete-branch \
+            --match-head-commit "${{ steps.cpr.outputs.pull-request-head-sha }}"
+
+      - name: Open issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          title="self-harden run failed"
+          n=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body "@$OWNER failed again: $RUN_URL"
+          else
+            gh issue create --title "$title" --body "@$OWNER the self-harden workflow failed and nothing was merged. Run: $RUN_URL"
+          fi
