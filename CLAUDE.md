@@ -41,6 +41,9 @@ strategy claim through an honest, costed, PIT-correct gate.
 - Price store integrity: `uv run python tools/verify_price_store.py`
 - SEC cache 3-month-vs-YTD contamination: `uv run python tools/check_sec_duration_contamination.py`
   (see `docs/research/2026-09-25-sec-duration-contamination-check.md`)
+- FY-cache scope outliers (out-of-scope XBRL concept, e.g. AMT FY2018 revenue, PR #14):
+  `uv run python tools/check_fy_scope_outliers.py`
+  (see `docs/research/2026-09-27-fy-scope-outlier-check.md`)
 - Split cache (network; required for `--fundamentals sec`): `uv run python tools/build_split_cache.py`;
   cross-check vs the SEC share heuristic: `uv run python tools/check_split_consistency.py`
   (see `docs/research/2026-09-26-split-basis-errata.md`)
