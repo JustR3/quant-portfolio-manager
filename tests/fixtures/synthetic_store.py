@@ -10,7 +10,7 @@ network. Callers always pass an arbitrary scratch `base_dir` — this never touc
 Schemas mirror the real files exactly:
 - prices: `historical_store.load_prices` — (field, ticker) MultiIndex columns, tz-naive Date.
 - SEC FY facts: `sec_fundamentals` — (field, period_end, filed, value).
-- SEC quarterly facts: `sec_quarterly` — (field, period_end, fiscal_period, filed, value),
+- SEC quarterly facts: `sec_quarterly` — (field, period_end, period_start, fiscal_period, filed, value, concept),
   Q1/Q2/Q3/FY only (Q4 is derived downstream from FY minus siblings; never stored — see
   sec_quarterly.py's own docstring).
 """
@@ -134,6 +134,7 @@ def _write_quarterly_facts(path: Path, seed: int) -> None:
                     "fiscal_period": q,
                     "filed": filed,
                     "value": ni,
+                    "concept": "us-gaap:NetIncomeLoss",
                 }
             )
             rows.append(
@@ -144,6 +145,7 @@ def _write_quarterly_facts(path: Path, seed: int) -> None:
                     "fiscal_period": q,
                     "filed": filed,
                     "value": rev,
+                    "concept": "us-gaap:Revenues",
                 }
             )
             q_ni.append(ni)
@@ -158,6 +160,7 @@ def _write_quarterly_facts(path: Path, seed: int) -> None:
                 "fiscal_period": "FY",
                 "filed": fy_filed,
                 "value": sum(q_ni) * 1.3,
+                "concept": "us-gaap:NetIncomeLoss",
             }
         )
         rows.append(
@@ -168,6 +171,7 @@ def _write_quarterly_facts(path: Path, seed: int) -> None:
                 "fiscal_period": "FY",
                 "filed": fy_filed,
                 "value": sum(q_rev) * 1.3,
+                "concept": "us-gaap:Revenues",
             }
         )
     facts = pd.DataFrame(
@@ -179,6 +183,7 @@ def _write_quarterly_facts(path: Path, seed: int) -> None:
             "fiscal_period",
             "filed",
             "value",
+            "concept",
         ],
     ).astype(
         {

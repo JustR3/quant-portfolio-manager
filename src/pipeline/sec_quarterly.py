@@ -4,8 +4,11 @@ Separate, additive sibling of sec_fundamentals: keeps Q1/Q2/Q3/FY rows (with fis
 minimal field set, cached per ticker under data/historical/fundamentals_sec_q/ — the phase #2/#3
 FY-only cache is untouched and stays reproducible.
 
-Schema: (field, period_end, fiscal_period, filed, value). The harness consumes FIRST-filed values
-only (as-first-reported; see pead_events.first_filed).
+Schema: (field, period_end, period_start, fiscal_period, filed, value, concept). `concept` is the
+XBRL concept each row came from: the walk below can source a ticker's FY row from one concept and
+its Q1-Q3 rows from another. INFORMATION only: the duration-check tool reports mismatches and
+nothing else reads it. The harness consumes FIRST-filed values only (as-first-reported; see
+pead_events.first_filed).
 
 Spec: docs/superpowers/specs/2026-06-10-pead-event-drift-design.md §2.
 """
@@ -28,7 +31,15 @@ QUARTERLY_CONCEPT_MAP = {
 }
 KEEP_PERIODS = {"Q1", "Q2", "Q3", "FY"}
 SEC_FUND_Q_DIR = Path("data/historical/fundamentals_sec_q")
-COLUMNS = ["field", "period_end", "period_start", "fiscal_period", "filed", "value"]
+COLUMNS = [
+    "field",
+    "period_end",
+    "period_start",
+    "fiscal_period",
+    "filed",
+    "value",
+    "concept",
+]
 
 
 def cache_path(ticker: str, base_dir: Path = SEC_FUND_Q_DIR) -> Path:
@@ -86,6 +97,7 @@ def fetch_facts_quarterly(ticker: str) -> pd.DataFrame:
                         "fiscal_period": fp,
                         "filed": fd,
                         "value": float(r["numeric_value"]),
+                        "concept": concept,
                     }
                 )
     return pd.DataFrame(rows, columns=COLUMNS).astype(

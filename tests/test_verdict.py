@@ -81,6 +81,7 @@ def test_pead_no_events_is_inconclusive(tmp_path):
             "fiscal_period": ["Q1"],
             "filed": [pd.Timestamp("2010-05-01")],
             "value": [1.0],
+            "concept": ["us-gaap:Revenues"],
         }
     ).to_parquet(secq / "AAA.parquet", index=False)
     res = pc.run_pead_eval_measures(

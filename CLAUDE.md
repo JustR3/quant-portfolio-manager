@@ -106,6 +106,9 @@ Closes the down-cap/survivorship lead until paid data is justified.
   `docs/research/2026-06-10-pead-event-drift-results.md`.
   **Corrected under errata (2026-09-26, duration fix): sue_e net/yr −2.63%→−1.16%, sue_r
   −1.81%→−2.49%, ear −4.47%→−4.33% (NW-t −2.04→−1.96, still reversal-direction). Still all FAIL.**
+  **Addendum (2026-09-27, impossible imputed Q4 revenue — replaces a rejected concept rule):
+  sue_r −2.49%→−2.36%/yr (51 negative-imputed-Q4-revenue events skipped); sue_e and ear
+  unchanged (neither reads the revenue Q4-imputation path). Still all FAIL.**
   See `docs/research/2026-09-25-sec-duration-contamination-check.md`.
 
 ## Direction: PARKED (reframe executed 2026-06-10; stopping rule fired, counter 2 of 2)

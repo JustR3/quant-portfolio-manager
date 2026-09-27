@@ -174,9 +174,16 @@ def test_quarterly_builder_rebuilds_legacy_files_only(tmp_path):
 
     new = tmp_path / "new.parquet"
     old = tmp_path / "old.parquet"
+    no_concept = tmp_path / "no_concept.parquet"
     pd.DataFrame({"field": ["revenue"], "period_start": [pd.NaT]}).to_parquet(new)
     pd.DataFrame({"field": ["revenue"]}).to_parquet(old)
+    pd.DataFrame({"field": ["revenue"], "period_start": [pd.NaT]}).to_parquet(
+        no_concept
+    )
     assert not is_legacy_file(new) and is_legacy_file(old)
+    assert not is_legacy_file(
+        no_concept
+    )  # concept is info only: never triggers a rebuild
 
 
 def _legacyify(base: Path) -> None:

@@ -67,8 +67,12 @@ def build_events(
     spy: pd.Series,
     calendar: pd.Index,
     allow_legacy: bool = False,
+    stats: dict | None = None,
 ) -> pd.DataFrame:
-    """Per-measure event table [ticker, entry, score] under the spec's PIT rules."""
+    """Per-measure event table [ticker, entry, score] under the spec's PIT rules.
+
+    `stats`, if given, accumulates `q4_negative_revenue_skipped`: imputed Q4 revenues < 0 that
+    pead_events.quarterly_series skipped (sue_r only; net_income has no such rule)."""
     rows = []
     for t in tickers:
         facts = sq.load_facts_q(t, sec_q_dir)
@@ -80,7 +84,7 @@ def build_events(
         ev_f = pev.event_dates(ff)
         ev_f = ev_f[ev_f >= calendar[0]]  # never force-map pre-calendar filings forward
         if measure in MEASURE_FIELD:
-            s = pev.sue_series(pev.quarterly_series(ff, MEASURE_FIELD[measure]))
+            s = pev.sue_series(pev.quarterly_series(ff, MEASURE_FIELD[measure], stats))
             s = s.dropna(subset=["sue"])
             for _, r in s.iterrows():
                 f = ev_f.get(r["period_end"])
@@ -148,6 +152,7 @@ def run_pead_eval_measures(
     out_measures = []
     diagnostics = {}
     for m in measures:
+        ev_stats: dict = {}
         ev = build_events(
             m,
             tickers,
@@ -156,7 +161,12 @@ def run_pead_eval_measures(
             spy,
             calendar,
             allow_legacy=allow_legacy,
+            stats=ev_stats,
         )
+        if MEASURE_FIELD.get(m) == "revenue":  # only revenue has the validity rule
+            diagnostics[f"{m}_q4_negative_revenue_skipped"] = ev_stats.get(
+                "q4_negative_revenue_skipped", 0
+            )
         ev = ev[ev["ticker"].isin(closes)]
         ev = ev[ev["entry"] <= entry_cap]
         if ev.empty:

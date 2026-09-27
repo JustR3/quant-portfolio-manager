@@ -6,8 +6,9 @@ true 10-Q filed dates (lag 20-90d), whether NetIncomeLoss resolves, and coverage
 
 Full build: every ticker in the existing FY cache (data/historical/fundamentals_sec/), skipping
 already-built parquets that carry `period_start` (the 2026-09-26 duration fix); legacy parquets
-without it are rebuilt automatically, and --refresh rebuilds everything. Network: one
-companyfacts fetch per ticker via edgartools.
+without it are rebuilt automatically, and --refresh rebuilds everything. Rebuilt parquets also
+store the informational `concept` column. Network: one companyfacts fetch per ticker via
+edgartools.
 """
 
 import argparse
