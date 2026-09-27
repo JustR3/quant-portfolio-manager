@@ -2,7 +2,8 @@
 
 - **Date:** 2026-09-25
 - **Status:** diagnostic built (2026-09-25); fetchers fixed (2026-09-26); **errata re-run of
-  #2/#3/#5 executed 2026-09-26** — see "Errata results" below. No verdict flipped to PASS.
+  #2/#3/#5 executed 2026-09-26** — see "Errata results" below. **Negative-imputed-Q4-revenue
+  addendum executed 2026-09-27** — see "Errata addendum" below. No verdict flipped to PASS.
 - **Tool:** `tools/check_sec_duration_contamination.py` (offline, read-only).
 - **Affects:** study #2/#3 (FY cache → Value/Quality/q-legs) and study #5 (quarterly cache → PEAD SUE).
 
@@ -185,3 +186,106 @@ restatements, and FY-vs-quarterly concept mismatches, not durations. Legacy cach
 `tests/test_sec_duration_check.py` (a seasonal rebuilt cache is CLEAN with pattern info; one bad
 stored duration is CONTAMINATED). Re-running the command on the rebuilt caches should now print
 CLEAN for both.
+
+## Errata addendum: impossible imputed Q4 revenue (2026-09-27)
+
+**Cause.** The 52 residual `q4_negative` fiscal years (0.8% of 6,679) split into two groups: 27
+where the FY row and its Q1–Q3 siblings came from different XBRL concepts (`q4_concept_mismatch`,
+e.g. the ASC 606 tag switch where both concepts mean total revenue), and 25 where the FY row and
+its siblings share **one** concept yet the imputed Q4 is still negative. The working hypothesis for
+the 25 same-concept cases is a discontinued-ops recast: after a mid-year divestiture or spin-off,
+the FY row is filed later and restated without the divested unit, while the already-filed Q1–Q3
+values still include it — so `FY - (Q1+Q2+Q3)` goes negative even though every row is tagged with
+the same concept. Several of the 25 line up with known-to-us divestitures/spin-offs in that fiscal
+year (list below); this is pattern-matching against the data shown, not new research.
+
+**Why the concept rule (branch `claude/q4-same-concept`, 2026-09-26) was rejected.** Storing
+`concept` and skipping any Q4 whose FY/Q1–Q3 concepts disagreed dropped `q4_negative` only
+52 → 25: it caught the 27 concept-mismatch cases but not the 25 same-concept ones, at the cost of
+discarding 460 of 6,679 fiscal years (6.9%) — the large majority of them (460 − 27 = 433)
+almost certainly fine Q4s where the concept simply changed for an unrelated reporting reason (the
+ASC 606 switch above all). A rule that throws away 460 good years to fix 27 is not a validity
+constraint; it is a blunt instrument, and it still would not have fixed the 25 same-concept
+negatives that motivated the check in the first place.
+
+**Rule adopted.** For `field == "revenue"` only, skip an imputed Q4 whose value is `< 0` — the
+same treatment a missing sibling already gets. Negative revenue is physically impossible, so this
+is a validity constraint on the imputed value itself, not a tuned threshold on `concept`.
+`net_income` is untouched: a negative quarter's earnings are legitimate. The rule was chosen from
+the physical-impossibility argument alone, **before re-running `pead-eval` and before looking at
+any PEAD return** — the case for it does not depend on, and was not influenced by, its effect on
+the study's numbers. `concept` stays stored in the cache and reported by
+`tools/check_sec_duration_contamination.py` as `q4_concept_mismatch` (INFO only); it no longer
+gates Q4 imputation or cache legacy-ness.
+
+**Skipped-event count.** Re-running the locked `uv run ./main.py pead-eval` command:
+`sue_r_q4_negative_revenue_skipped = 51` imputed Q4 revenues were skipped (of 6,679 fiscal years
+checked; `net_income`/SUE-E and EAR carry no such skip — EAR does not impute Q4 and `net_income`
+has no validity rule). This is close to, not identical to, the diagnostic's `q4_negative = 52`:
+the diagnostic scans every ticker in the quarterly cache, while `pead-eval` scans the SUE
+universe (SP500 current membership) actually used by the study, so a handful of `q4_negative`
+tickers outside that universe do not surface as a pead-eval skip.
+
+**Corrected numbers (previous canonical vs new, both under the split-basis and duration errata,
+locked `pead-eval` defaults, no parameter changed):**
+
+| Measure | | Previous canonical (duration errata, 2026-09-26) | New (negative-Q4-revenue rule, 2026-09-27) |
+|---|---|---|---|
+| SUE-E | net/yr | −1.16% | −1.16% (unchanged — `net_income` has no validity rule) |
+| | events / p_boot / NW-t | 25,115 / 0.6237 / −0.32 | 25,115 / 0.6237 / −0.32 |
+| SUE-R | net/yr | −2.49% | **−2.36%** |
+| | events / p_boot / NW-t | 22,106 / 0.7580 / −0.71 | 22,022 / 0.7467 / −0.68 |
+| EAR | net/yr | −4.33% | −4.33% (unchanged — EAR does not impute Q4) |
+| | events / p_boot / NW-t | 21,391 / 0.9757 / −1.96 | 21,391 / 0.9757 / −1.96 |
+| Verdict (all three) | | FAIL | **FAIL — unchanged** |
+
+SUE-E and EAR are unchanged because neither reads the revenue Q4-imputation path (EAR uses no
+imputation at all; SUE-E imputes `net_income`, which the validity rule does not touch). Only
+SUE-R moves, and only slightly (51 events out of 22,073 removed, net/yr −2.49% → −2.36%); the
+verdict stays FAIL for all three measures. Raw artifacts: `duration_check_v4.json` and
+`pead-eval-...-q4neg.json` in `docs/research/errata-artifacts/`.
+
+**The 25 same-concept negative-Q4 fiscal years** (ticker, fiscal year, FY value, Q1+Q2+Q3 sum,
+ratio = FY / sum; a ratio well under 1.0 is the signature of a unit present in Q1–Q3 but absent
+from the later-filed, restated FY). Divestiture/spin-off flags are pattern-matched against public
+knowledge of that ticker/year, not new research, and are omitted where we have no such match:
+
+| Ticker | FY | FY value | Q1+Q2+Q3 sum | Ratio | Plausible divestiture/spin-off that year |
+|---|---|---:|---:|---:|---|
+| ADM | 2024 | 24,373,000,000 | 50,083,000,000 | 0.487 | 2024 intersegment-accounting restatement (Nutrition segment) |
+| AMT | 2018 | 491,300,000 | 5,308,200,000 | 0.093 | — |
+| AMT | 2019 | 527,200,000 | 3,840,300,000 | 0.137 | — |
+| BAX | 2015 | 9,968,000,000 | 10,144,000,000 | 0.983 | Baxalta spin-off (Jul 2015) |
+| CCI | 2019 | 670,000,000 | 701,000,000 | 0.956 | — |
+| CTVA | 2018 | 14,287,000,000 | 14,377,000,000 | 0.994 | — |
+| DD | 2019 | 21,512,000,000 | 30,543,000,000 | 0.704 | DowDuPont split → DuPont de Nemours (Apr 2019) |
+| DD | 2025 | 6,849,000,000 | 9,395,000,000 | 0.729 | Qnity Electronics spin-off (2025) |
+| DLTR | 2025 | 17,565,800,000 | 22,560,800,000 | 0.779 | Family Dollar divestiture (2025) |
+| DOC | 2020 | 436,494,000 | 797,818,000 | 0.547 | — |
+| DRI | 2014 | 6,285,600,000 | 6,441,500,000 | 0.976 | Red Lobster divestiture (Jul 2014) |
+| EBAY | 2015 | 8,592,000,000 | 10,926,000,000 | 0.786 | PayPal spin-off (Jul 2015) |
+| EMR | 2016 | 14,522,000,000 | 14,767,000,000 | 0.983 | Network Power (Vertiv) divestiture (2016) |
+| ERIE | 2015 | 1,505,508,000 | 4,583,000,000 | 0.328 | — |
+| FTV | 2020 | 4,634,400,000 | 5,187,000,000 | 0.893 | Vontier spin-off (Oct 2020) |
+| GEN | 2016 | 3,600,000,000 | 3,906,000,000 | 0.922 | Veritas divestiture (Jan 2016) |
+| HWM | 2020 | 5,259,000,000 | 5,596,000,000 | 0.940 | Arconic Corporation spin-off (Apr 2020) |
+| JCI | 2012 | 10,403,000,000 | 13,022,000,000 | 0.799 | — |
+| LDOS | 2014 | 5,772,000,000 | 6,601,000,000 | 0.874 | — |
+| MDLZ | 2012 | 35,015,000,000 | 39,288,000,000 | 0.891 | Kraft Foods Group spin-off (Oct 2012) |
+| MTCH | 2020 | 2,391,269,000 | 2,423,985,000 | 0.987 | Spin-off from IAC (Jul 2020) |
+| SPGI | 2012 | 4,450,000,000 | 4,831,000,000 | 0.921 | — |
+| WDC | 2025 | 9,520,000,000 | 10,674,000,000 | 0.892 | SanDisk spin-off (Feb 2025) |
+| WMB | 2011 | 7,930,000,000 | 7,947,000,000 | 0.998 | WPX Energy spin-off (prep, completed early 2012) |
+| YUM | 2015 | 6,418,000,000 | 9,154,000,000 | 0.701 | Yum China separation (announced Oct 2015) |
+
+14 of the 25 have a plausible match; 11 do not (AMT ×2, CCI, CTVA, DOC, ERIE, JCI, LDOS, SPGI) —
+these remain unexplained beyond "same concept, FY restated lower than the sum of its quarters."
+
+**Residual risk.** Removing negative imputed Q4 revenue does not remove every discontinued-ops
+distortion — a divestiture that leaves the imputed Q4 *understated but still positive* (e.g. a
+partial-year unit sold in Q4 itself) is invisible to this rule and stays in the sample. This
+residual is small: the 51 skipped events are 0.23% of SUE-R's 22,073 pre-skip Q4-eligible
+observations, and understated-but-positive Q4s (not directly countable without per-filing
+restatement detail) are expected to be a similarly small fraction, well under 1% of events —
+consistent with the study's own power caveat that these are failures to reject, not proof of
+absence.
