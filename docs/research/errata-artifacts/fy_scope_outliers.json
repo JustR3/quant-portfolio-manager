@@ -1,0 +1,833 @@
+{
+  "fy_dir": "data/historical/fundamentals_sec",
+  "generated_at": "2026-09-27T14:54:55.016069+00:00",
+  "thresholds": {
+    "fy_quarter_sized": 0.4,
+    "fy_disagree_ratio": 2.5,
+    "source": "tools/check_sec_duration_contamination.py (existing constants, imported)"
+  },
+  "checked_fields": [
+    "revenue",
+    "gross_profit",
+    "total_assets",
+    "current_liabilities",
+    "capex"
+  ],
+  "unchecked_sign_changing_fields": [
+    "ebit",
+    "cfo"
+  ],
+  "neighbor_definition": {
+    "target_days": 365,
+    "tolerance_days": 45
+  },
+  "tickers_scanned": 498,
+  "legacy_cache_tickers": [],
+  "periods_scored": 33172,
+  "periods_unscored": 76,
+  "flagged_total": 613,
+  "flagged_by_field_x_category": {
+    "revenue": {
+      "too_small": {
+        "superseded": 14,
+        "persistent": 78
+      },
+      "too_large": {
+        "superseded": 22,
+        "persistent": 20
+      }
+    },
+    "gross_profit": {
+      "too_small": {
+        "superseded": 0,
+        "persistent": 31
+      },
+      "too_large": {
+        "superseded": 0,
+        "persistent": 6
+      }
+    },
+    "total_assets": {
+      "too_small": {
+        "superseded": 1,
+        "persistent": 48
+      },
+      "too_large": {
+        "superseded": 0,
+        "persistent": 8
+      }
+    },
+    "current_liabilities": {
+      "too_small": {
+        "superseded": 1,
+        "persistent": 55
+      },
+      "too_large": {
+        "superseded": 0,
+        "persistent": 21
+      }
+    },
+    "capex": {
+      "too_small": {
+        "superseded": 19,
+        "persistent": 198
+      },
+      "too_large": {
+        "superseded": 9,
+        "persistent": 82
+      }
+    }
+  },
+  "top20_superseded": [
+    {
+      "ticker": "AVB",
+      "field": "revenue",
+      "period_end": "2017-12-31",
+      "value": 2158628000.0,
+      "neigh": 4585500.0,
+      "ratio": 470.7508450550649,
+      "live_from": "2018-02-23",
+      "live_until": "2019-02-22"
+    },
+    {
+      "ticker": "ESS",
+      "field": "revenue",
+      "period_end": "2019-12-31",
+      "value": 1460155000.0,
+      "neigh": 9390500.0,
+      "ratio": 155.49278526170065,
+      "live_from": "2020-02-20",
+      "live_until": "2021-02-19"
+    },
+    {
+      "ticker": "ETR",
+      "field": "capex",
+      "period_end": "2023-12-31",
+      "value": 35094000.0,
+      "neigh": 4951732500.0,
+      "ratio": 0.0070872164439415904,
+      "live_from": "2024-02-23",
+      "live_until": "2025-02-18"
+    },
+    {
+      "ticker": "CPT",
+      "field": "revenue",
+      "period_end": "2018-12-31",
+      "value": 954505000.0,
+      "neigh": 8436000.0,
+      "ratio": 113.14663347558084,
+      "live_from": "2019-02-15",
+      "live_until": "2020-02-20"
+    },
+    {
+      "ticker": "UDR",
+      "field": "revenue",
+      "period_end": "2017-12-31",
+      "value": 984309000.0,
+      "neigh": 11577000.0,
+      "ratio": 85.02280383519046,
+      "live_from": "2018-02-20",
+      "live_until": "2019-02-19"
+    },
+    {
+      "ticker": "DVN",
+      "field": "capex",
+      "period_end": "2019-12-31",
+      "value": 31000000.0,
+      "neigh": 1634500000.0,
+      "ratio": 0.01896604466197614,
+      "live_from": "2020-02-19",
+      "live_until": "2021-02-17"
+    },
+    {
+      "ticker": "ETR",
+      "field": "capex",
+      "period_end": "2022-12-31",
+      "value": 106193000.0,
+      "neigh": 2304478000.0,
+      "ratio": 0.04608115156664546,
+      "live_from": "2023-02-24",
+      "live_until": "2024-02-23"
+    },
+    {
+      "ticker": "ETR",
+      "field": "capex",
+      "period_end": "2022-12-31",
+      "value": 106193000.0,
+      "neigh": 2304478000.0,
+      "ratio": 0.04608115156664546,
+      "live_from": "2024-02-23",
+      "live_until": "2025-02-18"
+    },
+    {
+      "ticker": "DVN",
+      "field": "capex",
+      "period_end": "2018-12-31",
+      "value": 55000000.0,
+      "neigh": 977000000.0,
+      "ratio": 0.05629477993858751,
+      "live_from": "2019-02-20",
+      "live_until": "2020-02-19"
+    },
+    {
+      "ticker": "DVN",
+      "field": "capex",
+      "period_end": "2018-12-31",
+      "value": 55000000.0,
+      "neigh": 977000000.0,
+      "ratio": 0.05629477993858751,
+      "live_from": "2020-02-19",
+      "live_until": "2021-02-17"
+    },
+    {
+      "ticker": "MCHP",
+      "field": "capex",
+      "period_end": "2018-03-31",
+      "value": 7100000.0,
+      "neigh": 119550000.0,
+      "ratio": 0.05938937682977834,
+      "live_from": "2018-05-18",
+      "live_until": "2019-05-30"
+    },
+    {
+      "ticker": "MCHP",
+      "field": "capex",
+      "period_end": "2018-03-31",
+      "value": 7100000.0,
+      "neigh": 119550000.0,
+      "ratio": 0.05938937682977834,
+      "live_from": "2019-05-30",
+      "live_until": "2020-05-22"
+    },
+    {
+      "ticker": "SBAC",
+      "field": "revenue",
+      "period_end": "2018-12-31",
+      "value": 1865695000.0,
+      "neigh": 129144000.0,
+      "ratio": 14.446625472340953,
+      "live_from": "2019-02-28",
+      "live_until": "2020-02-24"
+    },
+    {
+      "ticker": "URI",
+      "field": "capex",
+      "period_end": "2020-12-31",
+      "value": 197000000.0,
+      "neigh": 2774000000.0,
+      "ratio": 0.07101658255227108,
+      "live_from": "2021-01-27",
+      "live_until": "2022-01-26"
+    },
+    {
+      "ticker": "ED",
+      "field": "capex",
+      "period_end": "2017-12-31",
+      "value": 415000000.0,
+      "neigh": 5242000000.0,
+      "ratio": 0.07916825639069057,
+      "live_from": "2018-02-15",
+      "live_until": "2019-02-21"
+    },
+    {
+      "ticker": "LHX",
+      "field": "revenue",
+      "period_end": "2013-06-28",
+      "value": 420300000.0,
+      "neigh": 5231650000.0,
+      "ratio": 0.08033794309634627,
+      "live_from": "2013-08-26",
+      "live_until": "2014-08-25"
+    },
+    {
+      "ticker": "EQIX",
+      "field": "capex",
+      "period_end": "2013-12-31",
+      "value": 74332000.0,
+      "neigh": 879425500.0,
+      "ratio": 0.08452336212675207,
+      "live_from": "2014-02-28",
+      "live_until": "2015-03-02"
+    },
+    {
+      "ticker": "MCHP",
+      "field": "capex",
+      "period_end": "2019-03-31",
+      "value": 18600000.0,
+      "neigh": 137200000.0,
+      "ratio": 0.13556851311953352,
+      "live_from": "2019-05-30",
+      "live_until": "2020-05-22"
+    },
+    {
+      "ticker": "AMT",
+      "field": "revenue",
+      "period_end": "2018-12-31",
+      "value": 491300000.0,
+      "neigh": 3595550000.0,
+      "ratio": 0.13664112583610297,
+      "live_from": "2020-02-25",
+      "live_until": "2021-02-25"
+    },
+    {
+      "ticker": "EQT",
+      "field": "capex",
+      "period_end": "2014-12-31",
+      "value": 174184000.0,
+      "neigh": 1274121000.0,
+      "ratio": 0.13670915085772858,
+      "live_from": "2015-02-12",
+      "live_until": "2016-02-11"
+    }
+  ],
+  "positive_control": {
+    "pass": true,
+    "reason": "",
+    "row": {
+      "ticker": "AMT",
+      "field": "revenue",
+      "period_end": "2018-12-31 00:00:00",
+      "filed": "2020-02-25 00:00:00",
+      "value": 491300000.0,
+      "neigh": 3595550000.0,
+      "ratio": 0.13664112583610297,
+      "status": "too_small",
+      "category": "superseded",
+      "live_from": "2020-02-25 00:00:00",
+      "live_until": "2021-02-25 00:00:00"
+    },
+    "amt_revenue_rows": [
+      {
+        "field": "revenue",
+        "period_end": "2007-12-31",
+        "period_start": "2007-01-01 00:00:00",
+        "filed": "2010-03-01",
+        "value": 1456594000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2008-12-31",
+        "period_start": "2008-01-01 00:00:00",
+        "filed": "2010-03-01",
+        "value": 1593504000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2008-12-31",
+        "period_start": "2008-01-01 00:00:00",
+        "filed": "2011-02-28",
+        "value": 1593504000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2009-12-31",
+        "period_start": "2009-01-01 00:00:00",
+        "filed": "2010-03-01",
+        "value": 1724114000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2009-12-31",
+        "period_start": "2009-01-01 00:00:00",
+        "filed": "2011-02-28",
+        "value": 1724114000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2009-12-31",
+        "period_start": "2009-01-01 00:00:00",
+        "filed": "2012-02-29",
+        "value": 1724114000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2010-12-31",
+        "period_start": "2010-01-01 00:00:00",
+        "filed": "2011-02-28",
+        "value": 1985335000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2010-12-31",
+        "period_start": "2010-01-01 00:00:00",
+        "filed": "2012-02-29",
+        "value": 1985335000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2010-12-31",
+        "period_start": "2010-01-01 00:00:00",
+        "filed": "2013-02-27",
+        "value": 1985335000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2011-12-31",
+        "period_start": "2011-01-01 00:00:00",
+        "filed": "2012-02-29",
+        "value": 2443532000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2011-12-31",
+        "period_start": "2011-01-01 00:00:00",
+        "filed": "2013-02-27",
+        "value": 2443532000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2011-12-31",
+        "period_start": "2011-01-01 00:00:00",
+        "filed": "2014-02-26",
+        "value": 2443532000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2012-12-31",
+        "period_start": "2012-01-01 00:00:00",
+        "filed": "2013-02-27",
+        "value": 2875960000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2012-12-31",
+        "period_start": "2012-01-01 00:00:00",
+        "filed": "2014-02-26",
+        "value": 2875960000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2012-12-31",
+        "period_start": "2012-01-01 00:00:00",
+        "filed": "2015-02-24",
+        "value": 2875960000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2013-12-31",
+        "period_start": "2013-01-01 00:00:00",
+        "filed": "2014-02-26",
+        "value": 3361407000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2013-12-31",
+        "period_start": "2013-01-01 00:00:00",
+        "filed": "2015-02-24",
+        "value": 3361407000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2013-12-31",
+        "period_start": "2013-01-01 00:00:00",
+        "filed": "2016-02-26",
+        "value": 3361407000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2014-12-31",
+        "period_start": "2014-01-01 00:00:00",
+        "filed": "2015-02-24",
+        "value": 4100048000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2014-12-31",
+        "period_start": "2014-01-01 00:00:00",
+        "filed": "2016-02-26",
+        "value": 4100048000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2014-12-31",
+        "period_start": "2014-01-01 00:00:00",
+        "filed": "2017-02-27",
+        "value": 4100048000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2015-12-31",
+        "period_start": "2015-01-01 00:00:00",
+        "filed": "2016-02-26",
+        "value": 4771516000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2015-12-31",
+        "period_start": "2015-01-01 00:00:00",
+        "filed": "2017-02-27",
+        "value": 4771516000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2016-12-31",
+        "period_start": "2016-01-01 00:00:00",
+        "filed": "2017-02-27",
+        "value": 5785668000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2017-12-31",
+        "period_start": "2017-01-01 00:00:00",
+        "filed": "2020-02-25",
+        "value": 6663900000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2018-12-31",
+        "period_start": "2018-01-01 00:00:00",
+        "filed": "2020-02-25",
+        "value": 491300000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2018-12-31",
+        "period_start": "2018-01-01 00:00:00",
+        "filed": "2021-02-25",
+        "value": 7440100000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2019-12-31",
+        "period_start": "2019-01-01 00:00:00",
+        "filed": "2020-02-25",
+        "value": 527200000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2019-12-31",
+        "period_start": "2019-01-01 00:00:00",
+        "filed": "2021-02-25",
+        "value": 527200000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2019-12-31",
+        "period_start": "2019-01-01 00:00:00",
+        "filed": "2022-02-25",
+        "value": 527200000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2020-12-31",
+        "period_start": "2020-01-01 00:00:00",
+        "filed": "2021-02-25",
+        "value": 495700000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2020-12-31",
+        "period_start": "2020-01-01 00:00:00",
+        "filed": "2022-02-25",
+        "value": 495700000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2020-12-31",
+        "period_start": "2020-01-01 00:00:00",
+        "filed": "2023-02-23",
+        "value": 495700000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2021-12-31",
+        "period_start": "2021-01-01 00:00:00",
+        "filed": "2022-02-25",
+        "value": 717200000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2021-12-31",
+        "period_start": "2021-01-01 00:00:00",
+        "filed": "2023-02-23",
+        "value": 717200000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2021-12-31",
+        "period_start": "2021-01-01 00:00:00",
+        "filed": "2024-02-27",
+        "value": 717200000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2022-12-31",
+        "period_start": "2022-01-01 00:00:00",
+        "filed": "2023-02-23",
+        "value": 855000000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2022-12-31",
+        "period_start": "2022-01-01 00:00:00",
+        "filed": "2024-02-27",
+        "value": 855000000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2022-12-31",
+        "period_start": "2022-01-01 00:00:00",
+        "filed": "2025-02-25",
+        "value": 840700000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2023-12-31",
+        "period_start": "2023-01-01 00:00:00",
+        "filed": "2024-02-27",
+        "value": 756700000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2023-12-31",
+        "period_start": "2023-01-01 00:00:00",
+        "filed": "2025-02-25",
+        "value": 747300000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2023-12-31",
+        "period_start": "2023-01-01 00:00:00",
+        "filed": "2026-02-24",
+        "value": 747300000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2024-12-31",
+        "period_start": "2024-01-01 00:00:00",
+        "filed": "2025-02-25",
+        "value": 774600000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2024-12-31",
+        "period_start": "2024-01-01 00:00:00",
+        "filed": "2026-02-24",
+        "value": 774600000.0
+      },
+      {
+        "field": "revenue",
+        "period_end": "2025-12-31",
+        "period_start": "2025-01-01 00:00:00",
+        "filed": "2026-02-24",
+        "value": 935900000.0
+      }
+    ]
+  },
+  "study_impact": {
+    "study2_value_quality": {
+      "label": "signal-eval #2 (Value / Quality)",
+      "window": {
+        "start": "2010-01-01",
+        "end": "2026-04-01",
+        "frequency": "monthly"
+      },
+      "denominator_cells": 27844,
+      "affected_cells": 737,
+      "affected_pct": 2.6468898146817987,
+      "affected_by_category": {
+        "superseded": 99,
+        "persistent": 732
+      },
+      "affected_by_field": {
+        "revenue": {
+          "superseded": 51,
+          "persistent": 109
+        },
+        "gross_profit": {
+          "superseded": 0,
+          "persistent": 123
+        },
+        "total_assets": {
+          "superseded": 0,
+          "persistent": 65
+        },
+        "current_liabilities": {
+          "superseded": 0,
+          "persistent": 172
+        },
+        "capex": {
+          "superseded": 48,
+          "persistent": 263
+        }
+      },
+      "distinct_tickers_affected": 39,
+      "tickers_affected": [
+        "ALB",
+        "AMAT",
+        "AMD",
+        "ANET",
+        "ATO",
+        "AXON",
+        "BA",
+        "BLDR",
+        "CBOE",
+        "CSGP",
+        "DLTR",
+        "DPZ",
+        "EBAY",
+        "FSLR",
+        "FTNT",
+        "GEN",
+        "ISRG",
+        "KDP",
+        "MCHP",
+        "MNST",
+        "MO",
+        "MPWR",
+        "MSI",
+        "MU",
+        "NDAQ",
+        "OKE",
+        "PLTR",
+        "PM",
+        "SBAC",
+        "SMCI",
+        "SNDK",
+        "SNPS",
+        "TDG",
+        "TSLA",
+        "TTWO",
+        "TXN",
+        "TYL",
+        "URI",
+        "ZBRA"
+      ]
+    },
+    "study3_new_factors": {
+      "label": "signal-eval #3 (gross profitability / net issuance / asset growth)",
+      "window": {
+        "start": "2016-01-01",
+        "end": "2026-06-01",
+        "frequency": "monthly"
+      },
+      "denominator_cells": 59068,
+      "affected_cells": 2109,
+      "affected_pct": 3.5704611634048895,
+      "affected_by_category": {
+        "superseded": 204,
+        "persistent": 2120
+      },
+      "affected_by_field": {
+        "revenue": {
+          "superseded": 36,
+          "persistent": 100
+        },
+        "gross_profit": {
+          "superseded": 0,
+          "persistent": 99
+        },
+        "total_assets": {
+          "superseded": 0,
+          "persistent": 526
+        },
+        "current_liabilities": {
+          "superseded": 0,
+          "persistent": 345
+        },
+        "capex": {
+          "superseded": 168,
+          "persistent": 1050
+        }
+      },
+      "distinct_tickers_affected": 87,
+      "tickers_affected": [
+        "AEP",
+        "ALB",
+        "AMD",
+        "ANET",
+        "APO",
+        "APP",
+        "ARES",
+        "ATO",
+        "AXON",
+        "BA",
+        "BKR",
+        "BLDR",
+        "BX",
+        "CBOE",
+        "CCI",
+        "CHTR",
+        "COIN",
+        "CRWD",
+        "CSGP",
+        "CTVA",
+        "DASH",
+        "DD",
+        "DDOG",
+        "DELL",
+        "DLTR",
+        "DPZ",
+        "DVN",
+        "EBAY",
+        "ED",
+        "EQR",
+        "EQT",
+        "ERIE",
+        "ETR",
+        "EXR",
+        "FISV",
+        "FSLR",
+        "GEN",
+        "HIG",
+        "HLT",
+        "HPE",
+        "HPQ",
+        "INCY",
+        "INTU",
+        "IQV",
+        "ISRG",
+        "JCI",
+        "KDP",
+        "KHC",
+        "KIM",
+        "KKR",
+        "LDOS",
+        "LIN",
+        "LUV",
+        "MAR",
+        "MCHP",
+        "MDT",
+        "MNST",
+        "MO",
+        "MPWR",
+        "MRNA",
+        "MTCH",
+        "MU",
+        "NCLH",
+        "NRG",
+        "OKE",
+        "OMC",
+        "PCG",
+        "PLTR",
+        "PM",
+        "PPL",
+        "RCL",
+        "SBAC",
+        "SNDK",
+        "SNPS",
+        "SW",
+        "TDG",
+        "TKO",
+        "TPL",
+        "TTD",
+        "TTWO",
+        "TXN",
+        "UDR",
+        "URI",
+        "VICI",
+        "VTR",
+        "WBD",
+        "ZBRA"
+      ],
+      "asset_growth_only": {
+        "denominator_cells": 58993,
+        "affected_cells": 514,
+        "affected_pct": 0.8712898140457342,
+        "note": "asset_growth uses a standalone total_assets (now + prior-year) lookup, decoupled from the balance-group selection Quality/gross_profitability use. Included in the headline study #3 denominator/affected counts above."
+      },
+      "net_issuance_note": "net_issuance depends only on the shares field, which is not a checked field (not positive-definite in the sense this tool tests) -- its cells contribute to the denominator above but can never register a flagged-row hit."
+    }
+  },
+  "decision_rule": "pre-registered (not evaluated by this tool): if superseded cells are < 0.5% of the denominator in BOTH study windows, the finding is documented and closed, no errata; if >= 0.5% in either window, the lead engineer proposes an errata rule and re-run. persistent cells are reported for context only and don't trigger an errata."
+}
