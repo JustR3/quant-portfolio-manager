@@ -60,6 +60,12 @@ strategy claim through an honest, costed, PIT-correct gate.
   ~3 years; index membership is the CURRENT constituent list (survivorship). Treat backtests as
   sanity checks, not statistically strong evidence.
 - Backtest never silently runs momentum-only or hides skipped rebalances.
+- **SEC concept scope is not guaranteed.** `CONCEPT_MAP` picks the first concept a filer uses, and
+  some filers use it for only part of the total: REIT revenue under
+  `RevenueFromContractWithCustomer…` excludes lease income, and some capex tags are partial. The FY
+  scope check (`tools/check_fy_scope_outliers.py`) catches one-off outliers but not multi-year
+  plateaus. Check scope before trusting a revenue- or capex-driven claim on REITs, utilities or
+  energy names.
 
 ## Invariants (don't break)
 - Price parquets are untracked/gitignored, regenerable; schema `(field, ticker)` MultiIndex +

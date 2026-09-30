@@ -157,10 +157,10 @@ see Method §7). Affected = cells that selected ≥1 flagged row among the check
 that study. A cell can hit more than one field at once, so the by-field/by-category totals below
 can exceed the affected-cell count.
 
-| study window | denominator cells | affected cells | affected % | superseded | persistent | distinct tickers affected |
-|---|---|---|---|---|---|---|
-| #2 Value/Quality (monthly 2010-01→2026-04) | 27,844 | 737 | **2.647%** | 99 | 732 | 39 |
-| #3 gross-prof/net-iss/asset-growth (monthly 2016-01→2026-06) | 59,068 | 2,109 | **3.570%** | 204 | 2,120 | 87 |
+| study window | denominator cells | affected cells (any flag) | affected % | superseded cells | **superseded %** (decision-rule input) | persistent cells | distinct tickers affected |
+|---|---|---|---|---|---|---|---|
+| #2 Value/Quality (monthly 2010-01→2026-04) | 27,844 | 737 | 2.647% | 99 | **0.356%** | 732 | 39 |
+| #3 gross-prof/net-iss/asset-growth (monthly 2016-01→2026-06) | 59,068 | 2,109 | 3.570% | 204 | **0.345%** | 2,120 | 87 |
 
 Study #3's `asset_growth`-only sub-count (its standalone `total_assets` now+prior lookup, isolated
 from the balance-group path `gross_profitability` shares with study #2): denominator 58,993,
@@ -231,10 +231,36 @@ comes from.
   genuine business changes — though the REIT pattern above suggests most of this count is the
   same concept-scope issue, not real business change).
 
-**Observed:** superseded cells are 2.647% (study #2) and 3.570% (study #3) of their respective
-denominators — both **above** the 0.5% gate. Per the pre-registered rule, this is the lead
-engineer's decision to make (errata rule + re-run), not this tool's. No conclusion about study #2
-or #3's verdicts is drawn here.
+**Observed (corrected 2026-09-30):** superseded cells are **0.356%** (99 / 27,844) of study #2's
+denominator and **0.345%** (204 / 59,068) of study #3's. Both are **below** the 0.5% gate. The first
+version of this section compared the gate against the *any-flag* affected % (2.647% / 3.570%),
+which includes `persistent` cells; the pre-registered rule counts `superseded` cells only.
+
+**Decision (lead engineer, applying the rule as pre-registered): documented and closed; no errata.**
+
+**The limit on what that decision covers.** The results above undercut the rule's premise, that
+`superseded` means a corrected error and `persistent` means a real business change:
+- **Inversion.** In the REIT cases (AVB, ESS, CPT, UDR) the flagged `superseded` row is the
+  *correct* early value, and the later filings are the wrong ones.
+- **Plateau blindness.** A concept that is mis-scoped for many consecutive years (the REIT lease
+  revenue case, possibly some utility/energy capex tags) is consistent with its own neighbours, so
+  this local two-neighbour test mostly can't see it.
+
+The rule is not changed after the fact; changing a gate once the counts are in is the move the
+protocol forbids. The chronic concept-scope class is instead recorded as a **separate, unmeasured
+known limitation**. The upper bound on cells touching *any* flagged value is 2.6% (#2) and 3.6%
+(#3), and the plateau cases are not counted at all. The likely mechanism is concept priority:
+`CONCEPT_MAP["revenue"]` tries `RevenueFromContractWithCustomerExcludingAssessedTax` first, and
+after ASC 606/842 that concept excludes lease income. A future claim whose signal leans on revenue
+or capex for REITs, utilities or energy names should check scope first.
+
+## Open follow-up (not scheduled; own pre-registration if ever pursued)
+
+**Chronic concept mis-scope.** Detecting it needs an anchor outside the chosen concept, for
+example the largest revenue concept each filing reports for the same period. That means raw
+companyfacts (network) or a cache that keeps every candidate concept. The first question is a
+count: how many study cells come from tickers whose chosen revenue/capex concept is less than 0.4x
+of another concept that filing reports for the same period.
 
 ## Artifact
 
