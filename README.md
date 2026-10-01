@@ -192,7 +192,7 @@ references only.
 git clone https://github.com/justr3/quant-portfolio-manager.git
 cd quant-portfolio-manager
 uv sync
-uv run pytest -q                      # 221 tests, offline
+uv run pytest -q                      # 402 tests, offline
 # Data (free, ~30-60 min total, all regenerable):
 uv run python tools/download_historical_data.py
 uv run python tools/download_ts_universe.py
