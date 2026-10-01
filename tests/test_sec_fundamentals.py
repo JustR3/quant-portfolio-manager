@@ -640,13 +640,22 @@ def test_edgartools_contract_absent_concept_is_empty_not_error():
     from edgar.entity.models import FinancialFact
 
     fact = FinancialFact(
-        concept="us-gaap:Revenues", taxonomy="us-gaap", label="Revenues",
-        value=100.0, numeric_value=100.0, unit="USD",
-        period_end=date(2020, 12, 31), period_type="duration",
-        fiscal_year=2020, fiscal_period="FY", filing_date=date(2021, 2, 15),
+        concept="us-gaap:Revenues",
+        taxonomy="us-gaap",
+        label="Revenues",
+        value=100.0,
+        numeric_value=100.0,
+        unit="USD",
+        period_end=date(2020, 12, 31),
+        period_type="duration",
+        fiscal_year=2020,
+        fiscal_period="FY",
+        filing_date=date(2021, 2, 15),
     )
     facts = EntityFacts(cik=1, name="Fake", facts=[fact])
-    absent = facts.query().by_concept("us-gaap:NoSuchConcept", exact=True).to_dataframe()
+    absent = (
+        facts.query().by_concept("us-gaap:NoSuchConcept", exact=True).to_dataframe()
+    )
     present = facts.query().by_concept("us-gaap:Revenues", exact=True).to_dataframe()
     assert absent.empty
     assert len(present) == 1
