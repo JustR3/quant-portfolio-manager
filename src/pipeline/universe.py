@@ -28,6 +28,7 @@ import pandas as pd
 import yfinance as yf
 
 from src.constants import (
+    API_TIMEOUT_SECONDS,
     DEFAULT_BATCH_SIZE,
     DEFAULT_CACHE_EXPIRY_HOURS,
     DEFAULT_TOP_N_STOCKS,
@@ -1357,7 +1358,7 @@ def get_sp500_current() -> List[str]:
             headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"},
         )
 
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=API_TIMEOUT_SECONDS) as response:
             tables = pd.read_html(response)
             df = tables[0]
             tickers = df["Symbol"].tolist()
