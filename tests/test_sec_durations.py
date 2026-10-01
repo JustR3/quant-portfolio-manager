@@ -252,3 +252,62 @@ def test_documented_allow_legacy_cache_commands_run(tmp_path):
         # short synthetic windows -> INCONCLUSIVE verdicts -> exit 3 (still a completed run)
         assert ok.returncode in (0, 3), ok.stdout[-1500:] + ok.stderr[-1500:]
         assert tag in ok.stdout
+
+
+def test_fy_priority_walk_wrong_duration_high_concept_does_not_claim_key(monkeypatch):
+    """The duration filter runs BEFORE the (period_end, filed) claim: a higher-priority concept's
+    3-month Q4 row is dropped, so it must not block the lower-priority concept's annual row; and
+    when both concepts carry an annual row with different values, the higher-priority one wins."""
+    hi, lo = sf.CONCEPT_MAP["revenue"][0], sf.CONCEPT_MAP["revenue"][1]
+    _patch_company(
+        monkeypatch,
+        {
+            hi: _edgar_rows([("FY", "2020-10-01", "2020-12-31", "2021-02-15", 100.0)]),
+            lo: _edgar_rows(
+                [
+                    ("FY", "2020-01-01", "2020-12-31", "2021-02-15", 400.0),
+                    ("FY", "2019-01-01", "2019-12-31", "2020-02-15", 350.0),
+                ]
+            ),
+        },
+    )
+    rev = sf.fetch_facts("FAKE").query("field == 'revenue'").set_index("period_end")
+    assert rev.loc[pd.Timestamp("2020-12-31"), "value"] == 400.0
+    assert len(rev) == 2
+
+    both = _edgar_rows([("FY", "2020-01-01", "2020-12-31", "2021-02-15", 1.0)])
+    _patch_company(
+        monkeypatch,
+        {hi: both.assign(numeric_value=7.0), lo: both.assign(numeric_value=999.0)},
+    )
+    rev = sf.fetch_facts("FAKE").query("field == 'revenue'")
+    assert rev["value"].tolist() == [7.0]
+
+
+def test_quarterly_priority_walk_wrong_duration_high_concept_does_not_claim_key(
+    monkeypatch,
+):
+    hi, lo = sq.QUARTERLY_CONCEPT_MAP["net_income"]
+    _patch_company(
+        monkeypatch,
+        {
+            hi: _edgar_rows([("Q2", "2020-01-01", "2020-06-30", "2020-07-30", 200.0)]),
+            lo: _edgar_rows(
+                [
+                    ("Q2", "2020-04-01", "2020-06-30", "2020-07-30", 100.0),
+                    ("Q2", "2020-01-01", "2020-06-30", "2020-07-30", 201.0),
+                ]
+            ),
+        },
+    )
+    ni = sq.fetch_facts_quarterly("FAKE").query("field == 'net_income'")
+    assert ni["value"].tolist() == [100.0]
+    assert ni["concept"].tolist() == [lo]
+
+    same = _edgar_rows([("Q2", "2020-04-01", "2020-06-30", "2020-07-30", 1.0)])
+    _patch_company(
+        monkeypatch,
+        {hi: same.assign(numeric_value=5.0), lo: same.assign(numeric_value=999.0)},
+    )
+    ni = sq.fetch_facts_quarterly("FAKE").query("field == 'net_income'")
+    assert ni["value"].tolist() == [5.0] and ni["concept"].tolist() == [hi]

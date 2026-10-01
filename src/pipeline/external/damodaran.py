@@ -14,6 +14,7 @@ Data Source: https://pages.stern.nyu.edu/~adamodar/New_Home_Page/data.html
 
 from dataclasses import dataclass
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 from typing import Optional
 import io
 import json
@@ -25,12 +26,41 @@ import requests
 
 from src.logging_config import get_logger
 from src.constants import DEFAULT_EQUITY_RISK_PREMIUM
+from src.pipeline.external.freshness import stale_data_warning
 
 logger = get_logger(__name__)
 
 # Cache directory for Damodaran data
 CACHE_DIR = Path("data/cache/damodaran")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# Damodaran republishes the industry datasets each January. The files carry no as-of column, so the
+# live data's date is the server's Last-Modified header. Warning-only (self-harden Check #3) — the
+# loader already falls back to generic priors, a stale reading should be visible, never fatal.
+DAMODARAN_UPDATE_CADENCE_DAYS = 365
+DAMODARAN_STALENESS_TOLERANCE_DAYS = 90
+
+
+def _warn_if_stale(response, source_name: str, now=None) -> None:
+    """Log (never raise) if the download's Last-Modified is older than the annual cadence.
+    A missing/unparseable header is silent: it says nothing about the data's age."""
+    try:
+        raw = response.headers.get("Last-Modified")
+        if not raw:
+            return
+        latest = pd.Timestamp(parsedate_to_datetime(raw))
+    except Exception:
+        return
+    msg = stale_data_warning(
+        latest,
+        now if now is not None else pd.Timestamp.now(),
+        cadence_days=DAMODARAN_UPDATE_CADENCE_DAYS,
+        tolerance_days=DAMODARAN_STALENESS_TOLERANCE_DAYS,
+        source_name=source_name,
+    )
+    if msg:
+        logger.warning(msg)
 
 
 @dataclass
@@ -196,6 +226,7 @@ class DamodaranLoader:
                 self.URL_BETAS, timeout=self.REQUEST_TIMEOUT_SECONDS
             )
             beta_response.raise_for_status()
+            _warn_if_stale(beta_response, "Damodaran betas")
 
             self._beta_cache = pd.read_excel(
                 io.BytesIO(beta_response.content),
@@ -216,6 +247,7 @@ class DamodaranLoader:
                 self.URL_MARGINS, timeout=self.REQUEST_TIMEOUT_SECONDS
             )
             margin_response.raise_for_status()
+            _warn_if_stale(margin_response, "Damodaran margins")
 
             self._margin_cache = pd.read_excel(
                 io.BytesIO(margin_response.content),

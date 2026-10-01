@@ -103,11 +103,8 @@ current harness. (In theory CAPE works over 5-10 year horizons, not 1-3 years; u
 
 **CLI usage:**
 ```bash
-# Enable CAPE adjustment
+# Enable CAPE adjustment (off unless the flag is passed)
 uv run ./main.py optimize --use-macro
-
-# Disable CAPE adjustment (override config)
-uv run ./main.py optimize --no-macro
 ```
 
 **Configuration (config.py):**
@@ -159,8 +156,7 @@ If Momentum factor returned -10% in last 12 months
 # Enable Fama-French factor tilts (recommended)
 uv run ./main.py optimize --use-french
 
-# Disable FF tilts (override config)
-uv run ./main.py optimize --no-french
+# There is no --no-french flag: omit --use-french to run without the tilts
 ```
 
 **Configuration (config.py):**
@@ -264,14 +260,14 @@ to appear here is retracted (see the notice at the top).
 uv run ./main.py backtest \
   --start 2000-01-01 \
   --end 2024-12-31 \
-  --rebalance quarterly \
+  --frequency quarterly \
   --top-n 20
 
 # With all features (conservative)
 uv run ./main.py backtest \
   --start 2000-01-01 \
   --end 2024-12-31 \
-  --rebalance quarterly \
+  --frequency quarterly \
   --top-n 20 \
   --use-regime \
   --use-macro \
@@ -281,7 +277,7 @@ uv run ./main.py backtest \
 uv run ./main.py backtest \
   --start 2000-01-01 \
   --end 2024-12-31 \
-  --rebalance quarterly \
+  --frequency quarterly \
   --top-n 20 \
   --use-french
 ```
@@ -399,11 +395,10 @@ unvalidated overlays and judge the result with the current harness (the backtest
 
 ### Q: Can I disable features temporarily?
 
-**A:** Yes:
+**A:** Yes. The `--use-macro`, `--use-french` and `--use-regime` flags are opt-in (there are no
+`--no-*` counterparts); simply omit them:
 ```bash
-uv run ./main.py optimize --no-macro    # Disable CAPE
-uv run ./main.py optimize --no-french   # Disable FF
-uv run ./main.py optimize --no-regime   # Disable regime (if enabled in config)
+uv run ./main.py optimize    # no CAPE, no FF tilts, no regime overlay
 ```
 
 ---
