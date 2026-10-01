@@ -11,8 +11,11 @@ name: self-harden
 #      --refresh path is out of scope for the equivalent job in other repos).
 #   3. Check the remaining live feeds (FRED, French, Damodaran) for a staleness gap; Shiller CAPE
 #      already got one this session (src/pipeline/external/freshness.py).
-# Opens a PR if anything changed and merges it after the in-job checks
-# pass; opens an issue if the run fails. Never writes to data/historical/, data/research/, or
+# Opens a PR if anything changed. It merges that PR itself only when the change is a pure test
+# addition (every path under tests/, no line deleted from a tracked file) and the in-job checks
+# pass. Any change to src/ (the research code behind the published results), or any edit or
+# removal of an existing test line, stays an open PR for the owner to review. Opens an issue if
+# the run fails. Never writes to data/historical/, data/research/, or
 # data/backtests/ for real.
 # Monthly (1st, 05:00 UTC), not weekly — no other scheduled workflow exists in this repo to avoid
 # colliding with, and the repo is PARKED (README "Status: PARKED") — no active development to
@@ -180,6 +183,24 @@ jobs:
           uv run ruff check .
           uv run ruff format --check .
 
+      - name: Decide whether the change may merge without review
+        id: scope
+        # Auto-merge only pure test additions. Everything else waits for a human:
+        # - src/ is the research code behind the published verdicts, so an unattended change
+        #   there must not reach main on green tests alone;
+        # - a deleted or rewritten line in an existing test could be a weakened check (the
+        #   prompt forbids that, but the merge gate shouldn't depend on the prompt being obeyed).
+        run: |
+          git add -A
+          auto=true
+          while IFS=$'\t' read -r _added deleted path; do
+            case "$path" in tests/*) ;; *) auto=false ;; esac
+            [ "$deleted" = "0" ] || auto=false
+          done < <(git diff --cached --no-renames --numstat)
+          git reset -q
+          echo "auto_merge=$auto" >> "$GITHUB_OUTPUT"
+          echo "auto_merge=$auto"
+
       - name: Open PR if anything changed
         id: cpr
         uses: peter-evans/create-pull-request@v8
@@ -199,13 +220,29 @@ jobs:
         # its own. This job already ran the same tests and lint on the exact
         # tree the PR contains, so it merges the PR itself. --match-head-commit
         # refuses the merge if the branch moved after the checks ran.
-        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
+        if: >-
+          steps.scope.outputs.auto_merge == 'true' &&
+          (steps.cpr.outputs.pull-request-operation == 'created' ||
+           steps.cpr.outputs.pull-request-operation == 'updated')
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --merge --delete-branch \
             --match-head-commit "${{ steps.cpr.outputs.pull-request-head-sha }}"
+
+      - name: Ask the owner to review
+        if: >-
+          steps.scope.outputs.auto_merge != 'true' &&
+          (steps.cpr.outputs.pull-request-operation == 'created' ||
+           steps.cpr.outputs.pull-request-operation == 'updated')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          gh pr comment "${{ steps.cpr.outputs.pull-request-number }}" --body \
+            "@$OWNER this self-harden PR changes src/ or edits an existing test, so it was not auto-merged. Tests and lint passed in the job; review the diff before merging."
 
       - name: Open issue on failure
         if: failure()
