@@ -558,3 +558,20 @@ def test_pit_factors_filed_before_period_end_does_not_crash_and_paths_agree():
     assert not slow.excluded and not fast.excluded
     assert fast.value_raw == pytest.approx(slow.value_raw)
     assert fast.quality_raw == pytest.approx(slow.quality_raw)
+
+
+def test_pit_factors_duplicate_period_end_filed_rows_paths_agree():
+    """A hand-built/legacy table with two rows for the same (field, period_end, filed) and
+    different values: both paths must resolve identically (first row wins) -- no blending."""
+    facts = _full_facts()
+    dup = _facts([("ebit", "2020-12-31", "2021-02-15", 999.0)])
+    facts = pd.concat([facts, dup], ignore_index=True)
+    as_of = pd.Timestamp("2021-06-30")
+    slow = sf.pit_factors_from_facts(facts, as_of, price=100.0)
+    fast = sf.pit_factors_from_prepared(sf.prepare_facts(facts), as_of, price=100.0)
+    assert not slow.excluded and not fast.excluded
+    assert fast.value_raw == pytest.approx(slow.value_raw)
+    assert fast.quality_raw == pytest.approx(slow.quality_raw)
+    assert slow.quality_raw == pytest.approx(
+        0.5 * (50.0 / 200.0) + 0.5 * (80.0 / 200.0)
+    )
