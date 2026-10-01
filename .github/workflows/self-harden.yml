@@ -86,7 +86,10 @@ jobs:
                concept in CONCEPT_MAP/QUARTERLY_CONCEPT_MAP returns rows for a (period_end,
                filed) pair the higher-priority concept already claimed under a DIFFERENT value
                AND the same duration (after the duration filter, the higher-priority concept's
-               value must win, not be blended). If a case produces
+               value must win, not be blended). Exception: a concept QUERY that raises inside
+               fetch_facts / fetch_facts_quarterly must propagate (never `except: continue`) —
+               edgartools returns an empty frame for an absent concept, so a raise is a bug, and
+               the cache builders report the ticker as failed. If a case produces
                an unhandled exception instead of a graceful None/excluded/dropped result, or
                silently corrupts a number instead of excluding the name, fix the smallest code
                path and add a regression test. If a case already behaves correctly, add the test

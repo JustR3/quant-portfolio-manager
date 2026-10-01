@@ -598,7 +598,6 @@ class _RaisingCompany:
 
 def test_fetch_facts_propagates_query_errors(monkeypatch):
     import edgar
-    import pytest
 
     monkeypatch.setattr(edgar, "Company", _RaisingCompany)
     with pytest.raises(RuntimeError, match="edgar parse fault"):
@@ -615,3 +614,56 @@ def test_fetch_facts_absent_concepts_still_give_empty_frame(monkeypatch):
 
     monkeypatch.setattr(edgar, "Company", _EmptyCompany)
     assert sf.fetch_facts("FAKE").empty
+
+
+class _NoFactsCompany:
+    """edgar.Company(...).facts is None for filers with no XBRL company facts."""
+
+    def __init__(self, ticker):
+        self.facts = None
+
+
+def test_fetch_facts_no_company_facts_raises_clear_error(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _NoFactsCompany)
+    with pytest.raises(ValueError, match="FAKE: no SEC company facts"):
+        sf.fetch_facts("FAKE")
+
+
+def test_edgartools_contract_absent_concept_is_empty_not_error():
+    # Pins the edgartools behaviour the no-except design relies on, using the
+    # REAL EntityFacts/FactQuery (offline): an absent concept gives an empty frame.
+    from datetime import date
+
+    from edgar.entity.entity_facts import EntityFacts
+    from edgar.entity.models import FinancialFact
+
+    fact = FinancialFact(
+        concept="us-gaap:Revenues", taxonomy="us-gaap", label="Revenues",
+        value=100.0, numeric_value=100.0, unit="USD",
+        period_end=date(2020, 12, 31), period_type="duration",
+        fiscal_year=2020, fiscal_period="FY", filing_date=date(2021, 2, 15),
+    )
+    facts = EntityFacts(cik=1, name="Fake", facts=[fact])
+    absent = facts.query().by_concept("us-gaap:NoSuchConcept", exact=True).to_dataframe()
+    present = facts.query().by_concept("us-gaap:Revenues", exact=True).to_dataframe()
+    assert absent.empty
+    assert len(present) == 1
+
+
+def test_cache_builder_reports_failed_ticker_and_skips_write(monkeypatch, tmp_path):
+    import importlib
+    import sys
+
+    sys.path.insert(0, "tools")
+    builder = importlib.import_module("build_sec_fundamentals_cache")
+
+    def _boom(ticker):
+        raise RuntimeError("edgar parse fault")
+
+    monkeypatch.setattr(builder.sf, "fetch_facts", _boom)
+    monkeypatch.setattr(builder.sf, "cache_path", lambda t: tmp_path / f"{t}.parquet")
+    ticker, n, info = builder._one("FAKE")
+    assert n == -1 and "edgar parse fault" in info
+    assert not (tmp_path / "FAKE.parquet").exists()

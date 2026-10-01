@@ -407,13 +407,15 @@ def fetch_facts(ticker: str) -> pd.DataFrame:
     from edgar import Company  # local import: heavy dep, keeps module import light
 
     facts_obj = Company(ticker).facts
+    if facts_obj is None:  # filer has no XBRL company facts (e.g. a fund)
+        raise ValueError(f"{ticker}: no SEC company facts")
     rows = []
     for field, concepts in CONCEPT_MAP.items():
         seen = set()  # (period_end, filed) already taken by a higher-priority concept
         for concept in concepts:
-            # An absent concept gives an EMPTY frame (edgartools never raises for that).
-            # Any exception here is a real fault: let it reach the cache builder, which
-            # reports the ticker as failed instead of caching it without this field.
+            # The query runs in memory; an absent concept gives an EMPTY frame (edgartools
+            # never raises for that). Any exception here is a bug: let it reach the cache
+            # builder, which reports the ticker as failed and skips the write.
             df = facts_obj.query().by_concept(concept, exact=True).to_dataframe()
             if df is None or len(df) == 0 or "fiscal_period" not in df.columns:
                 continue

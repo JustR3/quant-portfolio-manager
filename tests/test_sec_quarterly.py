@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from src.pipeline import sec_quarterly as sq
 
@@ -306,7 +307,6 @@ class _RaisingCompany:
 
 def test_fetch_facts_quarterly_propagates_query_errors(monkeypatch):
     import edgar
-    import pytest
 
     monkeypatch.setattr(edgar, "Company", _RaisingCompany)
     with pytest.raises(RuntimeError, match="edgar parse fault"):
@@ -323,3 +323,16 @@ def test_fetch_facts_quarterly_absent_concepts_still_give_empty_frame(monkeypatc
 
     monkeypatch.setattr(edgar, "Company", _EmptyCompany)
     assert sq.fetch_facts_quarterly("FAKE").empty
+
+
+class _NoFactsCompany:
+    def __init__(self, ticker):
+        self.facts = None
+
+
+def test_fetch_facts_quarterly_no_company_facts_raises_clear_error(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _NoFactsCompany)
+    with pytest.raises(ValueError, match="FAKE: no SEC company facts"):
+        sq.fetch_facts_quarterly("FAKE")
