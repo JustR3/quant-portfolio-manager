@@ -1,8 +1,11 @@
 name: doc-drift
 
 # Monthly sweep that checks every command shown in README.md/docs still runs, and fixes stale
-# YAML front-matter headers. Opens a PR if anything changed and merges it after the in-job checks
-# pass; opens an issue if the run fails.
+# YAML front-matter headers. Opens a PR if anything changed. It merges that PR itself only when no
+# changed file is a protected record (README.md, CLAUDE.md, docs/research/, docs/superpowers/,
+# docs/HANDOFF.md: the results tables, pre-registered specs and write-ups) and the in-job checks
+# pass. A change to any of those stays an open PR for the owner to review. Opens an issue if the
+# run fails.
 # Auth: CLAUDE_CODE_OAUTH_TOKEN (generated via `claude setup-token`), so runs draw from the
 # Claude subscription instead of separate API billing — same as self-harden.yml.
 #
@@ -96,6 +99,25 @@ jobs:
           uv run ruff check .
           uv run ruff format --check .
 
+      - name: Decide whether the change may merge without review
+        id: scope
+        # Auto-merge only edits to the how-to guides under docs/. README.md and CLAUDE.md carry the
+        # five-negatives table and edge status, docs/research/ holds the published results and
+        # errata, docs/superpowers/ holds the pre-registered specs and plans, and HANDOFF.md is the
+        # checkpoint log. An unattended agent must not rewrite those on green tests alone (the
+        # prompt forbids touching verdicts, but the merge gate shouldn't depend on it being obeyed).
+        run: |
+          git add -A
+          auto=true
+          while IFS= read -r path; do
+            case "$path" in
+              README.md|CLAUDE.md|docs/HANDOFF.md|docs/research/*|docs/superpowers/*) auto=false ;;
+            esac
+          done < <(git diff --cached --no-renames --name-only)
+          git reset -q
+          echo "auto_merge=$auto" >> "$GITHUB_OUTPUT"
+          echo "auto_merge=$auto"
+
       - name: Open PR if anything changed
         id: cpr
         uses: peter-evans/create-pull-request@v8
@@ -116,13 +138,29 @@ jobs:
         # its own. This job already ran the same tests and lint on the exact
         # tree the PR contains, so it merges the PR itself. --match-head-commit
         # refuses the merge if the branch moved after the checks ran.
-        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
+        if: >-
+          steps.scope.outputs.auto_merge == 'true' &&
+          (steps.cpr.outputs.pull-request-operation == 'created' ||
+           steps.cpr.outputs.pull-request-operation == 'updated')
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --merge --delete-branch \
             --match-head-commit "${{ steps.cpr.outputs.pull-request-head-sha }}"
+
+      - name: Ask the owner to review
+        if: >-
+          steps.scope.outputs.auto_merge != 'true' &&
+          (steps.cpr.outputs.pull-request-operation == 'created' ||
+           steps.cpr.outputs.pull-request-operation == 'updated')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          gh pr comment "${{ steps.cpr.outputs.pull-request-number }}" --body \
+            "@$OWNER this doc-drift PR edits a protected record (README.md, CLAUDE.md, docs/HANDOFF.md, docs/research/ or docs/superpowers/), so it was not auto-merged. Tests and lint passed in the job; review the diff before merging."
 
       - name: Open issue on failure
         if: failure()
