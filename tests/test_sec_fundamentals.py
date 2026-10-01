@@ -575,3 +575,104 @@ def test_pit_factors_duplicate_period_end_filed_rows_paths_agree():
     assert slow.quality_raw == pytest.approx(
         0.5 * (50.0 / 200.0) + 0.5 * (80.0 / 200.0)
     )
+
+
+# --- audit 2026-09-30: a failing concept query must not be cached as "no data" ---
+# edgartools returns an EMPTY frame for an absent concept; it never raises for that.
+# Any exception is a real fault. It must reach the cache builder (which logs the ticker
+# as ERROR and skips the write) instead of silently dropping the field from the cache.
+
+
+class _RaisingQuery:
+    def by_concept(self, concept, exact=True):
+        return self
+
+    def to_dataframe(self):
+        raise RuntimeError("edgar parse fault")
+
+
+class _RaisingCompany:
+    def __init__(self, ticker):
+        self.facts = type("F", (), {"query": lambda self: _RaisingQuery()})()
+
+
+def test_fetch_facts_propagates_query_errors(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _RaisingCompany)
+    with pytest.raises(RuntimeError, match="edgar parse fault"):
+        sf.fetch_facts("FAKE")
+
+
+class _EmptyCompany:
+    def __init__(self, ticker):
+        self.facts = _FakeFacts(pd.DataFrame())
+
+
+def test_fetch_facts_absent_concepts_still_give_empty_frame(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _EmptyCompany)
+    assert sf.fetch_facts("FAKE").empty
+
+
+class _NoFactsCompany:
+    """edgar.Company(...).facts is None for filers with no XBRL company facts."""
+
+    def __init__(self, ticker):
+        self.facts = None
+
+
+def test_fetch_facts_no_company_facts_raises_clear_error(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _NoFactsCompany)
+    with pytest.raises(ValueError, match="FAKE: no SEC company facts"):
+        sf.fetch_facts("FAKE")
+
+
+def test_edgartools_contract_absent_concept_is_empty_not_error():
+    # Pins the edgartools behaviour the no-except design relies on, using the
+    # REAL EntityFacts/FactQuery (offline): an absent concept gives an empty frame.
+    from datetime import date
+
+    from edgar.entity.entity_facts import EntityFacts
+    from edgar.entity.models import FinancialFact
+
+    fact = FinancialFact(
+        concept="us-gaap:Revenues",
+        taxonomy="us-gaap",
+        label="Revenues",
+        value=100.0,
+        numeric_value=100.0,
+        unit="USD",
+        period_end=date(2020, 12, 31),
+        period_type="duration",
+        fiscal_year=2020,
+        fiscal_period="FY",
+        filing_date=date(2021, 2, 15),
+    )
+    facts = EntityFacts(cik=1, name="Fake", facts=[fact])
+    absent = (
+        facts.query().by_concept("us-gaap:NoSuchConcept", exact=True).to_dataframe()
+    )
+    present = facts.query().by_concept("us-gaap:Revenues", exact=True).to_dataframe()
+    assert absent.empty
+    assert len(present) == 1
+
+
+def test_cache_builder_reports_failed_ticker_and_skips_write(monkeypatch, tmp_path):
+    import importlib
+    import sys
+
+    sys.path.insert(0, "tools")
+    builder = importlib.import_module("build_sec_fundamentals_cache")
+
+    def _boom(ticker):
+        raise RuntimeError("edgar parse fault")
+
+    monkeypatch.setattr(builder.sf, "fetch_facts", _boom)
+    monkeypatch.setattr(builder.sf, "cache_path", lambda t: tmp_path / f"{t}.parquet")
+    ticker, n, info = builder._one("FAKE")
+    assert n == -1 and "edgar parse fault" in info
+    assert not (tmp_path / "FAKE.parquet").exists()

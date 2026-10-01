@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from src.pipeline import sec_quarterly as sq
 
@@ -285,3 +286,53 @@ def test_fetch_facts_quarterly_stores_the_concept_each_row_came_from(monkeypatch
     assert "concept" in sq.COLUMNS and "concept" in facts.columns
     rev = facts[facts["field"] == "revenue"].set_index("fiscal_period")["concept"]
     assert rev["FY"] == high and rev["Q1"] == low
+
+
+# --- audit 2026-09-30: a failing concept query must not be cached as "no data" ---
+# See the sibling test in test_sec_fundamentals.py.
+
+
+class _RaisingQuery:
+    def by_concept(self, concept, exact=True):
+        return self
+
+    def to_dataframe(self):
+        raise RuntimeError("edgar parse fault")
+
+
+class _RaisingCompany:
+    def __init__(self, ticker):
+        self.facts = type("F", (), {"query": lambda self: _RaisingQuery()})()
+
+
+def test_fetch_facts_quarterly_propagates_query_errors(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _RaisingCompany)
+    with pytest.raises(RuntimeError, match="edgar parse fault"):
+        sq.fetch_facts_quarterly("FAKE")
+
+
+class _EmptyCompany:
+    def __init__(self, ticker):
+        self.facts = _FakeFacts(pd.DataFrame())
+
+
+def test_fetch_facts_quarterly_absent_concepts_still_give_empty_frame(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _EmptyCompany)
+    assert sq.fetch_facts_quarterly("FAKE").empty
+
+
+class _NoFactsCompany:
+    def __init__(self, ticker):
+        self.facts = None
+
+
+def test_fetch_facts_quarterly_no_company_facts_raises_clear_error(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _NoFactsCompany)
+    with pytest.raises(ValueError, match="FAKE: no SEC company facts"):
+        sq.fetch_facts_quarterly("FAKE")
