@@ -575,3 +575,43 @@ def test_pit_factors_duplicate_period_end_filed_rows_paths_agree():
     assert slow.quality_raw == pytest.approx(
         0.5 * (50.0 / 200.0) + 0.5 * (80.0 / 200.0)
     )
+
+
+# --- audit 2026-09-30: a failing concept query must not be cached as "no data" ---
+# edgartools returns an EMPTY frame for an absent concept; it never raises for that.
+# Any exception is a real fault. It must reach the cache builder (which logs the ticker
+# as ERROR and skips the write) instead of silently dropping the field from the cache.
+
+
+class _RaisingQuery:
+    def by_concept(self, concept, exact=True):
+        return self
+
+    def to_dataframe(self):
+        raise RuntimeError("edgar parse fault")
+
+
+class _RaisingCompany:
+    def __init__(self, ticker):
+        self.facts = type("F", (), {"query": lambda self: _RaisingQuery()})()
+
+
+def test_fetch_facts_propagates_query_errors(monkeypatch):
+    import edgar
+    import pytest
+
+    monkeypatch.setattr(edgar, "Company", _RaisingCompany)
+    with pytest.raises(RuntimeError, match="edgar parse fault"):
+        sf.fetch_facts("FAKE")
+
+
+class _EmptyCompany:
+    def __init__(self, ticker):
+        self.facts = _FakeFacts(pd.DataFrame())
+
+
+def test_fetch_facts_absent_concepts_still_give_empty_frame(monkeypatch):
+    import edgar
+
+    monkeypatch.setattr(edgar, "Company", _EmptyCompany)
+    assert sf.fetch_facts("FAKE").empty

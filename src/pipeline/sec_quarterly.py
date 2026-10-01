@@ -71,10 +71,10 @@ def fetch_facts_quarterly(ticker: str) -> pd.DataFrame:
             set()
         )  # (period_end, fiscal_period, filed) taken by a higher-priority concept
         for concept in concepts:
-            try:
-                df = facts_obj.query().by_concept(concept, exact=True).to_dataframe()
-            except Exception:
-                continue
+            # An absent concept gives an EMPTY frame (edgartools never raises for that).
+            # Any exception here is a real fault: let it reach the cache builder, which
+            # reports the ticker as failed instead of caching it without this field.
+            df = facts_obj.query().by_concept(concept, exact=True).to_dataframe()
             if df is None or len(df) == 0 or "fiscal_period" not in df.columns:
                 continue
             numeric = pd.to_numeric(df["numeric_value"], errors="coerce")
