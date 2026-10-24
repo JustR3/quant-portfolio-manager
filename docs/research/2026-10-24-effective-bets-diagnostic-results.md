@@ -71,4 +71,4 @@ One flag, on the adjudication list: RYMFX 2017-04-21, price 13.118 replaced with
 
 All spec §10 caveats apply: US-listed proxies, one trend fund (net of about 1.7% fee), three stress episodes, one long bull market, US Treasuries as the duration stand-in.
 
-Fixes from the pre-run adversarial review (task 5) are in the HANDOFF. Open Ask-user items from that review: dated download snapshots (#4), whether spike halts after the window end should become warnings (#5), `auto_adjust=False` with Adj Close versus the spec text (#9), and a BTC k=6 view (#12).
+Fixes from the pre-run adversarial review (task 5) are in the HANDOFF. The four open review items were decided on 2026-10-24 and are recorded in spec Amendment 2: hashes only, no dated snapshots (#4); spike halts after the window end stay as written, with a download-then-run runbook (#5); the run used `Adj Close` with `auto_adjust=False` (#9); only the BTC k = 5 view was built, no k = 6 view (#12).
