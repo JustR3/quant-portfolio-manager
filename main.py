@@ -607,7 +607,7 @@ def main():
         print(f"  {PROG} verify TICK - Verify stock factor ranking")
         print(f"  {PROG} backtest    - Test strategy on historical data")
         print(f"  {PROG} portfolio   - Manage and validate portfolio snapshots")
-        print("\nFor DCF analysis: uv run python dcf_cli.py")
+        print("\nFor DCF analysis, use the separate dcf-valuation repo (uv run dcf implied TICKER)")
         print(f"\nUse '{PROG} COMMAND -h' for detailed help\n")
         return
 
