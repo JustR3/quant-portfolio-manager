@@ -180,7 +180,7 @@ feasibility ([PIT fundamentals](docs/research/2026-06-05-pit-fundamentals-feasib
 [SEC PIT spike](docs/research/2026-06-08-sec-edgar-pit-spike.md)),
 calibration ([cost sensitivity](docs/research/2026-06-07-cost-sensitivity.md),
 [net-issuance splits](docs/research/2026-06-09-net-issuance-splits-spike.md)),
-and the six verdicts in the table above. Design history lives in
+and the six verdicts in the table above. Diversification diagnostic (`uv run ./main.py div-eval`): NO-GO, see [diag-1 results](docs/research/2026-10-24-effective-bets-diagnostic-results.md). Design history lives in
 [docs/superpowers/specs/](docs/superpowers/specs/) and [plans](docs/superpowers/plans/).
 Legacy feature guides ([regime/gods](docs/REGIME_AND_GODS_GUIDE.md),
 [130/30](docs/LONG_SHORT_130_30.md)) carry retraction banners and are kept as mechanism
