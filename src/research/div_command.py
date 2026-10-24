@@ -29,6 +29,7 @@ DIAG_EXTRA = ["GLD", "BTC-USD"]
 SWAPS = {"IEF": "TLT", "DBC": "GSG", "RYMFX": "AQMIX", "ACWI": "VT"}
 ALL_TICKERS = GATED_TICKERS + DIAG_EXTRA + list(SWAPS.values()) + [FX]
 COST_BPS, N_BOOT, NULL_DRAWS, SEED, MEAN_BLOCK = 10.0, 10_000, 10_000, 42, 4
+DEFAULT_BASE = dd.DIV_BASE
 FREQUENCIES = ("weekly", "daily")
 CURRENCIES = ("unhedged", "hedged")
 DEGENERATE = "FAIL (degenerate)"
@@ -134,8 +135,8 @@ def _guard(fn, *args, **kwargs):
     """Diagnostics may fail loudly on their own; they never abort the gated verdict."""
     try:
         return fn(*args, **kwargs)
-    except (dd.DataError, de.DegenerateError) as e:
-        return {"error": str(e)}
+    except Exception as e:  # diagnostics only: record, never abort
+        return {"error": str(e), "error_type": type(e).__name__}
 
 
 def _equal_satellite(tickers) -> dict:
@@ -201,7 +202,8 @@ def _sleeve_stats(daily) -> dict:
     """Annualised CHF weekly return / vol / max drawdown per ticker on its own available window."""
     out = {}
     for t in [t for t in ALL_TICKERS if t != FX]:
-        window = (str(daily[t].index.min().date()), WINDOW[1])
+        start = max(daily[t].index.min(), daily[FX].index.min())
+        window = (str(start.date()), WINDOW[1])
         frame = _price_frame(daily, [t], "weekly", window)
         rets = frame.pct_change().iloc[1:]
         chf = dd.chf_unhedged(rets[[t]], rets[FX])[t]
@@ -216,12 +218,13 @@ def run_div_eval_config(
     run_date=None,
     n_boot=N_BOOT,
     null_draws=NULL_DRAWS,
+    force_ungated=False,
 ) -> dr.DivEvalResult:
     if frequency not in FREQUENCIES:
         raise ValueError(f"frequency must be one of {FREQUENCIES}, got {frequency!r}")
     if currency not in CURRENCIES:
         raise ValueError(f"currency must be one of {CURRENCIES}, got {currency!r}")
-    gated = frequency == "weekly" and currency == "unhedged"
+    gated = frequency == "weekly" and currency == "unhedged" and not force_ungated
     base_dir = Path(base_dir)
     run_ts = pd.Timestamp(run_date) if run_date else pd.Timestamp(date.today())
     params = {
@@ -239,7 +242,16 @@ def run_div_eval_config(
         "run_date": str(run_ts.date()),
         "base_dir": str(base_dir),
         "data_ranges": {},
+        "data_sha256": {},
+        "gated": gated,
     }
+    spike_log = []
+    for name, path in [
+        *((t, base_dir / "prices" / f"{t}.parquet") for t in ALL_TICKERS),
+        *((r, base_dir / "rates" / f"{r}.parquet") for r in (RF_CHF, RF_USD)),
+    ]:
+        if path.exists():
+            params["data_sha256"][name] = dd.file_sha256(path)
     try:
         raw = {t: dd.load_daily(t, base_dir) for t in ALL_TICKERS}
         rates = {sid: dd.load_rate(sid, base_dir) for sid in (RF_CHF, RF_USD)}
@@ -253,7 +265,9 @@ def run_div_eval_config(
             dd.assert_rate_covers(s, sid, WINDOW[1])
         for t in GATED_TICKERS + [FX]:
             dd.assert_covers(raw[t], t, *WINDOW)
-        daily, spike_log = {}, []
+        for t in GATED_TICKERS + [FX]:
+            dd.assert_no_gaps(raw[t], t, *WINDOW)
+        daily = {}
         for t, s in raw.items():
             daily[t], log = dd.apply_adjudications(s, t)
             spike_log += log
@@ -275,7 +289,7 @@ def run_div_eval_config(
             params=params,
             gate_metrics=None,
             diagnostics={},
-            spike_log=[],
+            spike_log=spike_log,
             caveats=list(CAVEATS),
             degenerate_reason=str(e),
         )
@@ -294,13 +308,35 @@ def run_div_eval_config(
 
 
 def exit_code(result: dr.DivEvalResult) -> int:
-    return 2 if result.verdict == DEGENERATE else 0
+    if result.verdict == DEGENERATE:
+        return 2
+    if not result.gated:
+        gm = result.gate_metrics or {}
+        stress = gm.get("n_eff_stress") or {}
+        vals = [gm.get("n_eff_full"), gm.get("sharpe_delta")]
+        vals += [v for v in stress.values() if v is not None]
+        if not all(dr._finite(v) for v in vals):
+            return 2
+    return 0
 
 
-def run_div_eval(args) -> dr.DivEvalResult:
-    """CLI entry (mirrors run_ts_eval): evaluate, render, save the JSON artifact for EVERY outcome."""
+def run_div_eval(args, run_date=None, **kw) -> dr.DivEvalResult:
+    """CLI entry (mirrors run_ts_eval): evaluate, render, save the JSON artifact for EVERY outcome.
+
+    Gated only if base_dir is the default, run_date is None and no gated-constant flag was given
+    (even one equal to its default). args.frequency/currency are None when not given.
+    """
+    explicit = args.frequency is not None or args.currency is not None
+    force_ungated = (
+        Path(args.base_dir) != Path(DEFAULT_BASE) or run_date is not None or explicit
+    )
     result = run_div_eval_config(
-        base_dir=Path(args.base_dir), frequency=args.frequency, currency=args.currency
+        base_dir=Path(args.base_dir),
+        frequency=args.frequency or "weekly",
+        currency=args.currency or "unhedged",
+        run_date=run_date,
+        force_ungated=force_ungated,
+        **kw,
     )
     print(result.render())
     export_dir = Path(args.export) if args.export else Path("data/research")

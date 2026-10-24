@@ -6,6 +6,8 @@ Prices live in their own store, data/historical/div/, so signal-eval and ts-eval
 
 from pathlib import Path
 
+import hashlib
+
 import numpy as np
 import pandas as pd
 
@@ -37,6 +39,33 @@ class CoverageError(DataError):
 
 class SpikeAdjudicationError(DataError):
     pass
+
+
+class MissingDataError(DataError):
+    """A required parquet is missing or mislabelled."""
+
+
+class GapError(DataError):
+    pass
+
+
+MAX_GAP_DAYS = 7
+
+
+def file_sha256(path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def assert_no_gaps(s: pd.Series, name: str, start, end, max_days: int = MAX_GAP_DAYS):
+    """No gap > max_days calendar days between consecutive observations inside [start, end]."""
+    w = s.loc[pd.Timestamp(start) : pd.Timestamp(end)]
+    gaps = w.index.to_series().diff().dt.days.dropna()
+    if (gaps > max_days).any():
+        at = gaps.idxmax()
+        raise GapError(
+            f"{name}: gap of {int(gaps.max())} days ending {at.date()} inside window "
+            f"(max {max_days})"
+        )
 
 
 def detect_spikes(prices: pd.Series) -> list[pd.Timestamp]:
@@ -161,10 +190,11 @@ def to_weekly(daily: pd.Series) -> pd.Series:
 def load_daily(ticker: str, base_dir: Path = DIV_BASE) -> pd.Series:
     s = load_prices(ticker, field="Adj Close", base_dir=Path(base_dir))
     if s is None:
-        raise FileNotFoundError(
-            f"No Adj Close data for {ticker} under {base_dir}. "
+        raise MissingDataError(
+            f"No Adj Close data for {ticker} under {base_dir} (missing or mislabelled). "
             "Run: uv run python tools/download_div_universe.py"
         )
+    assert s.index.tz is None, f"{ticker}: store index must be tz-naive"
     s.index = pd.DatetimeIndex(s.index).normalize()
     return s[~s.index.duplicated(keep="last")]
 
@@ -172,7 +202,7 @@ def load_daily(ticker: str, base_dir: Path = DIV_BASE) -> pd.Series:
 def load_rate(series_id: str, base_dir: Path = DIV_BASE) -> pd.Series:
     path = Path(base_dir) / "rates" / f"{series_id}.parquet"
     if not path.exists():
-        raise FileNotFoundError(
+        raise MissingDataError(
             f"No rate data {path}. Run: uv run python tools/download_div_universe.py"
         )
     s = pd.read_parquet(path).iloc[:, 0].dropna()

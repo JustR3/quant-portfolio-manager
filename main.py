@@ -507,16 +507,16 @@ Examples:
     dive.add_argument(
         "--frequency",
         type=str,
-        default="weekly",
+        default=None,
         choices=["weekly", "daily"],
-        help="Return frequency (default weekly; daily = UN-GATED diagnostic)",
+        help="Return frequency (default weekly; passing this flag at all = UN-GATED diagnostic)",
     )
     dive.add_argument(
         "--currency",
         type=str,
-        default="unhedged",
+        default=None,
         choices=["unhedged", "hedged"],
-        help="CHF view (default unhedged; hedged = UN-GATED diagnostic)",
+        help="CHF view (default unhedged; passing this flag at all = UN-GATED diagnostic)",
     )
     dive.add_argument(
         "--base-dir",
