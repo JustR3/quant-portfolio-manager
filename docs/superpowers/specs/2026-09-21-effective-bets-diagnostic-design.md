@@ -265,3 +265,12 @@ weight changes.** Each item removes a judgment call the implementer would otherw
    days are not tested" means the first 63 daily **returns** (they have no complete trailing σ).
 4. **Daily diagnostic mode** uses 252 periods per year for the risk-free conversion and for
    Sharpe annualisation.
+
+## Amendment 2 — 2026-10-24, post-run notes (written AFTER the gated run; no constant, gate, instrument, window or weight changed)
+
+Records for the closed study. The gated run (artifact `div-eval-20261024_151719`) is the only run. These notes do not change its verdict.
+
+1. **Run order (review finding #5).** The spike detector scans the full daily history of every loaded series, including days after the window end (Amendment 1.3, literal reading). A bad print after the window end in any series, even a diagnostic-only one, halts a gated run. Runbook for any future re-run: download first (`uv run python tools/download_div_universe.py`), then run `uv run ./main.py div-eval` the same day. User decision 2026-10-24: keep the literal rule; no code change.
+2. **Raw data (review finding #4).** The downloader overwrites the raw store. The artifact records a SHA-256 of every input file in `params.data_sha256`. User decision 2026-10-24: keep hashes only; no dated snapshots.
+3. **Price field (review finding #9).** §5 says `auto_adjust=True` closes. The downloader used `auto_adjust=False` and the `Adj Close` column, which is the adjusted (total-return) close. The run used `Adj Close`. User decision 2026-10-24: record this here; no switch and no re-run.
+4. **BTC view (review finding #12).** §7 says "BTC added (k = 5 or 6)". Only the k = 5 view (gated set + BTC) was built. No gold+BTC (k = 6) view exists. User decision 2026-10-24: not built.
