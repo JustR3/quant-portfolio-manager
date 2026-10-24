@@ -9,8 +9,15 @@ def fixture_dir(tmp_path):
     # Mirror real schema: MultiIndex columns (field, ticker) + ('ticker','')
     idx = pd.date_range("2020-01-01", "2020-12-31", freq="B", name="Date")
     cols = pd.MultiIndex.from_tuples(
-        [("Adj Close", "TEST"), ("Close", "TEST"), ("High", "TEST"),
-         ("Low", "TEST"), ("Open", "TEST"), ("Volume", "TEST"), ("ticker", "")]
+        [
+            ("Adj Close", "TEST"),
+            ("Close", "TEST"),
+            ("High", "TEST"),
+            ("Low", "TEST"),
+            ("Open", "TEST"),
+            ("Volume", "TEST"),
+            ("ticker", ""),
+        ]
     )
     data = np.zeros((len(idx), len(cols)))
     df = pd.DataFrame(data, index=idx, columns=cols)
@@ -38,7 +45,9 @@ def test_price_asof_is_strictly_before(fixture_dir):
 
 
 def test_price_asof_missing_ticker_returns_none(fixture_dir):
-    assert hs.price_asof("NOPE", pd.Timestamp("2020-06-15"), base_dir=fixture_dir) is None
+    assert (
+        hs.price_asof("NOPE", pd.Timestamp("2020-06-15"), base_dir=fixture_dir) is None
+    )
 
 
 def test_load_prices_refuses_mislabeled_file(tmp_path):
@@ -55,5 +64,7 @@ def test_load_prices_refuses_mislabeled_file(tmp_path):
 
 
 def test_price_asof_handles_tz_aware_input(fixture_dir):
-    px = hs.price_asof("TEST", pd.Timestamp("2020-06-15", tz="UTC"), base_dir=fixture_dir)
+    px = hs.price_asof(
+        "TEST", pd.Timestamp("2020-06-15", tz="UTC"), base_dir=fixture_dir
+    )
     assert px is not None

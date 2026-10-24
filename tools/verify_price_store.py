@@ -11,6 +11,7 @@ Usage:
     python tools/verify_price_store.py            # structural + 10 live spot-checks
     python tools/verify_price_store.py --spot 0   # structural checks only (no network)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -37,7 +38,9 @@ def check_file(path: Path) -> list[str]:
 
     col_ticker = close[0][1]
     if col_ticker != tk:
-        issues.append(f"{tk}: Close column ticker is '{col_ticker}' (identity mismatch)")
+        issues.append(
+            f"{tk}: Close column ticker is '{col_ticker}' (identity mismatch)"
+        )
 
     if not df.index.is_monotonic_increasing:
         issues.append(f"{tk}: dates not monotonic increasing")
@@ -72,18 +75,29 @@ def spot_check(path: Path, tol: float = 0.02) -> list[str]:
     )
     if fresh.empty:
         return [f"{tk}: could not fetch fresh data for spot check (delisted?)"]
-    fc = fresh[("Close", tk)] if isinstance(fresh.columns, pd.MultiIndex) else fresh["Close"]
+    fc = (
+        fresh[("Close", tk)]
+        if isinstance(fresh.columns, pd.MultiIndex)
+        else fresh["Close"]
+    )
     fresh_last = float(fc.dropna().iloc[-1])
     stored_last = float(s.iloc[-1])
     if fresh_last > 0 and abs(stored_last - fresh_last) / fresh_last > tol:
-        return [f"{tk}: stored last close {stored_last:.2f} vs fresh {fresh_last:.2f} (> {tol:.0%})"]
+        return [
+            f"{tk}: stored last close {stored_last:.2f} vs fresh {fresh_last:.2f} (> {tol:.0%})"
+        ]
     return []
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Verify historical price store integrity")
     ap.add_argument("--dir", default="data/historical/prices")
-    ap.add_argument("--spot", type=int, default=10, help="random tickers to spot-check vs live (0 = none)")
+    ap.add_argument(
+        "--spot",
+        type=int,
+        default=10,
+        help="random tickers to spot-check vs live (0 = none)",
+    )
     args = ap.parse_args()
 
     files = sorted(Path(args.dir).glob("*.parquet"))
@@ -110,8 +124,10 @@ def main() -> None:
             print(f"  ... and {len(issues) - 40} more")
         sys.exit(1)
 
-    print(f"✅ {len(files)} files passed structural/identity checks; "
-          f"{len(sample)} spot-checked against live data.")
+    print(
+        f"✅ {len(files)} files passed structural/identity checks; "
+        f"{len(sample)} spot-checked against live data."
+    )
 
 
 if __name__ == "__main__":

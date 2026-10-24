@@ -6,6 +6,7 @@ the in-window removed-name list (feeds Spike B — price coverage).
 
 Run: uv run python tools/sp500_membership_spike.py
 """
+
 import io
 import sys
 from pathlib import Path
@@ -35,19 +36,24 @@ def members_asof(current_members, changes, as_of):
     as_of = pd.Timestamp(as_of)
     s = set(current_members)
     # undo changes from newest down to just-after as_of
-    for _, row in changes[changes["date"] > as_of].sort_values("date", ascending=False).iterrows():
+    for _, row in (
+        changes[changes["date"] > as_of].sort_values("date", ascending=False).iterrows()
+    ):
         add, rm = row["add_tkr"], row["rm_tkr"]
         if isinstance(add, str) and add and add != "nan":
-            s.discard(add)        # it was added after as_of -> not a member at as_of
+            s.discard(add)  # it was added after as_of -> not a member at as_of
         if isinstance(rm, str) and rm and rm != "nan":
-            s.add(rm)             # it was removed after as_of -> was a member at as_of
+            s.add(rm)  # it was removed after as_of -> was a member at as_of
     return s
 
 
 def removed_in_window(current_members, changes, start, end):
     """Tickers removed during [start,end] that are NOT current members (genuinely left)."""
     cur = set(current_members)
-    win = changes[(changes["date"] >= pd.Timestamp(start)) & (changes["date"] <= pd.Timestamp(end))]
+    win = changes[
+        (changes["date"] >= pd.Timestamp(start))
+        & (changes["date"] <= pd.Timestamp(end))
+    ]
     out = {}
     for _, row in win.iterrows():
         rm = row["rm_tkr"]
@@ -59,13 +65,17 @@ def removed_in_window(current_members, changes, start, end):
 if __name__ == "__main__":
     current, ch = fetch()
     print(f"current constituents: {len(current)}   change rows (dated): {len(ch)}")
-    print(f"change-history span: {ch['date'].min().date()} .. {ch['date'].max().date()}")
+    print(
+        f"change-history span: {ch['date'].min().date()} .. {ch['date'].max().date()}"
+    )
     for d in ["2016-06-01", "2020-06-01", "2020-12-31", "2024-06-01"]:
         m = members_asof(current, ch, d)
         print(f"  members_asof({d}): {len(m)}")
     m_pre = members_asof(current, ch, "2020-06-01")
     m_post = members_asof(current, ch, "2020-12-31")
-    print(f"TSLA added 2020-12-21 -> in 2020-06? {'TSLA' in m_pre}  in 2020-12-31? {'TSLA' in m_post}")
+    print(
+        f"TSLA added 2020-12-21 -> in 2020-06? {'TSLA' in m_pre}  in 2020-12-31? {'TSLA' in m_post}"
+    )
     rm = removed_in_window(current, ch, "2016-01-01", "2026-06-01")
     print(f"\nremoved-in-window (not current): {len(rm)} names")
     for t, (d, why) in sorted(rm.items(), key=lambda x: x[1][0]):

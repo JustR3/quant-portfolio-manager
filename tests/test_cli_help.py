@@ -144,3 +144,11 @@ def test_portfolio_list_hint_uses_the_real_command_when_snapshots_exist(tmp_path
     assert result.returncode == 0
     assert "qpm" not in result.stdout
     assert f"Validate with: {WORKING_PROG} portfolio validate" in result.stdout
+
+
+def test_no_args_hint_does_not_point_to_the_removed_dcf_cli():
+    # DCF moved to the separate dcf-valuation repo (2025-12-28); dcf_cli.py does not exist here.
+    result = run_cli()
+    assert result.returncode == 0
+    assert "dcf_cli.py" not in result.stdout
+    assert "dcf-valuation" in result.stdout

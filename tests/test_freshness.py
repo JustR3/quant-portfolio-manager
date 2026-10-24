@@ -207,3 +207,77 @@ def test_get_ff_factors_warns_on_the_live_download_path_too(monkeypatch, caplog)
         df = french.get_ff_factors()
     assert df is stale
     assert any("Fama-French" in r.message for r in caplog.records)
+
+
+# --- wiring: FRED CPI/GDP and Damodaran warn (never raise) on stale live data --------
+
+_NOW = pd.Timestamp("2026-06-01")
+
+
+def _fred_connector():
+    from src.pipeline.external import fred
+
+    return fred.FredConnector.__new__(fred.FredConnector)
+
+
+def test_fred_stale_series_warns_with_frozen_date(caplog):
+    series = pd.Series([300.0], index=pd.DatetimeIndex(["2025-01-01"]))
+    with caplog.at_level("WARNING"):
+        _fred_connector()._warn_if_stale(series, 31, 45, "FRED CPI", now=_NOW)
+    assert any("FRED CPI" in r.message for r in caplog.records)
+
+
+def test_fred_fresh_or_empty_series_does_not_warn_or_raise(caplog):
+    fresh = pd.Series([300.0], index=pd.DatetimeIndex(["2026-05-01"]))
+    with caplog.at_level("WARNING"):
+        c = _fred_connector()
+        c._warn_if_stale(fresh, 31, 45, "FRED CPI", now=_NOW)
+        c._warn_if_stale(pd.Series(dtype=float), 31, 45, "FRED CPI", now=_NOW)
+    assert not any(
+        "latest data is" in r.message for r in caplog.records
+    )  # empty series reports "no data", fresh reports nothing
+
+
+def test_fred_inflation_warns_but_still_returns_value(caplog):
+    idx = pd.date_range("2024-01-01", periods=14, freq="MS")
+    fake = type(
+        "F",
+        (),
+        {
+            "get_series": lambda self, *a, **k: pd.Series(
+                range(100, 114), index=idx, dtype=float
+            )
+        },
+    )()
+    c = _fred_connector()
+    c.fred = fake
+    with caplog.at_level("WARNING"):
+        rate = c.get_inflation_rate()
+    assert rate is not None
+    assert any("FRED CPI" in r.message for r in caplog.records)
+
+
+def test_damodaran_stale_last_modified_warns_with_frozen_date(caplog):
+    from src.pipeline.external import damodaran
+
+    resp = type(
+        "R", (), {"headers": {"Last-Modified": "Wed, 15 Jan 2025 10:00:00 GMT"}}
+    )()
+    with caplog.at_level("WARNING"):
+        damodaran._warn_if_stale(resp, "Damodaran betas", now=_NOW)
+    assert any("Damodaran betas" in r.message for r in caplog.records)
+
+
+def test_damodaran_fresh_missing_or_garbage_header_is_silent(caplog):
+    from src.pipeline.external import damodaran
+
+    with caplog.at_level("WARNING"):
+        for hdrs in (
+            {"Last-Modified": "Thu, 15 Jan 2026 10:00:00 GMT"},
+            {},
+            {"Last-Modified": "not a date"},
+        ):
+            damodaran._warn_if_stale(
+                type("R", (), {"headers": hdrs})(), "Damodaran betas", now=_NOW
+            )
+    assert not caplog.records

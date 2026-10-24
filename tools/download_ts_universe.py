@@ -4,6 +4,7 @@ pins the spec's pre-registered windows. Network on first run; idempotent.
 
 Spec: docs/superpowers/specs/2026-06-10-ts-timing-study-design.md (§6 Task 0).
 """
+
 from pathlib import Path
 
 import pandas as pd
@@ -16,7 +17,9 @@ OUT = Path("data/historical/ts/prices")
 
 def download(tickers, start="1990-01-01"):
     OUT.mkdir(parents=True, exist_ok=True)
-    data = yf.download(tickers, start=start, auto_adjust=False, progress=False, group_by="column")
+    data = yf.download(
+        tickers, start=start, auto_adjust=False, progress=False, group_by="column"
+    )
     for t in tickers:
         sub = data.loc[:, pd.IndexSlice[:, t]].dropna(how="all")
         if sub.empty:
@@ -24,7 +27,9 @@ def download(tickers, start="1990-01-01"):
             continue
         if sub.index.tz is not None:
             sub.index = sub.index.tz_localize(None)
-        assert (sub.columns.get_level_values(1) == t).all(), f"identity violation for {t}"
+        assert (sub.columns.get_level_values(1) == t).all(), (
+            f"identity violation for {t}"
+        )
         sub.to_parquet(OUT / f"{t}.parquet", compression="snappy", index=True)
 
 
@@ -39,7 +44,15 @@ def probe():
         close = df[("Close", t)].dropna()
         d = close.index.to_series().diff().dt.days
         gaps = int((d > 7).sum())  # >5 trading days ~ >7 calendar
-        rows.append((t, str(close.index[0].date()), str(close.index[-1].date()), len(close), gaps))
+        rows.append(
+            (
+                t,
+                str(close.index[0].date()),
+                str(close.index[-1].date()),
+                len(close),
+                gaps,
+            )
+        )
     print(f"{'ticker':8} {'first':12} {'last':12} {'rows':>6} gaps>5td")
     for r in rows:
         print(f"{r[0]:8} {r[1]:12} {r[2]:12} {r[3]:>6} {r[4]}")

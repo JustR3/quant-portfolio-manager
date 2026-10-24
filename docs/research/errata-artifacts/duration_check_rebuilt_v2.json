@@ -1,0 +1,322 @@
+{
+  "quarterly_cache": {
+    "dir": "data/historical/fundamentals_sec_q",
+    "tickers": 498,
+    "tickers_duration_checked": 498,
+    "tickers_flagged": 0,
+    "share_flagged": 0.0,
+    "pattern_flags_info": 96,
+    "totals": {
+      "fy_years": 6679,
+      "q4_negative": 52,
+      "q2_ytd_like": 93,
+      "q3_ytd_like": 82,
+      "bad_durations": 0
+    },
+    "worst": {
+      "INTU": {
+        "fy_years": 18,
+        "q4_negative": 0,
+        "q2_ytd_like": 4,
+        "q3_ytd_like": 18,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "LYV": {
+        "fy_years": 16,
+        "q4_negative": 0,
+        "q2_ytd_like": 12,
+        "q3_ytd_like": 12,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "POOL": {
+        "fy_years": 16,
+        "q4_negative": 0,
+        "q2_ytd_like": 13,
+        "q3_ytd_like": 0,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "EXE": {
+        "fy_years": 16,
+        "q4_negative": 0,
+        "q2_ytd_like": 4,
+        "q3_ytd_like": 2,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "DECK": {
+        "fy_years": 9,
+        "q4_negative": 0,
+        "q2_ytd_like": 5,
+        "q3_ytd_like": 7,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "KMB": {
+        "fy_years": 17,
+        "q4_negative": 0,
+        "q2_ytd_like": 2,
+        "q3_ytd_like": 2,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "FSLR": {
+        "fy_years": 16,
+        "q4_negative": 0,
+        "q2_ytd_like": 3,
+        "q3_ytd_like": 1,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "LUV": {
+        "fy_years": 18,
+        "q4_negative": 0,
+        "q2_ytd_like": 1,
+        "q3_ytd_like": 1,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "RCL": {
+        "fy_years": 17,
+        "q4_negative": 0,
+        "q2_ytd_like": 1,
+        "q3_ytd_like": 2,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "ADM": {
+        "fy_years": 18,
+        "q4_negative": 1,
+        "q2_ytd_like": 0,
+        "q3_ytd_like": 0,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "AMT": {
+        "fy_years": 17,
+        "q4_negative": 2,
+        "q2_ytd_like": 0,
+        "q3_ytd_like": 0,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "AVB": {
+        "fy_years": 17,
+        "q4_negative": 1,
+        "q2_ytd_like": 1,
+        "q3_ytd_like": 0,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "BKNG": {
+        "fy_years": 16,
+        "q4_negative": 0,
+        "q2_ytd_like": 1,
+        "q3_ytd_like": 2,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "CCI": {
+        "fy_years": 17,
+        "q4_negative": 2,
+        "q2_ytd_like": 0,
+        "q3_ytd_like": 0,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "GEN": {
+        "fy_years": 18,
+        "q4_negative": 1,
+        "q2_ytd_like": 0,
+        "q3_ytd_like": 0,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      }
+    },
+    "verdict": "CLEAN"
+  },
+  "fy_cache": {
+    "dir": "data/historical/fundamentals_sec",
+    "tickers": 498,
+    "tickers_duration_checked": 498,
+    "tickers_flagged": 0,
+    "share_flagged": 0.0,
+    "pattern_flags_info": 113,
+    "totals": {
+      "periods": 18371,
+      "cross_filing_disagree": 92,
+      "quarter_sized": 152,
+      "bad_durations": 0
+    },
+    "worst": {
+      "MCHP": {
+        "periods": 57,
+        "cross_filing_disagree": 3,
+        "quarter_sized": 2,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "MSI": {
+        "periods": 57,
+        "cross_filing_disagree": 3,
+        "quarter_sized": 1,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "ADM": {
+        "periods": 57,
+        "cross_filing_disagree": 2,
+        "quarter_sized": 0,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "GEN": {
+        "periods": 57,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 2,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "ISRG": {
+        "periods": 57,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 2,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "PM": {
+        "periods": 57,
+        "cross_filing_disagree": 2,
+        "quarter_sized": 0,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "AMAT": {
+        "periods": 57,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 1,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "FSLR": {
+        "periods": 56,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 2,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "KDP": {
+        "periods": 57,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 1,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "TXN": {
+        "periods": 57,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 1,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "JCI": {
+        "periods": 54,
+        "cross_filing_disagree": 1,
+        "quarter_sized": 2,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "TTWO": {
+        "periods": 56,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 1,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "ALB": {
+        "periods": 54,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 2,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "BA": {
+        "periods": 55,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 1,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      },
+      "CF": {
+        "periods": 54,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 2,
+        "pattern_flag": true,
+        "duration_checked": true,
+        "bad_durations": 0,
+        "flagged": false
+      }
+    },
+    "verdict": "CLEAN"
+  }
+}

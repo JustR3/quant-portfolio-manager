@@ -32,6 +32,7 @@ logger = get_logger(__name__)
 @dataclass
 class OptimizationResult:
     """Container for optimization results."""
+
     weights: Dict[str, float]
     expected_return: float
     volatility: float
@@ -44,24 +45,24 @@ class OptimizationResult:
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
         return {
-            'weights': self.weights,
-            'expected_return': self.expected_return,
-            'volatility': self.volatility,
-            'sharpe_ratio': self.sharpe_ratio,
-            'performance': self.performance,
-            'forecast_horizon': self.forecast_horizon,
-            'objective_used': self.objective_used,
+            "weights": self.weights,
+            "expected_return": self.expected_return,
+            "volatility": self.volatility,
+            "sharpe_ratio": self.sharpe_ratio,
+            "performance": self.performance,
+            "forecast_horizon": self.forecast_horizon,
+            "objective_used": self.objective_used,
         }
 
 
 class BlackLittermanOptimizer:
     """
     Factor-based Black-Litterman portfolio optimizer.
-    
+
     Converts factor Z-scores into expected return views and optimizes
     portfolio weights using Bayesian framework.
     """
-    
+
     def __init__(
         self,
         tickers: list,
@@ -79,7 +80,7 @@ class BlackLittermanOptimizer:
     ):
         """
         Initialize the optimizer.
-        
+
         Args:
             tickers: List of stock tickers
             risk_free_rate: Risk-free rate for Sharpe ratio
@@ -106,27 +107,32 @@ class BlackLittermanOptimizer:
         self.long_exposure = long_exposure
         self.short_exposure = short_exposure
         self.verbose = verbose
-        
+
         # Data containers
         self.prices = None
         self.factor_scores = None
         self.views = None
         self.confidences = None
-        
+
     def _get_equal_weights(self) -> Dict[str, float]:
         """Generate equal weights for prior if no market cap provided."""
         weight = 1.0 / len(self.tickers)
         return {ticker: weight for ticker in self.tickers}
-    
-    def fetch_price_data(self, period: str = "2y", start_date: Optional[str] = None, end_date: Optional[str] = None) -> pd.DataFrame:
+
+    def fetch_price_data(
+        self,
+        period: str = "2y",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> pd.DataFrame:
         """
         Fetch historical price data for the universe.
-        
+
         Args:
             period: Historical period (e.g., '2y', '5y') - used if start_date/end_date not provided
             start_date: Start date for historical data (YYYY-MM-DD) for point-in-time backtesting
             end_date: End date for historical data (YYYY-MM-DD) for point-in-time backtesting
-            
+
         Returns:
             DataFrame with adjusted close prices
         """
@@ -134,70 +140,78 @@ class BlackLittermanOptimizer:
         try:
             if start_date and end_date:
                 if self.verbose:
-                    print(f"📊 Fetching price data for {len(self.tickers)} tickers ({start_date} to {end_date})...")
+                    print(
+                        f"📊 Fetching price data for {len(self.tickers)} tickers ({start_date} to {end_date})..."
+                    )
                 data = yf.download(
                     self.tickers,
                     start=start_date,
                     end=end_date,
                     progress=False,
-                    auto_adjust=True
+                    auto_adjust=True,
                 )
             else:
                 if self.verbose:
-                    print(f"📊 Fetching price data for {len(self.tickers)} tickers ({period})...")
+                    print(
+                        f"📊 Fetching price data for {len(self.tickers)} tickers ({period})..."
+                    )
                 data = yf.download(
-                    self.tickers,
-                    period=period,
-                    progress=False,
-                    auto_adjust=True
+                    self.tickers, period=period, progress=False, auto_adjust=True
                 )
         except Exception as e:
             error_msg = str(e).lower()
-            if any(kw in error_msg for kw in ['429', 'rate limit', 'too many requests']):
-                logger.error("Yahoo Finance rate limit hit during price fetch. Please wait 60+ seconds and retry.")
+            if any(
+                kw in error_msg for kw in ["429", "rate limit", "too many requests"]
+            ):
+                logger.error(
+                    "Yahoo Finance rate limit hit during price fetch. Please wait 60+ seconds and retry."
+                )
                 raise RuntimeError(f"Yahoo Finance rate limit exceeded: {str(e)}")
             raise
-        
+
         # Extract close prices
         if len(self.tickers) == 1:
-            prices = pd.DataFrame(data['Close'])
+            prices = pd.DataFrame(data["Close"])
             prices.columns = self.tickers
         else:
             # Multi-ticker download returns MultiIndex columns
             if isinstance(data.columns, pd.MultiIndex):
-                prices = data['Close']
+                prices = data["Close"]
             else:
                 # Single ticker returns flat columns
-                prices = pd.DataFrame(data['Close'])
+                prices = pd.DataFrame(data["Close"])
                 prices.columns = self.tickers
-        
+
         # Drop any tickers with insufficient data
-        prices = prices.dropna(axis=1, how='all')
+        prices = prices.dropna(axis=1, how="all")
         valid_tickers = prices.columns.tolist()
-        
+
         if len(valid_tickers) < len(self.tickers):
             dropped = set(self.tickers) - set(valid_tickers)
             if self.verbose:
-                print(f"  ⚠️  Dropped {len(dropped)} tickers with no price data: {dropped}")
+                print(
+                    f"  ⚠️  Dropped {len(dropped)} tickers with no price data: {dropped}"
+                )
             self.tickers = valid_tickers
-        
+
         self.prices = prices
         if self.verbose:
-            print(f"✅ Price data loaded: {len(prices)} days, {len(valid_tickers)} tickers\n")
-        
+            print(
+                f"✅ Price data loaded: {len(prices)} days, {len(valid_tickers)} tickers\n"
+            )
+
         return prices
-    
+
     def generate_views_from_scores(
-        self,
-        factor_scores_df: pd.DataFrame
+        self, factor_scores_df: pd.DataFrame
     ) -> Tuple[Dict[str, float], Dict[str, float]]:
         """
         Convert factor scores into Black-Litterman views.
-        
+
         Args:
             factor_scores_df: DataFrame from FactorEngine with columns:
                              [Ticker, Value_Z, Quality_Z, Momentum_Z, Total_Score]
-        
+
         Returns:
             Tuple of (views, confidences) dictionaries
             - views: Implied excess return for each ticker
@@ -205,35 +219,39 @@ class BlackLittermanOptimizer:
         """
         if self.verbose:
             print("🔬 Generating Black-Litterman views from factor scores...")
-        
+
         # Store factor scores
         self.factor_scores = factor_scores_df
-        
+
         views = {}
         confidences = {}
-        
+
         # Calculate sample covariance for volatility estimate
         if self.prices is None:
             raise ValueError("Must fetch price data before generating views")
-        
+
         returns = self.prices.pct_change().dropna()
         mean_volatility = returns.std().mean() * np.sqrt(252)  # Annualized
-        
+
         # Filter for tickers in our universe (vectorized operation)
-        factor_scores_filtered = factor_scores_df[factor_scores_df['Ticker'].isin(self.tickers)].copy()
-        
+        factor_scores_filtered = factor_scores_df[
+            factor_scores_df["Ticker"].isin(self.tickers)
+        ].copy()
+
         # Vectorized calculation of implied returns
-        factor_scores_filtered['implied_return'] = (
-            factor_scores_filtered['Total_Score'] * mean_volatility * self.factor_alpha_scalar
+        factor_scores_filtered["implied_return"] = (
+            factor_scores_filtered["Total_Score"]
+            * mean_volatility
+            * self.factor_alpha_scalar
         )
-        
+
         # Vectorized confidence calculation
         # Calculate std dev of factor Z-scores for each ticker
-        factor_scores_filtered['factor_std'] = factor_scores_filtered.apply(
-            lambda row: np.std([row['Value_Z'], row['Quality_Z'], row['Momentum_Z']]),
-            axis=1
+        factor_scores_filtered["factor_std"] = factor_scores_filtered.apply(
+            lambda row: np.std([row["Value_Z"], row["Quality_Z"], row["Momentum_Z"]]),
+            axis=1,
         )
-        
+
         # Assign confidence levels based on factor std dev (vectorized)
         def assign_confidence(std_val):
             if std_val < 0.5:
@@ -244,32 +262,47 @@ class BlackLittermanOptimizer:
                 return 0.4
             else:
                 return 0.2
-        
-        factor_scores_filtered['confidence'] = factor_scores_filtered['factor_std'].apply(assign_confidence)
-        
+
+        factor_scores_filtered["confidence"] = factor_scores_filtered[
+            "factor_std"
+        ].apply(assign_confidence)
+
         # Convert to dictionaries
-        views = dict(zip(factor_scores_filtered['Ticker'], factor_scores_filtered['implied_return']))
-        confidences = dict(zip(factor_scores_filtered['Ticker'], factor_scores_filtered['confidence']))
-        
+        views = dict(
+            zip(
+                factor_scores_filtered["Ticker"],
+                factor_scores_filtered["implied_return"],
+            )
+        )
+        confidences = dict(
+            zip(factor_scores_filtered["Ticker"], factor_scores_filtered["confidence"])
+        )
+
         # Check for degenerate case (all views zero or very small)
         if len(views) == 0 or max(abs(v) for v in views.values()) < 0.0001:
-            logger.warning("All factor views are near zero - factor scores may be degenerate")
+            logger.warning(
+                "All factor views are near zero - factor scores may be degenerate"
+            )
             # Set minimal non-zero views to allow optimization
-            views = {ticker: 0.001 * (i - len(views)/2) / len(views) 
-                    for i, ticker in enumerate(views.keys())}
-        
+            views = {
+                ticker: 0.001 * (i - len(views) / 2) / len(views)
+                for i, ticker in enumerate(views.keys())
+            }
+
         self.views = views
         self.confidences = confidences
-        
+
         # Display summary
         if self.verbose:
             print(f"  ✓ Generated views for {len(views)} tickers")
-            print(f"  ✓ Mean view: {np.mean(list(views.values()))*100:.2f}%")
-            print(f"  ✓ View range: [{min(views.values())*100:.2f}%, {max(views.values())*100:.2f}%]")
+            print(f"  ✓ Mean view: {np.mean(list(views.values())) * 100:.2f}%")
+            print(
+                f"  ✓ View range: [{min(views.values()) * 100:.2f}%, {max(views.values()) * 100:.2f}%]"
+            )
             print(f"  ✓ Mean confidence: {np.mean(list(confidences.values())):.2f}\n")
-        
+
         return views, confidences
-    
+
     def _market_implied_prior(self, S: pd.DataFrame) -> pd.Series:
         """Market-cap-weighted equilibrium prior returns (replaces mean_historical_return).
 
@@ -283,9 +316,14 @@ class BlackLittermanOptimizer:
             mc = pd.Series(1.0 / len(tickers), index=tickers)
         else:
             mc = mc / mc.sum()
-        delta = self.risk_aversion_delta if self.risk_aversion_delta is not None else DEFAULT_RISK_AVERSION
+        delta = (
+            self.risk_aversion_delta
+            if self.risk_aversion_delta is not None
+            else DEFAULT_RISK_AVERSION
+        )
         return black_litterman.market_implied_prior_returns(
-            mc, delta, S, risk_free_rate=self.risk_free_rate)
+            mc, delta, S, risk_free_rate=self.risk_free_rate
+        )
 
     def _absolute_views(self, market_returns: pd.Series) -> Dict[str, float]:
         """Convert stored factor tilts into the absolute return levels
@@ -335,41 +373,47 @@ class BlackLittermanOptimizer:
         try:
             return ef.max_sharpe(risk_free_rate=self.risk_free_rate), False, ef
         except (ValueError, OptimizationError) as e:
-            logger.warning("max_sharpe infeasible (%s); falling back to max_quadratic_utility", e)
+            logger.warning(
+                "max_sharpe infeasible (%s); falling back to max_quadratic_utility", e
+            )
             fresh_ef = ef_factory()
             return fresh_ef.max_quadratic_utility(), True, fresh_ef
 
     def optimize(
         self,
-        objective: str = 'max_sharpe',
+        objective: str = "max_sharpe",
         weight_bounds: Tuple[float, float] = (0.0, 0.30),
-        sector_constraints: Optional[Dict[str, float]] = None
+        sector_constraints: Optional[Dict[str, float]] = None,
     ) -> OptimizationResult:
         """
         Optimize portfolio using Black-Litterman with factor views.
-        
+
         Args:
             objective: Optimization objective ('max_sharpe', 'min_volatility', 'max_quadratic_utility')
             weight_bounds: Min/max weight per asset (default: 0-30%)
             sector_constraints: Optional dict mapping sector name to max weight (e.g., {'Technology': 0.35})
-        
+
         Returns:
             OptimizationResult with optimal weights and performance metrics
         """
         if self.prices is None:
             raise ValueError("Must fetch price data first")
-        
+
         if self.views is None:
             raise ValueError("Must generate views first")
-        
+
         opt_start = time.time()
         if self.verbose:
-            mode_str = f"{int(self.long_exposure*100)}/{int(self.short_exposure*100)}" if self.long_short_mode else "long-only"
+            mode_str = (
+                f"{int(self.long_exposure * 100)}/{int(self.short_exposure * 100)}"
+                if self.long_short_mode
+                else "long-only"
+            )
             print(f"🎯 Optimizing portfolio ({objective}, {mode_str})...")
-        
+
         # Calculate sample covariance matrix
         S = risk_models.CovarianceShrinkage(self.prices).ledoit_wolf()
-        
+
         # Market-cap-weighted equilibrium prior (real Black-Litterman; wires up
         # market_cap_weights). Replaces the mean_historical_return placeholder.
         market_returns = self._market_implied_prior(S)
@@ -378,32 +422,34 @@ class BlackLittermanOptimizer:
         # This separates "market is expensive" from "factors don't work"
         if self.macro_return_scalar != 1.0:
             if self.verbose:
-                print(f"  📉 Applying macro adjustment: {self.macro_return_scalar:.2f}x to equilibrium returns")
+                print(
+                    f"  📉 Applying macro adjustment: {self.macro_return_scalar:.2f}x to equilibrium returns"
+                )
             market_returns = market_returns * self.macro_return_scalar
-        
+
         # Absolute views = each ticker's market-implied prior plus its factor
         # tilt (see _absolute_views) — NOT the tilt alone, which BL would
         # otherwise treat as the ticker's entire expected return.
         viewdict = self._absolute_views(market_returns)
-        
+
         # Use view confidences for Idzorek method
         # Higher confidence = views are more certain
-        confidence_series = pd.Series({
-            ticker: self.confidences.get(ticker, 0.5) for ticker in self.tickers
-        })
-        
+        confidence_series = pd.Series(
+            {ticker: self.confidences.get(ticker, 0.5) for ticker in self.tickers}
+        )
+
         # Black-Litterman model with Idzorek method for omega
         bl = BlackLittermanModel(
             cov_matrix=S,
             pi=market_returns,
             absolute_views=viewdict,
             omega="idzorek",  # Use Idzorek method to calculate omega from confidences
-            view_confidences=confidence_series
+            view_confidences=confidence_series,
         )
-        
+
         # Posterior expected returns
         ret_bl = bl.bl_returns()
-        
+
         # Handle long/short mode
         if self.long_short_mode:
             return self._optimize_long_short(
@@ -411,9 +457,9 @@ class BlackLittermanOptimizer:
                 S=S,
                 weight_bounds=weight_bounds,
                 sector_constraints=sector_constraints,
-                objective=objective
+                objective=objective,
             )
-        
+
         # max_sharpe needs at least one asset's posterior return above the
         # risk-free rate (otherwise the tangency portfolio is undefined). The
         # market-implied prior blended with small factor views can yield an
@@ -421,14 +467,21 @@ class BlackLittermanOptimizer:
         # against the same BL posterior rather than letting the caller drop to
         # naive equal-weight.
         effective_objective = objective
-        if objective == 'max_sharpe' and float(pd.Series(ret_bl).max()) <= self.risk_free_rate:
+        if (
+            objective == "max_sharpe"
+            and float(pd.Series(ret_bl).max()) <= self.risk_free_rate
+        ):
             # Cheap pre-check: skip a solve attempt we already know is degenerate.
-            effective_objective = 'max_quadratic_utility'
+            effective_objective = "max_quadratic_utility"
             logger.warning(
                 "max_sharpe infeasible (all posterior returns <= risk-free rate %.3f); "
-                "falling back to max_quadratic_utility.", self.risk_free_rate)
+                "falling back to max_quadratic_utility.",
+                self.risk_free_rate,
+            )
             if self.verbose:
-                print("  ⚠️  max_sharpe infeasible (posterior ≤ risk-free); using max_quadratic_utility")
+                print(
+                    "  ⚠️  max_sharpe infeasible (posterior ≤ risk-free); using max_quadratic_utility"
+                )
 
         def _make_ef() -> EfficientFrontier:
             fresh = EfficientFrontier(ret_bl, S, weight_bounds=weight_bounds)
@@ -438,7 +491,7 @@ class BlackLittermanOptimizer:
 
         # Optimize against the BL posterior. min_target_sharpe is REPORT-ONLY
         # (surfaced in display_results); it does NOT constrain the optimization.
-        if effective_objective == 'max_sharpe':
+        if effective_objective == "max_sharpe":
             # The pre-check above only catches the "all posteriors <= rf" case.
             # The solver can still find max_sharpe infeasible for unrelated
             # reasons (e.g. sector constraints on a small universe) even with
@@ -447,31 +500,31 @@ class BlackLittermanOptimizer:
             # actually ends up solved.
             weights, fell_back, ef = self._max_sharpe_or_utility(_make_ef)
             if fell_back:
-                effective_objective = 'max_quadratic_utility'
-        elif effective_objective == 'min_volatility':
+                effective_objective = "max_quadratic_utility"
+        elif effective_objective == "min_volatility":
             ef = _make_ef()
             weights = ef.min_volatility()
-        elif effective_objective == 'max_quadratic_utility':
+        elif effective_objective == "max_quadratic_utility":
             ef = _make_ef()
             weights = ef.max_quadratic_utility()
         else:
             raise ValueError(f"Unknown objective: {objective}")
-        
+
         # Clean weights (remove tiny positions)
         weights = ef.clean_weights()
-        
+
         # Performance metrics
         performance = ef.portfolio_performance(risk_free_rate=self.risk_free_rate)
-        
+
         result = OptimizationResult(
             weights=weights,
             expected_return=performance[0],
             volatility=performance[1],
             sharpe_ratio=performance[2],
             performance={
-                'expected_annual_return': performance[0] * 100,
-                'annual_volatility': performance[1] * 100,
-                'sharpe_ratio': performance[2]
+                "expected_annual_return": performance[0] * 100,
+                "annual_volatility": performance[1] * 100,
+                "sharpe_ratio": performance[2],
             },
             forecast_horizon="1 year (annualized)",
             objective_used=effective_objective,
@@ -480,39 +533,47 @@ class BlackLittermanOptimizer:
         opt_elapsed = time.time() - opt_start
         if self.verbose:
             print("✅ Optimization complete!")
-            print(f"  Expected Return: {result.expected_return*100:.2f}%")
-            print(f"  Volatility: {result.volatility*100:.2f}%")
+            print(f"  Expected Return: {result.expected_return * 100:.2f}%")
+            print(f"  Volatility: {result.volatility * 100:.2f}%")
             print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}")
             print(f"⏱️  Portfolio Optimization - Total: {opt_elapsed:.2f}s\n")
-        
+
         return result
-    
+
     def _optimize_long_short(
         self,
         ret_bl: pd.Series,
         S: pd.DataFrame,
         weight_bounds: Tuple[float, float],
         sector_constraints: Optional[Dict[str, float]],
-        objective: str
+        objective: str,
     ) -> OptimizationResult:
         """
         Optimize long/short portfolio with specified exposures.
-        
+
         Separates stocks into long candidates (positive views) and short candidates
         (negative views), optimizes each separately, then combines.
         """
         if self.verbose:
-            print(f"  📊 Long/Short Mode: {int(self.long_exposure*100)}% long, {int(self.short_exposure*100)}% short")
-            print(f"     Net exposure: {int((self.long_exposure - self.short_exposure)*100)}%")
-        
+            print(
+                f"  📊 Long/Short Mode: {int(self.long_exposure * 100)}% long, {int(self.short_exposure * 100)}% short"
+            )
+            print(
+                f"     Net exposure: {int((self.long_exposure - self.short_exposure) * 100)}%"
+            )
+
         # Separate stocks by views (positive = long, negative = short)
         long_candidates = [t for t in self.tickers if self.views.get(t, 0) > 0]
         short_candidates = [t for t in self.tickers if self.views.get(t, 0) < 0]
-        
+
         if self.verbose:
-            print(f"  ✓ Long candidates: {len(long_candidates)} (positive factor scores)")
-            print(f"  ✓ Short candidates: {len(short_candidates)} (negative factor scores)")
-        
+            print(
+                f"  ✓ Long candidates: {len(long_candidates)} (positive factor scores)"
+            )
+            print(
+                f"  ✓ Short candidates: {len(short_candidates)} (negative factor scores)"
+            )
+
         # Optimize longs
         weights_long = {}
         long_fell_back = False
@@ -521,16 +582,21 @@ class BlackLittermanOptimizer:
             S_long = S.loc[long_candidates, long_candidates]
 
             def _make_long_ef() -> EfficientFrontier:
-                return EfficientFrontier(ret_long, S_long, weight_bounds=(0, weight_bounds[1]))
+                return EfficientFrontier(
+                    ret_long, S_long, weight_bounds=(0, weight_bounds[1])
+                )
 
             _, long_fell_back, ef_long = self._max_sharpe_or_utility(_make_long_ef)
             weights_long = ef_long.clean_weights(cutoff=0.005)  # Keep smaller positions
-            
+
             # Scale to target long exposure
             total_long = sum(weights_long.values())
             if total_long > 0:
-                weights_long = {k: v * self.long_exposure / total_long for k, v in weights_long.items()}
-        
+                weights_long = {
+                    k: v * self.long_exposure / total_long
+                    for k, v in weights_long.items()
+                }
+
         # Optimize shorts
         weights_short = {}
         short_fell_back = False
@@ -542,135 +608,151 @@ class BlackLittermanOptimizer:
             ret_short_inverted = -ret_short
 
             def _make_short_ef() -> EfficientFrontier:
-                return EfficientFrontier(ret_short_inverted, S_short, weight_bounds=(0, weight_bounds[1]))
+                return EfficientFrontier(
+                    ret_short_inverted, S_short, weight_bounds=(0, weight_bounds[1])
+                )
 
             _, short_fell_back, ef_short = self._max_sharpe_or_utility(_make_short_ef)
-            weights_short = ef_short.clean_weights(cutoff=0.005)  # Keep smaller positions for shorts
-            
+            weights_short = ef_short.clean_weights(
+                cutoff=0.005
+            )  # Keep smaller positions for shorts
+
             # Scale to target short exposure and make negative
             total_short = sum(weights_short.values())
             if total_short > 0:
-                weights_short = {k: -v * self.short_exposure / total_short for k, v in weights_short.items()}
-        
+                weights_short = {
+                    k: -v * self.short_exposure / total_short
+                    for k, v in weights_short.items()
+                }
+
         # Combine long and short weights
         combined_weights = {**weights_long, **weights_short}
-        weights_series = pd.Series({t: combined_weights.get(t, 0) for t in self.tickers})
-        
+        weights_series = pd.Series(
+            {t: combined_weights.get(t, 0) for t in self.tickers}
+        )
+
         # Calculate portfolio metrics
         port_return = (weights_series * ret_bl).sum()
-        port_variance = np.dot(weights_series.values, np.dot(S.values, weights_series.values))
+        port_variance = np.dot(
+            weights_series.values, np.dot(S.values, weights_series.values)
+        )
         port_volatility = np.sqrt(port_variance)
         sharpe = (port_return - self.risk_free_rate) / port_volatility
-        
+
         # Calculate exposures
         gross_long = sum(w for w in combined_weights.values() if w > 0)
         gross_short = abs(sum(w for w in combined_weights.values() if w < 0))
         net_exposure = gross_long - gross_short
-        
+
         result = OptimizationResult(
             weights=combined_weights,
             expected_return=port_return,
             volatility=port_volatility,
             sharpe_ratio=sharpe,
             performance={
-                'expected_annual_return': port_return * 100,
-                'annual_volatility': port_volatility * 100,
-                'sharpe_ratio': sharpe,
-                'gross_long': gross_long * 100,
-                'gross_short': gross_short * 100,
-                'net_exposure': net_exposure * 100,
+                "expected_annual_return": port_return * 100,
+                "annual_volatility": port_volatility * 100,
+                "sharpe_ratio": sharpe,
+                "gross_long": gross_long * 100,
+                "gross_short": gross_short * 100,
+                "net_exposure": net_exposure * 100,
             },
             forecast_horizon="1 year (annualized)",
-            objective_used="max_quadratic_utility" if (long_fell_back or short_fell_back) else "max_sharpe",
+            objective_used="max_quadratic_utility"
+            if (long_fell_back or short_fell_back)
+            else "max_sharpe",
         )
-        
+
         if self.verbose:
             print("✅ Optimization complete!")
-            print(f"  Expected Return: {result.expected_return*100:.2f}%")
-            print(f"  Volatility: {result.volatility*100:.2f}%")
+            print(f"  Expected Return: {result.expected_return * 100:.2f}%")
+            print(f"  Volatility: {result.volatility * 100:.2f}%")
             print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}")
-            print(f"  Gross Long: {gross_long*100:.2f}%, Gross Short: {gross_short*100:.2f}%")
-            print(f"  Net Exposure: {net_exposure*100:.2f}%")
-        
+            print(
+                f"  Gross Long: {gross_long * 100:.2f}%, Gross Short: {gross_short * 100:.2f}%"
+            )
+            print(f"  Net Exposure: {net_exposure * 100:.2f}%")
+
         return result
-    
+
     def _apply_sector_constraints(
-        self,
-        ef: EfficientFrontier,
-        sector_constraints: Dict[str, float]
+        self, ef: EfficientFrontier, sector_constraints: Dict[str, float]
     ) -> None:
         """
         Apply sector concentration constraints to the optimization.
-        
+
         Args:
             ef: EfficientFrontier object to add constraints to
             sector_constraints: Dict mapping sector names to max weight (e.g., {'Technology': 0.35})
         """
-        if not hasattr(self, 'sector_map') or not self.sector_map:
+        if not hasattr(self, "sector_map") or not self.sector_map:
             logger.warning("No sector mapping available, skipping sector constraints")
             return
-        
+
         # Group tickers by sector
         sector_tickers = {}
         for ticker, sector in self.sector_map.items():
             if sector not in sector_tickers:
                 sector_tickers[sector] = []
             sector_tickers[sector].append(ticker)
-        
+
         # Add constraints for each sector with a specified limit
         constraints_applied = 0
         for sector, max_weight in sector_constraints.items():
             if sector in sector_tickers:
                 tickers = sector_tickers[sector]
                 # Add constraint: sum of weights in sector <= max_weight
-                ef.add_constraint(lambda w, tickers=tickers: sum(w[self.tickers.index(t)] for t in tickers if t in self.tickers) <= max_weight)
+                ef.add_constraint(
+                    lambda w, tickers=tickers: sum(
+                        w[self.tickers.index(t)] for t in tickers if t in self.tickers
+                    )
+                    <= max_weight
+                )
                 constraints_applied += 1
-                logger.debug(f"Applied sector constraint: {sector} ≤ {max_weight*100:.0f}%")
-        
+                logger.debug(
+                    f"Applied sector constraint: {sector} ≤ {max_weight * 100:.0f}%"
+                )
+
         if constraints_applied > 0:
             if self.verbose:
-                print(f"  📊 Applied {constraints_applied} sector concentration constraints")
-    
+                print(
+                    f"  📊 Applied {constraints_applied} sector concentration constraints"
+                )
+
     def get_discrete_allocation(
-        self,
-        weights: Dict[str, float],
-        total_portfolio_value: float
+        self, weights: Dict[str, float], total_portfolio_value: float
     ) -> Dict:
         """
         Convert continuous weights to discrete share quantities.
-        
+
         Args:
             weights: Optimized weights dictionary
             total_portfolio_value: Total portfolio value in dollars
-        
+
         Returns:
             Dictionary with allocation details
         """
         latest_prices = self.prices.iloc[-1]
-        
+
         da = DiscreteAllocation(
-            weights,
-            latest_prices,
-            total_portfolio_value=total_portfolio_value
+            weights, latest_prices, total_portfolio_value=total_portfolio_value
         )
-        
+
         allocation, leftover = da.greedy_portfolio()
-        
+
         return {
-            'allocation': allocation,
-            'leftover': leftover,
-            'total_value': total_portfolio_value,
-            'invested': total_portfolio_value - leftover
+            "allocation": allocation,
+            "leftover": leftover,
+            "total_value": total_portfolio_value,
+            "invested": total_portfolio_value - leftover,
         }
-    
+
     def display_results(
-        self,
-        result: OptimizationResult,
-        show_views: bool = True
+        self, result: OptimizationResult, show_views: bool = True
     ) -> None:
         """
         Display optimization results in a formatted table.
-        
+
         Args:
             result: OptimizationResult object
             show_views: Whether to show factor views alongside weights
@@ -678,103 +760,125 @@ class BlackLittermanOptimizer:
         print("=" * 80)
         print("📈 BLACK-LITTERMAN PORTFOLIO OPTIMIZATION")
         print("=" * 80)
-        
+
         if show_views and self.views and self.confidences:
-            print(f"\n{'Ticker':<8} {'Weight':<10} {'View':<12} {'Confidence':<12} {'Total Score':<12}")
+            print(
+                f"\n{'Ticker':<8} {'Weight':<10} {'View':<12} {'Confidence':<12} {'Total Score':<12}"
+            )
             print("-" * 80)
-            
-            for ticker in sorted(result.weights.keys(), key=lambda t: result.weights[t], reverse=True):
+
+            for ticker in sorted(
+                result.weights.keys(), key=lambda t: result.weights[t], reverse=True
+            ):
                 weight = result.weights[ticker]
                 if weight > 0.001:  # Only show non-zero weights
                     view = self.views.get(ticker, 0)
                     confidence = self.confidences.get(ticker, 0)
-                    
+
                     # Get total score if available
                     if self.factor_scores is not None:
-                        score_row = self.factor_scores[self.factor_scores['Ticker'] == ticker]
-                        total_score = score_row['Total_Score'].iloc[0] if not score_row.empty else 0
+                        score_row = self.factor_scores[
+                            self.factor_scores["Ticker"] == ticker
+                        ]
+                        total_score = (
+                            score_row["Total_Score"].iloc[0]
+                            if not score_row.empty
+                            else 0
+                        )
                     else:
                         total_score = 0
-                    
-                    print(f"{ticker:<8} {weight*100:>8.2f}%  {view*100:>9.2f}%  {confidence:>10.2f}  {total_score:>10.2f}")
+
+                    print(
+                        f"{ticker:<8} {weight * 100:>8.2f}%  {view * 100:>9.2f}%  {confidence:>10.2f}  {total_score:>10.2f}"
+                    )
         else:
             print(f"\n{'Ticker':<8} {'Weight':<10}")
             print("-" * 30)
-            for ticker, weight in sorted(result.weights.items(), key=lambda x: x[1], reverse=True):
+            for ticker, weight in sorted(
+                result.weights.items(), key=lambda x: x[1], reverse=True
+            ):
                 if weight > 0.001:
-                    print(f"{ticker:<8} {weight*100:>8.2f}%")
-        
+                    print(f"{ticker:<8} {weight * 100:>8.2f}%")
+
         print("\n" + "=" * 80)
-        print(f"Expected Return: {result.expected_return*100:.2f}%")
-        print(f"Volatility: {result.volatility*100:.2f}%")
-        print(f"Sharpe Ratio (expected, in-sample optimizer — not realized): {result.sharpe_ratio:.2f}")
+        print(f"Expected Return: {result.expected_return * 100:.2f}%")
+        print(f"Volatility: {result.volatility * 100:.2f}%")
+        print(
+            f"Sharpe Ratio (expected, in-sample optimizer — not realized): {result.sharpe_ratio:.2f}"
+        )
         if self.min_target_sharpe and self.min_target_sharpe > 0:
-            meets = "✓ met" if result.sharpe_ratio >= self.min_target_sharpe else "✗ below"
-            print(f"Min-Sharpe target (report-only): {self.min_target_sharpe:.2f} "
-                  f"— expected {result.sharpe_ratio:.2f} ({meets})")
+            meets = (
+                "✓ met" if result.sharpe_ratio >= self.min_target_sharpe else "✗ below"
+            )
+            print(
+                f"Min-Sharpe target (report-only): {self.min_target_sharpe:.2f} "
+                f"— expected {result.sharpe_ratio:.2f} ({meets})"
+            )
         print("=" * 80 + "\n")
 
 
 if __name__ == "__main__":
     """Test the optimizer with a mini-universe."""
-    
+
     print("\n" + "=" * 80)
     print("🚀 PHASE 3: BLACK-LITTERMAN OPTIMIZER - TEST")
     print("=" * 80 + "\n")
-    
+
     # Mini-universe for testing
     test_tickers = ["NVDA", "XOM", "JPM", "PFE", "TSLA"]
-    
+
     # Create mock factor scores (normally from FactorEngine)
-    mock_scores = pd.DataFrame({
-        'Ticker': test_tickers,
-        'Value_Z': [-0.71, 0.93, 0.00, 0.78, -1.01],
-        'Quality_Z': [1.61, -0.40, -0.95, 0.26, -0.52],
-        'Momentum_Z': [0.97, -0.15, 1.10, -1.02, -0.90],
-        'Total_Score': [0.55, 0.18, -0.16, 0.21, -0.79]
-    })
-    
+    mock_scores = pd.DataFrame(
+        {
+            "Ticker": test_tickers,
+            "Value_Z": [-0.71, 0.93, 0.00, 0.78, -1.01],
+            "Quality_Z": [1.61, -0.40, -0.95, 0.26, -0.52],
+            "Momentum_Z": [0.97, -0.15, 1.10, -1.02, -0.90],
+            "Total_Score": [0.55, 0.18, -0.16, 0.21, -0.79],
+        }
+    )
+
     print("Mock Factor Scores:")
     print(mock_scores)
     print()
-    
+
     # Initialize optimizer
     optimizer = BlackLittermanOptimizer(
         tickers=test_tickers,
-        factor_alpha_scalar=0.02  # 1-sigma = 2% outperformance
+        factor_alpha_scalar=0.02,  # 1-sigma = 2% outperformance
     )
-    
+
     # Fetch price data
     optimizer.fetch_price_data(period="2y")
-    
+
     # Generate views from factor scores
     views, confidences = optimizer.generate_views_from_scores(mock_scores)
-    
+
     # Optimize portfolio
-    result = optimizer.optimize(objective='max_sharpe')
-    
+    result = optimizer.optimize(objective="max_sharpe")
+
     # Display results
     optimizer.display_results(result, show_views=True)
-    
+
     # Discrete allocation example
     print("\n" + "=" * 80)
     print("💰 DISCRETE ALLOCATION ($10,000 Portfolio)")
     print("=" * 80 + "\n")
-    
+
     allocation = optimizer.get_discrete_allocation(result.weights, 10000)
-    
-    if allocation['allocation']:
+
+    if allocation["allocation"]:
         print(f"{'Ticker':<8} {'Shares':<10} {'Value':<12}")
         print("-" * 40)
-        for ticker, shares in allocation['allocation'].items():
+        for ticker, shares in allocation["allocation"].items():
             price = optimizer.prices[ticker].iloc[-1]
             value = shares * price
             print(f"{ticker:<8} {shares:<10} ${value:>10,.2f}")
-        
+
         print("-" * 40)
         print(f"Total Invested: ${allocation['invested']:,.2f}")
         print(f"Leftover Cash: ${allocation['leftover']:,.2f}")
     else:
         print("No allocation generated")
-    
+
     print("\n")

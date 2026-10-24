@@ -30,23 +30,23 @@ def retry_with_backoff(
 ) -> Optional[T]:
     """
     Retry a function with exponential backoff.
-    
+
     Detects Yahoo Finance rate limiting and applies aggressive backoff (60s+).
-    
+
     Args:
         func: Function to retry (should take no arguments - use lambda for params)
         max_attempts: Maximum number of attempts (default: 3)
         initial_delay: Initial delay in seconds (default: 1.0)
         backoff_factor: Multiplier for delay on each retry (default: 2.0)
         exceptions: Tuple of exceptions to catch (default: all Exception)
-    
+
     Returns:
         Function result or None if all attempts failed
-    
+
     Example:
         # Simple usage
         result = retry_with_backoff(lambda: yf.Ticker('AAPL').info)
-        
+
         # With custom settings
         result = retry_with_backoff(
             lambda: api.get_data(ticker),
@@ -56,22 +56,25 @@ def retry_with_backoff(
         )
     """
     delay = initial_delay
-    
+
     for attempt in range(1, max_attempts + 1):
         try:
             return func()
         except exceptions as e:
             error_msg = str(e).lower()
-            
+
             # Detect Yahoo Finance rate limiting
-            is_rate_limit = any(keyword in error_msg for keyword in [
-                '429',
-                'rate limit',
-                'too many requests',
-                'service unavailable',
-                'temporarily unavailable'
-            ])
-            
+            is_rate_limit = any(
+                keyword in error_msg
+                for keyword in [
+                    "429",
+                    "rate limit",
+                    "too many requests",
+                    "service unavailable",
+                    "temporarily unavailable",
+                ]
+            )
+
             if is_rate_limit:
                 # Yahoo Finance rate limit hit - use aggressive backoff
                 rate_limit_delay = 60.0 * attempt  # 60s, 120s, 180s
@@ -80,7 +83,7 @@ def retry_with_backoff(
                     "Waiting %d seconds before retry...",
                     attempt,
                     max_attempts,
-                    int(rate_limit_delay)
+                    int(rate_limit_delay),
                 )
                 time.sleep(rate_limit_delay)
                 delay = rate_limit_delay  # Use longer delay for subsequent attempts
@@ -92,7 +95,7 @@ def retry_with_backoff(
                         str(e),
                     )
                     return None
-                
+
                 logger.debug(
                     "Attempt %d/%d failed: %s. Retrying in %.1fs...",
                     attempt,
@@ -102,5 +105,5 @@ def retry_with_backoff(
                 )
                 time.sleep(delay)
                 delay *= backoff_factor
-    
+
     return None

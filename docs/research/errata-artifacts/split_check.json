@@ -1,0 +1,4329 @@
+{
+  "tickers_compared": 498,
+  "tickers_without_split_cache": [],
+  "gaps": 43161,
+  "consistent_gaps": 42655,
+  "totals": {
+    "heuristic_missed": 104,
+    "heuristic_only": 397,
+    "ratio_mismatch": 5
+  },
+  "disagreements": {
+    "A": {
+      "heuristic_missed": [
+        {
+          "from": "2014-10-31",
+          "to": "2014-12-01",
+          "yfinance": 1.398,
+          "heuristic": 1.0,
+          "share_ratio": 0.5515
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2016-10-31",
+          "to": "2016-12-01",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.524
+        }
+      ]
+    },
+    "AAPL": {
+      "heuristic_only": [
+        {
+          "from": "2013-07-12",
+          "to": "2013-09-28",
+          "yfinance": 1.0,
+          "heuristic": 7,
+          "share_ratio": 6.9285
+        },
+        {
+          "from": "2013-09-28",
+          "to": "2013-10-18",
+          "yfinance": 1.0,
+          "heuristic": 0.14285714285714285,
+          "share_ratio": 0.1429
+        },
+        {
+          "from": "2019-07-19",
+          "to": "2019-09-28",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 3.9328
+        },
+        {
+          "from": "2019-09-28",
+          "to": "2019-10-18",
+          "yfinance": 1.0,
+          "heuristic": 0.25,
+          "share_ratio": 0.25
+        }
+      ]
+    },
+    "ABT": {
+      "heuristic_missed": [
+        {
+          "from": "2012-09-30",
+          "to": "2013-01-31",
+          "yfinance": 2.084201750729471,
+          "heuristic": 1.0,
+          "share_ratio": 0.9937
+        }
+      ]
+    },
+    "ACGL": {
+      "heuristic_only": [
+        {
+          "from": "2009-12-31",
+          "to": "2010-06-30",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3184
+        },
+        {
+          "from": "2010-11-04",
+          "to": "2010-12-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.8562
+        },
+        {
+          "from": "2010-12-31",
+          "to": "2011-02-24",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3218
+        },
+        {
+          "from": "2016-10-31",
+          "to": "2016-12-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0023
+        },
+        {
+          "from": "2016-12-31",
+          "to": "2017-02-24",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3338
+        },
+        {
+          "from": "2017-10-31",
+          "to": "2017-12-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0024
+        },
+        {
+          "from": "2017-12-31",
+          "to": "2018-02-22",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3334
+        }
+      ]
+    },
+    "ADI": {
+      "heuristic_only": [
+        {
+          "from": "2021-07-31",
+          "to": "2021-10-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4267
+        }
+      ]
+    },
+    "ADP": {
+      "heuristic_missed": [
+        {
+          "from": "2014-09-30",
+          "to": "2014-10-24",
+          "yfinance": 1.139,
+          "heuristic": 1.0,
+          "share_ratio": 1.0005
+        }
+      ]
+    },
+    "AFL": {
+      "heuristic_only": [
+        {
+          "from": "2016-10-27",
+          "to": "2016-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9888
+        },
+        {
+          "from": "2016-12-31",
+          "to": "2017-02-15",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4946
+        },
+        {
+          "from": "2017-02-15",
+          "to": "2017-03-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9829
+        },
+        {
+          "from": "2017-03-31",
+          "to": "2017-04-25",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4985
+        },
+        {
+          "from": "2017-04-25",
+          "to": "2017-06-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9957
+        },
+        {
+          "from": "2017-06-30",
+          "to": "2017-07-26",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.499
+        },
+        {
+          "from": "2017-07-26",
+          "to": "2017-09-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9931
+        },
+        {
+          "from": "2017-09-30",
+          "to": "2017-10-25",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4991
+        },
+        {
+          "from": "2017-10-25",
+          "to": "2017-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9863
+        },
+        {
+          "from": "2017-12-31",
+          "to": "2018-02-13",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.499
+        }
+      ]
+    },
+    "ALB": {
+      "heuristic_only": [
+        {
+          "from": "2014-12-31",
+          "to": "2015-02-13",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4373
+        }
+      ]
+    },
+    "AME": {
+      "heuristic_only": [
+        {
+          "from": "2009-10-30",
+          "to": "2009-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5004
+        },
+        {
+          "from": "2009-12-31",
+          "to": "2010-01-29",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6669
+        },
+        {
+          "from": "2011-10-27",
+          "to": "2011-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5028
+        },
+        {
+          "from": "2011-12-31",
+          "to": "2012-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.667
+        }
+      ]
+    },
+    "AMZN": {
+      "heuristic_only": [
+        {
+          "from": "2021-10-20",
+          "to": "2021-12-31",
+          "yfinance": 1.0,
+          "heuristic": 20,
+          "share_ratio": 20.0632
+        },
+        {
+          "from": "2021-12-31",
+          "to": "2022-01-26",
+          "yfinance": 1.0,
+          "heuristic": 0.05,
+          "share_ratio": 0.05
+        }
+      ]
+    },
+    "ANET": {
+      "heuristic_only": [
+        {
+          "from": "2013-12-31",
+          "to": "2014-06-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0167
+        },
+        {
+          "from": "2020-10-27",
+          "to": "2020-12-31",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 4.0271
+        },
+        {
+          "from": "2020-12-31",
+          "to": "2021-02-12",
+          "yfinance": 1.0,
+          "heuristic": 0.25,
+          "share_ratio": 0.2505
+        },
+        {
+          "from": "2023-10-25",
+          "to": "2023-12-31",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 4.0147
+        },
+        {
+          "from": "2023-12-31",
+          "to": "2024-02-07",
+          "yfinance": 1.0,
+          "heuristic": 0.25,
+          "share_ratio": 0.2503
+        }
+      ]
+    },
+    "APD": {
+      "heuristic_missed": [
+        {
+          "from": "2016-09-30",
+          "to": "2016-10-31",
+          "yfinance": 1.081,
+          "heuristic": 1.0,
+          "share_ratio": 1.0001
+        }
+      ]
+    },
+    "APH": {
+      "heuristic_only": [
+        {
+          "from": "2013-10-29",
+          "to": "2013-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9991
+        },
+        {
+          "from": "2013-12-31",
+          "to": "2014-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        },
+        {
+          "from": "2020-10-20",
+          "to": "2020-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0013
+        },
+        {
+          "from": "2020-12-31",
+          "to": "2021-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5004
+        },
+        {
+          "from": "2023-10-24",
+          "to": "2023-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.002
+        },
+        {
+          "from": "2023-12-31",
+          "to": "2024-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5008
+        }
+      ]
+    },
+    "APTV": {
+      "heuristic_missed": [
+        {
+          "from": "2017-10-27",
+          "to": "2017-12-31",
+          "yfinance": 1.193,
+          "heuristic": 1.0,
+          "share_ratio": 1.0
+        }
+      ]
+    },
+    "AVGO": {
+      "heuristic_only": [
+        {
+          "from": "2023-08-25",
+          "to": "2023-10-29",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 10.0282
+        }
+      ]
+    },
+    "BA": {
+      "heuristic_only": [
+        {
+          "from": "2014-12-31",
+          "to": "2015-02-05",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6959
+        },
+        {
+          "from": "2015-10-14",
+          "to": "2015-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5109
+        },
+        {
+          "from": "2015-12-31",
+          "to": "2016-02-04",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6545
+        }
+      ]
+    },
+    "BALL": {
+      "heuristic_missed": [
+        {
+          "from": "2010-12-31",
+          "to": "2011-04-03",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9927
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2010-09-26",
+          "to": "2010-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9157
+        }
+      ]
+    },
+    "BAX": {
+      "heuristic_missed": [
+        {
+          "from": "2015-04-30",
+          "to": "2015-07-31",
+          "yfinance": 1.841,
+          "heuristic": 1.0,
+          "share_ratio": 1.0024
+        }
+      ]
+    },
+    "BDX": {
+      "heuristic_missed": [
+        {
+          "from": "2025-12-31",
+          "to": "2026-03-31",
+          "yfinance": 1.272,
+          "heuristic": 1.0,
+          "share_ratio": 0.9677
+        }
+      ]
+    },
+    "BEN": {
+      "heuristic_missed": [
+        {
+          "from": "2013-06-30",
+          "to": "2013-09-30",
+          "yfinance": 3.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9924
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2012-07-23",
+          "to": "2012-09-30",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9944
+        },
+        {
+          "from": "2012-09-30",
+          "to": "2012-10-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3335
+        },
+        {
+          "from": "2013-04-23",
+          "to": "2013-06-30",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9901
+        }
+      ]
+    },
+    "BF-B": {
+      "heuristic_missed": [
+        {
+          "from": "2016-04-30",
+          "to": "2017-04-30",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9712
+        },
+        {
+          "from": "2017-04-30",
+          "to": "2018-04-30",
+          "yfinance": 1.25,
+          "heuristic": 1.0,
+          "share_ratio": 1.0019
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2013-04-30",
+          "to": "2014-04-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9976
+        }
+      ]
+    },
+    "BG": {
+      "heuristic_only": [
+        {
+          "from": "2025-05-05",
+          "to": "2025-08-01",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4885
+        }
+      ]
+    },
+    "BKNG": {
+      "heuristic_missed": [
+        {
+          "from": "2026-02-10",
+          "to": "2026-04-20",
+          "yfinance": 25.0,
+          "heuristic": 1.0,
+          "share_ratio": 24.4647
+        }
+      ]
+    },
+    "BRK-B": {
+      "heuristic_missed": [
+        {
+          "from": "2009-10-29",
+          "to": "2010-02-18",
+          "yfinance": 50.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0444
+        }
+      ]
+    },
+    "BRO": {
+      "heuristic_only": [
+        {
+          "from": "2017-10-30",
+          "to": "2017-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9814
+        },
+        {
+          "from": "2017-12-31",
+          "to": "2018-02-23",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4989
+        }
+      ]
+    },
+    "CAG": {
+      "heuristic_missed": [
+        {
+          "from": "2016-08-28",
+          "to": "2016-11-27",
+          "yfinance": 1.285,
+          "heuristic": 1.0,
+          "share_ratio": 0.9942
+        }
+      ]
+    },
+    "CBRE": {
+      "heuristic_only": [
+        {
+          "from": "2021-10-22",
+          "to": "2021-12-10",
+          "yfinance": 1.0,
+          "heuristic": 0.06666666666666667,
+          "share_ratio": 0.0657
+        },
+        {
+          "from": "2021-12-10",
+          "to": "2021-12-31",
+          "yfinance": 1.0,
+          "heuristic": 15,
+          "share_ratio": 15.1307
+        }
+      ]
+    },
+    "CF": {
+      "heuristic_only": [
+        {
+          "from": "2010-01-29",
+          "to": "2010-03-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4626
+        },
+        {
+          "from": "2012-10-31",
+          "to": "2012-12-31",
+          "yfinance": 1.0,
+          "heuristic": 5,
+          "share_ratio": 5.0064
+        },
+        {
+          "from": "2012-12-31",
+          "to": "2013-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.2002
+        },
+        {
+          "from": "2013-10-31",
+          "to": "2013-12-31",
+          "yfinance": 1.0,
+          "heuristic": 5,
+          "share_ratio": 4.8722
+        },
+        {
+          "from": "2013-12-31",
+          "to": "2014-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.1986
+        },
+        {
+          "from": "2014-10-31",
+          "to": "2014-12-31",
+          "yfinance": 1.0,
+          "heuristic": 5,
+          "share_ratio": 4.8592
+        },
+        {
+          "from": "2014-12-31",
+          "to": "2015-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.1982
+        }
+      ]
+    },
+    "CL": {
+      "heuristic_only": [
+        {
+          "from": "2010-09-30",
+          "to": "2010-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0504
+        },
+        {
+          "from": "2010-12-31",
+          "to": "2011-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.499
+        },
+        {
+          "from": "2011-09-30",
+          "to": "2011-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9835
+        },
+        {
+          "from": "2011-12-31",
+          "to": "2012-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4995
+        },
+        {
+          "from": "2012-09-30",
+          "to": "2012-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9805
+        },
+        {
+          "from": "2012-12-31",
+          "to": "2013-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4998
+        }
+      ]
+    },
+    "CMG": {
+      "heuristic_missed": [
+        {
+          "from": "2024-04-22",
+          "to": "2024-07-22",
+          "yfinance": 50.0,
+          "heuristic": 1.0,
+          "share_ratio": 49.859
+        }
+      ]
+    },
+    "CNC": {
+      "heuristic_missed": [
+        {
+          "from": "2014-12-31",
+          "to": "2015-02-20",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0033
+        },
+        {
+          "from": "2018-12-31",
+          "to": "2019-02-15",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0017
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2013-10-11",
+          "to": "2013-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0201
+        },
+        {
+          "from": "2013-12-31",
+          "to": "2014-02-14",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5208
+        },
+        {
+          "from": "2014-10-17",
+          "to": "2014-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0187
+        },
+        {
+          "from": "2017-10-13",
+          "to": "2017-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0101
+        },
+        {
+          "from": "2017-12-31",
+          "to": "2018-02-16",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5002
+        },
+        {
+          "from": "2018-10-12",
+          "to": "2018-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0086
+        }
+      ]
+    },
+    "COO": {
+      "heuristic_missed": [
+        {
+          "from": "2024-01-31",
+          "to": "2024-02-23",
+          "yfinance": 4.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0003
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2023-08-25",
+          "to": "2023-10-31",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 4.0001
+        },
+        {
+          "from": "2023-10-31",
+          "to": "2023-12-01",
+          "yfinance": 1.0,
+          "heuristic": 0.25,
+          "share_ratio": 0.25
+        },
+        {
+          "from": "2023-12-01",
+          "to": "2024-01-31",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 4.012
+        }
+      ]
+    },
+    "COP": {
+      "heuristic_missed": [
+        {
+          "from": "2012-03-31",
+          "to": "2012-06-30",
+          "yfinance": 1.311791,
+          "heuristic": 1.0,
+          "share_ratio": 0.9605
+        }
+      ]
+    },
+    "COR": {
+      "heuristic_missed": [
+        {
+          "from": "2008-09-30",
+          "to": "2009-06-30",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9508
+        }
+      ]
+    },
+    "CPAY": {
+      "heuristic_only": [
+        {
+          "from": "2018-11-01",
+          "to": "2018-12-31",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6988
+        }
+      ]
+    },
+    "CPRT": {
+      "heuristic_missed": [
+        {
+          "from": "2022-10-31",
+          "to": "2022-11-17",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0002
+        },
+        {
+          "from": "2023-07-31",
+          "to": "2023-09-27",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2011-06-07",
+          "to": "2011-07-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9188
+        },
+        {
+          "from": "2011-07-31",
+          "to": "2011-09-27",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5002
+        },
+        {
+          "from": "2016-05-25",
+          "to": "2016-07-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0135
+        },
+        {
+          "from": "2016-07-31",
+          "to": "2016-09-27",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5183
+        },
+        {
+          "from": "2022-05-24",
+          "to": "2022-07-31",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 4.0062
+        },
+        {
+          "from": "2022-07-31",
+          "to": "2022-09-26",
+          "yfinance": 1.0,
+          "heuristic": 0.25,
+          "share_ratio": 0.25
+        },
+        {
+          "from": "2022-09-26",
+          "to": "2022-10-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0003
+        },
+        {
+          "from": "2023-05-24",
+          "to": "2023-07-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0052
+        }
+      ]
+    },
+    "CRM": {
+      "heuristic_missed": [
+        {
+          "from": "2013-01-31",
+          "to": "2013-04-30",
+          "yfinance": 4.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0075
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2012-10-31",
+          "to": "2013-01-31",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 4.1241
+        }
+      ]
+    },
+    "CSGP": {
+      "heuristic_only": [
+        {
+          "from": "2020-10-23",
+          "to": "2020-12-31",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 10.0026
+        },
+        {
+          "from": "2020-12-31",
+          "to": "2021-02-19",
+          "yfinance": 1.0,
+          "heuristic": 0.1,
+          "share_ratio": 0.1
+        }
+      ]
+    },
+    "CSX": {
+      "heuristic_missed": [
+        {
+          "from": "2011-04-01",
+          "to": "2011-07-01",
+          "yfinance": 3.0,
+          "heuristic": 1.0,
+          "share_ratio": 1095281506.0
+        }
+      ]
+    },
+    "CTAS": {
+      "heuristic_missed": [
+        {
+          "from": "2024-08-31",
+          "to": "2024-09-30",
+          "yfinance": 4.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0001
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2024-03-31",
+          "to": "2024-05-31",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 3.9917
+        },
+        {
+          "from": "2024-05-31",
+          "to": "2024-06-30",
+          "yfinance": 1.0,
+          "heuristic": 0.25,
+          "share_ratio": 0.2488
+        },
+        {
+          "from": "2024-06-30",
+          "to": "2024-08-31",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 4.0018
+        }
+      ]
+    },
+    "CTSH": {
+      "heuristic_only": [
+        {
+          "from": "2013-11-01",
+          "to": "2013-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.009
+        },
+        {
+          "from": "2013-12-31",
+          "to": "2014-02-14",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4997
+        }
+      ]
+    },
+    "DD": {
+      "heuristic_missed": [
+        {
+          "from": "2019-01-31",
+          "to": "2019-04-30",
+          "yfinance": 1.487,
+          "heuristic": 1.0,
+          "share_ratio": 0.9963
+        },
+        {
+          "from": "2025-08-01",
+          "to": "2025-11-04",
+          "yfinance": 2.39,
+          "heuristic": 1.0,
+          "share_ratio": 1.0006
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2017-09-01",
+          "to": "2017-10-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0019
+        },
+        {
+          "from": "2017-10-31",
+          "to": "2017-12-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3335
+        },
+        {
+          "from": "2017-12-31",
+          "to": "2018-01-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9841
+        },
+        {
+          "from": "2018-10-31",
+          "to": "2018-12-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3418
+        },
+        {
+          "from": "2018-12-31",
+          "to": "2019-01-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.8754
+        }
+      ],
+      "ratio_mismatch": [
+        {
+          "from": "2019-04-30",
+          "to": "2019-06-30",
+          "yfinance": 0.4725,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3327
+        }
+      ]
+    },
+    "DECK": {
+      "heuristic_missed": [
+        {
+          "from": "2010-06-30",
+          "to": "2010-07-27",
+          "yfinance": 3.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0001
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2024-01-18",
+          "to": "2024-03-31",
+          "yfinance": 1.0,
+          "heuristic": 6,
+          "share_ratio": 5.9823
+        },
+        {
+          "from": "2024-03-31",
+          "to": "2024-05-09",
+          "yfinance": 1.0,
+          "heuristic": 0.16666666666666666,
+          "share_ratio": 0.1657
+        }
+      ]
+    },
+    "DELL": {
+      "heuristic_missed": [
+        {
+          "from": "2018-11-02",
+          "to": "2019-02-01",
+          "yfinance": 1.806,
+          "heuristic": 1.0,
+          "share_ratio": 0.935
+        },
+        {
+          "from": "2021-10-29",
+          "to": "2022-01-28",
+          "yfinance": 1.973,
+          "heuristic": 1.0,
+          "share_ratio": 0.987
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2016-07-29",
+          "to": "2016-10-28",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9432
+        }
+      ]
+    },
+    "DHR": {
+      "heuristic_missed": [
+        {
+          "from": "2016-07-01",
+          "to": "2016-07-15",
+          "yfinance": 1.319,
+          "heuristic": 1.0,
+          "share_ratio": 1.0001
+        },
+        {
+          "from": "2023-09-29",
+          "to": "2023-10-19",
+          "yfinance": 1.128,
+          "heuristic": 1.0,
+          "share_ratio": 1.0
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2009-10-16",
+          "to": "2009-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0093
+        },
+        {
+          "from": "2010-02-11",
+          "to": "2010-02-12",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4907
+        }
+      ]
+    },
+    "DLTR": {
+      "heuristic_missed": [
+        {
+          "from": "2010-05-01",
+          "to": "2010-07-31",
+          "yfinance": 1.5,
+          "heuristic": 1.0,
+          "share_ratio": 1.0016
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2011-05-12",
+          "to": "2011-07-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0004
+        },
+        {
+          "from": "2011-07-30",
+          "to": "2011-08-11",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4988
+        },
+        {
+          "from": "2011-08-11",
+          "to": "2011-10-29",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9506
+        },
+        {
+          "from": "2011-10-29",
+          "to": "2011-11-10",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5001
+        },
+        {
+          "from": "2011-11-10",
+          "to": "2012-01-28",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9421
+        },
+        {
+          "from": "2012-01-28",
+          "to": "2012-03-07",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5003
+        }
+      ]
+    },
+    "DOC": {
+      "heuristic_missed": [
+        {
+          "from": "2016-10-28",
+          "to": "2016-12-31",
+          "yfinance": 1.098,
+          "heuristic": 1.0,
+          "share_ratio": 1.0002
+        }
+      ]
+    },
+    "DOV": {
+      "heuristic_missed": [
+        {
+          "from": "2014-02-06",
+          "to": "2014-04-10",
+          "yfinance": 1.205,
+          "heuristic": 1.0,
+          "share_ratio": 0.9792
+        },
+        {
+          "from": "2018-04-20",
+          "to": "2018-07-12",
+          "yfinance": 1.238,
+          "heuristic": 1.0,
+          "share_ratio": 0.9549
+        }
+      ]
+    },
+    "DRI": {
+      "heuristic_missed": [
+        {
+          "from": "2015-09-15",
+          "to": "2015-12-15",
+          "yfinance": 1.1186933661483387,
+          "heuristic": 1.0,
+          "share_ratio": 1.0008
+        }
+      ]
+    },
+    "DTE": {
+      "heuristic_missed": [
+        {
+          "from": "2021-06-30",
+          "to": "2021-09-30",
+          "yfinance": 1.175,
+          "heuristic": 1.0,
+          "share_ratio": 0.9999
+        }
+      ]
+    },
+    "DUK": {
+      "heuristic_missed": [
+        {
+          "from": "2012-06-30",
+          "to": "2012-09-30",
+          "yfinance": 0.3333333333333333,
+          "heuristic": 1.0,
+          "share_ratio": 1.5785
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2009-11-02",
+          "to": "2009-12-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3342
+        },
+        {
+          "from": "2009-12-31",
+          "to": "2010-02-22",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.003
+        },
+        {
+          "from": "2010-10-29",
+          "to": "2010-12-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3345
+        },
+        {
+          "from": "2010-12-31",
+          "to": "2011-02-18",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0003
+        },
+        {
+          "from": "2011-04-29",
+          "to": "2011-06-30",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3335
+        },
+        {
+          "from": "2011-06-30",
+          "to": "2011-07-29",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9995
+        },
+        {
+          "from": "2011-07-29",
+          "to": "2011-09-30",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3334
+        },
+        {
+          "from": "2011-09-30",
+          "to": "2011-11-04",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0017
+        },
+        {
+          "from": "2011-11-04",
+          "to": "2011-12-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3339
+        },
+        {
+          "from": "2011-12-31",
+          "to": "2012-02-21",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0019
+        },
+        {
+          "from": "2012-02-21",
+          "to": "2012-03-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3339
+        },
+        {
+          "from": "2012-04-30",
+          "to": "2012-06-30",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6334
+        }
+      ]
+    },
+    "DVA": {
+      "heuristic_only": [
+        {
+          "from": "2012-12-31",
+          "to": "2013-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        },
+        {
+          "from": "2013-04-30",
+          "to": "2013-06-28",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0085
+        },
+        {
+          "from": "2013-06-28",
+          "to": "2013-06-30",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        }
+      ]
+    },
+    "DXCM": {
+      "heuristic_only": [
+        {
+          "from": "2021-10-21",
+          "to": "2021-12-31",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 4.0032
+        },
+        {
+          "from": "2021-12-31",
+          "to": "2022-02-07",
+          "yfinance": 1.0,
+          "heuristic": 0.25,
+          "share_ratio": 0.2502
+        }
+      ]
+    },
+    "EBAY": {
+      "heuristic_missed": [
+        {
+          "from": "2015-07-14",
+          "to": "2015-09-30",
+          "yfinance": 2.376,
+          "heuristic": 1.0,
+          "share_ratio": 0.9875
+        }
+      ]
+    },
+    "EG": {
+      "heuristic_only": [
+        {
+          "from": "2013-12-31",
+          "to": "2014-02-01",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.697
+        },
+        {
+          "from": "2014-02-01",
+          "to": "2014-03-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.439
+        },
+        {
+          "from": "2014-03-31",
+          "to": "2014-05-01",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6763
+        },
+        {
+          "from": "2014-05-01",
+          "to": "2014-06-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4809
+        },
+        {
+          "from": "2014-06-30",
+          "to": "2014-08-01",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.666
+        },
+        {
+          "from": "2014-08-01",
+          "to": "2014-09-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5022
+        },
+        {
+          "from": "2014-09-30",
+          "to": "2014-11-01",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6624
+        },
+        {
+          "from": "2014-11-01",
+          "to": "2014-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5103
+        },
+        {
+          "from": "2014-12-31",
+          "to": "2015-02-01",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6508
+        },
+        {
+          "from": "2015-02-01",
+          "to": "2015-03-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5402
+        },
+        {
+          "from": "2015-03-31",
+          "to": "2015-05-01",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6487
+        },
+        {
+          "from": "2015-05-01",
+          "to": "2015-06-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.543
+        },
+        {
+          "from": "2015-06-30",
+          "to": "2015-08-01",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6446
+        },
+        {
+          "from": "2015-08-01",
+          "to": "2015-09-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5521
+        }
+      ]
+    },
+    "EQT": {
+      "heuristic_missed": [
+        {
+          "from": "2018-09-30",
+          "to": "2019-01-31",
+          "yfinance": 1.837,
+          "heuristic": 1.0,
+          "share_ratio": 1.0013
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2017-09-30",
+          "to": "2018-01-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5257
+        }
+      ]
+    },
+    "EXC": {
+      "heuristic_missed": [
+        {
+          "from": "2022-01-31",
+          "to": "2022-03-31",
+          "yfinance": 1.402,
+          "heuristic": 1.0,
+          "share_ratio": 1.0001
+        }
+      ]
+    },
+    "EXE": {
+      "heuristic_only": [
+        {
+          "from": "2020-11-05",
+          "to": "2021-02-25",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 10.0106
+        }
+      ]
+    },
+    "EXR": {
+      "heuristic_only": [
+        {
+          "from": "2023-06-30",
+          "to": "2023-08-02",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5643
+        }
+      ]
+    },
+    "FAST": {
+      "heuristic_only": [
+        {
+          "from": "2010-10-19",
+          "to": "2010-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0
+        },
+        {
+          "from": "2010-12-31",
+          "to": "2011-02-04",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        },
+        {
+          "from": "2016-10-10",
+          "to": "2016-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0009
+        },
+        {
+          "from": "2016-12-31",
+          "to": "2017-01-20",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5001
+        },
+        {
+          "from": "2017-10-10",
+          "to": "2017-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0014
+        },
+        {
+          "from": "2017-12-31",
+          "to": "2018-01-19",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        },
+        {
+          "from": "2018-10-09",
+          "to": "2018-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.992
+        },
+        {
+          "from": "2018-12-31",
+          "to": "2019-01-18",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5001
+        },
+        {
+          "from": "2022-10-12",
+          "to": "2022-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9932
+        },
+        {
+          "from": "2022-12-31",
+          "to": "2023-01-20",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        },
+        {
+          "from": "2023-10-11",
+          "to": "2023-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.002
+        },
+        {
+          "from": "2023-12-31",
+          "to": "2024-01-19",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5002
+        },
+        {
+          "from": "2024-10-10",
+          "to": "2024-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0015
+        },
+        {
+          "from": "2024-12-31",
+          "to": "2025-01-21",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5001
+        }
+      ]
+    },
+    "FCX": {
+      "heuristic_missed": [
+        {
+          "from": "2011-01-31",
+          "to": "2011-04-29",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0009
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2010-10-29",
+          "to": "2010-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0069
+        }
+      ]
+    },
+    "FIS": {
+      "heuristic_only": [
+        {
+          "from": "2009-07-31",
+          "to": "2009-10-01",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9417
+        }
+      ]
+    },
+    "FTNT": {
+      "heuristic_missed": [
+        {
+          "from": "2010-12-31",
+          "to": "2011-06-30",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0279
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2021-11-05",
+          "to": "2021-12-31",
+          "yfinance": 1.0,
+          "heuristic": 5,
+          "share_ratio": 4.9541
+        },
+        {
+          "from": "2021-12-31",
+          "to": "2022-02-18",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.1985
+        }
+      ]
+    },
+    "FTV": {
+      "heuristic_missed": [
+        {
+          "from": "2020-09-25",
+          "to": "2020-10-20",
+          "yfinance": 1.195,
+          "heuristic": 1.0,
+          "share_ratio": 1.0
+        },
+        {
+          "from": "2025-06-27",
+          "to": "2025-07-25",
+          "yfinance": 1.327,
+          "heuristic": 1.0,
+          "share_ratio": 1.0004
+        }
+      ]
+    },
+    "GE": {
+      "heuristic_missed": [
+        {
+          "from": "2022-12-31",
+          "to": "2023-01-31",
+          "yfinance": 1.281,
+          "heuristic": 1.0,
+          "share_ratio": 1.0002
+        },
+        {
+          "from": "2024-03-31",
+          "to": "2024-06-30",
+          "yfinance": 1.253,
+          "heuristic": 1.0,
+          "share_ratio": 0.9906
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2020-09-30",
+          "to": "2020-12-31",
+          "yfinance": 1.0,
+          "heuristic": 0.125,
+          "share_ratio": 0.1251
+        },
+        {
+          "from": "2020-12-31",
+          "to": "2021-01-31",
+          "yfinance": 1.0,
+          "heuristic": 8,
+          "share_ratio": 8.0022
+        }
+      ]
+    },
+    "GILD": {
+      "heuristic_missed": [
+        {
+          "from": "2012-12-31",
+          "to": "2013-02-15",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0021
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2011-10-28",
+          "to": "2011-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0052
+        },
+        {
+          "from": "2011-12-31",
+          "to": "2012-02-10",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5028
+        },
+        {
+          "from": "2012-10-26",
+          "to": "2012-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0051
+        }
+      ]
+    },
+    "GL": {
+      "heuristic_missed": [
+        {
+          "from": "2011-07-01",
+          "to": "2011-07-25",
+          "yfinance": 1.5,
+          "heuristic": 1.0,
+          "share_ratio": 0.997
+        },
+        {
+          "from": "2014-07-01",
+          "to": "2014-07-28",
+          "yfinance": 1.5,
+          "heuristic": 1.0,
+          "share_ratio": 0.9966
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2014-04-28",
+          "to": "2014-07-01",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4922
+        }
+      ]
+    },
+    "GOOG": {
+      "heuristic_missed": [
+        {
+          "from": "2022-06-30",
+          "to": "2022-09-30",
+          "yfinance": 20.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9918
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2021-09-30",
+          "to": "2021-12-31",
+          "yfinance": 1.0,
+          "heuristic": 20,
+          "share_ratio": 19.9223
+        },
+        {
+          "from": "2021-12-31",
+          "to": "2022-03-31",
+          "yfinance": 1.0,
+          "heuristic": 0.05,
+          "share_ratio": 0.0497
+        },
+        {
+          "from": "2022-03-31",
+          "to": "2022-06-30",
+          "yfinance": 1.0,
+          "heuristic": 20,
+          "share_ratio": 19.8524
+        }
+      ]
+    },
+    "GOOGL": {
+      "heuristic_missed": [
+        {
+          "from": "2022-06-30",
+          "to": "2022-09-30",
+          "yfinance": 20.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9918
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2021-09-30",
+          "to": "2021-12-31",
+          "yfinance": 1.0,
+          "heuristic": 20,
+          "share_ratio": 19.9223
+        },
+        {
+          "from": "2021-12-31",
+          "to": "2022-03-31",
+          "yfinance": 1.0,
+          "heuristic": 0.05,
+          "share_ratio": 0.0497
+        },
+        {
+          "from": "2022-03-31",
+          "to": "2022-06-30",
+          "yfinance": 1.0,
+          "heuristic": 20,
+          "share_ratio": 19.8524
+        }
+      ]
+    },
+    "GPN": {
+      "heuristic_only": [
+        {
+          "from": "2014-03-31",
+          "to": "2014-05-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9173
+        },
+        {
+          "from": "2014-05-31",
+          "to": "2014-07-25",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4952
+        },
+        {
+          "from": "2015-03-31",
+          "to": "2015-05-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9645
+        },
+        {
+          "from": "2015-05-31",
+          "to": "2015-07-22",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4988
+        },
+        {
+          "from": "2019-07-25",
+          "to": "2019-09-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9182
+        }
+      ]
+    },
+    "HBAN": {
+      "heuristic_only": [
+        {
+          "from": "2021-03-31",
+          "to": "2021-06-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4504
+        }
+      ]
+    },
+    "HLT": {
+      "heuristic_missed": [
+        {
+          "from": "2016-12-31",
+          "to": "2017-02-08",
+          "yfinance": 0.4873294346978557,
+          "heuristic": 1.0,
+          "share_ratio": 1.0012
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2015-10-26",
+          "to": "2015-12-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3333
+        },
+        {
+          "from": "2015-12-31",
+          "to": "2016-02-19",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0013
+        },
+        {
+          "from": "2016-10-21",
+          "to": "2016-12-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3327
+        }
+      ]
+    },
+    "HON": {
+      "heuristic_missed": [
+        {
+          "from": "2025-09-30",
+          "to": "2025-12-31",
+          "yfinance": 1.061,
+          "heuristic": 1.0,
+          "share_ratio": 1.0007
+        }
+      ]
+    },
+    "HPE": {
+      "heuristic_missed": [
+        {
+          "from": "2017-02-28",
+          "to": "2017-04-30",
+          "yfinance": 1.3348,
+          "heuristic": 1.0,
+          "share_ratio": 0.9929
+        },
+        {
+          "from": "2017-08-31",
+          "to": "2017-10-31",
+          "yfinance": 1.289,
+          "heuristic": 1.0,
+          "share_ratio": 0.9849
+        }
+      ]
+    },
+    "HPQ": {
+      "heuristic_missed": [
+        {
+          "from": "2015-10-31",
+          "to": "2015-11-30",
+          "yfinance": 2.202,
+          "heuristic": 1.0,
+          "share_ratio": 0.9933
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2017-10-31",
+          "to": "2017-11-30",
+          "yfinance": 1.0,
+          "heuristic": 0.1,
+          "share_ratio": 0.1001
+        },
+        {
+          "from": "2017-11-30",
+          "to": "2018-01-31",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 9.934
+        }
+      ]
+    },
+    "HSIC": {
+      "heuristic_missed": [
+        {
+          "from": "2018-12-29",
+          "to": "2019-02-12",
+          "yfinance": 1.275,
+          "heuristic": 1.0,
+          "share_ratio": 1.0
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2016-10-24",
+          "to": "2016-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.973
+        },
+        {
+          "from": "2016-12-31",
+          "to": "2017-02-16",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4987
+        }
+      ]
+    },
+    "ICE": {
+      "heuristic_only": [
+        {
+          "from": "2015-12-31",
+          "to": "2016-02-02",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.2001
+        }
+      ]
+    },
+    "IP": {
+      "heuristic_missed": [
+        {
+          "from": "2021-09-30",
+          "to": "2021-10-21",
+          "yfinance": 1.056,
+          "heuristic": 1.0,
+          "share_ratio": 0.8627
+        }
+      ]
+    },
+    "IQV": {
+      "heuristic_only": [
+        {
+          "from": "2016-09-30",
+          "to": "2016-10-26",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0619
+        }
+      ]
+    },
+    "IR": {
+      "heuristic_only": [
+        {
+          "from": "2020-02-19",
+          "to": "2020-05-13",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0301
+        }
+      ]
+    },
+    "IRM": {
+      "heuristic_missed": [
+        {
+          "from": "2014-07-25",
+          "to": "2014-09-30",
+          "yfinance": 1.082,
+          "heuristic": 1.0,
+          "share_ratio": 1.0029
+        }
+      ]
+    },
+    "ISRG": {
+      "heuristic_missed": [
+        {
+          "from": "2017-09-30",
+          "to": "2017-10-17",
+          "yfinance": 3.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0004
+        },
+        {
+          "from": "2021-09-30",
+          "to": "2021-10-14",
+          "yfinance": 3.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0001
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2016-10-13",
+          "to": "2016-12-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0041
+        },
+        {
+          "from": "2016-12-31",
+          "to": "2017-01-20",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3332
+        },
+        {
+          "from": "2017-07-18",
+          "to": "2017-09-30",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0147
+        },
+        {
+          "from": "2020-10-14",
+          "to": "2020-12-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0037
+        },
+        {
+          "from": "2020-12-31",
+          "to": "2021-01-15",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3334
+        },
+        {
+          "from": "2021-07-15",
+          "to": "2021-09-30",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0081
+        }
+      ]
+    },
+    "J": {
+      "heuristic_missed": [
+        {
+          "from": "2024-09-27",
+          "to": "2024-11-13",
+          "yfinance": 1.197,
+          "heuristic": 1.0,
+          "share_ratio": 0.9991
+        }
+      ]
+    },
+    "JCI": {
+      "heuristic_missed": [
+        {
+          "from": "2012-07-26",
+          "to": "2012-11-13",
+          "yfinance": 2.011667672500503,
+          "heuristic": 1.0,
+          "share_ratio": 1.0127
+        }
+      ]
+    },
+    "KDP": {
+      "heuristic_only": [
+        {
+          "from": "2018-06-30",
+          "to": "2018-08-03",
+          "yfinance": 1.0,
+          "heuristic": 8,
+          "share_ratio": 7.7028
+        }
+      ]
+    },
+    "KHC": {
+      "heuristic_only": [
+        {
+          "from": "2013-12-29",
+          "to": "2014-12-27",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5586
+        },
+        {
+          "from": "2014-12-27",
+          "to": "2014-12-28",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6419
+        }
+      ]
+    },
+    "KKR": {
+      "heuristic_only": [
+        {
+          "from": "2022-05-04",
+          "to": "2022-06-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4509
+        }
+      ]
+    },
+    "KMI": {
+      "heuristic_only": [
+        {
+          "from": "2014-10-24",
+          "to": "2014-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0667
+        }
+      ]
+    },
+    "LDOS": {
+      "heuristic_only": [
+        {
+          "from": "2012-11-16",
+          "to": "2013-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.25,
+          "share_ratio": 0.2516
+        },
+        {
+          "from": "2013-01-31",
+          "to": "2013-03-08",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 3.9758
+        },
+        {
+          "from": "2016-07-19",
+          "to": "2016-09-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0604
+        }
+      ],
+      "ratio_mismatch": [
+        {
+          "from": "2013-08-22",
+          "to": "2013-11-01",
+          "yfinance": 0.405,
+          "heuristic": 0.25,
+          "share_ratio": 0.2509
+        }
+      ]
+    },
+    "LH": {
+      "heuristic_missed": [
+        {
+          "from": "2023-06-30",
+          "to": "2023-08-03",
+          "yfinance": 1.164,
+          "heuristic": 1.0,
+          "share_ratio": 0.9989
+        }
+      ]
+    },
+    "LNT": {
+      "heuristic_only": [
+        {
+          "from": "2013-09-30",
+          "to": "2013-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0
+        },
+        {
+          "from": "2013-12-31",
+          "to": "2014-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        },
+        {
+          "from": "2014-09-30",
+          "to": "2014-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0
+        },
+        {
+          "from": "2014-12-31",
+          "to": "2015-01-30",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        },
+        {
+          "from": "2015-09-30",
+          "to": "2015-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0017
+        },
+        {
+          "from": "2015-12-31",
+          "to": "2016-01-29",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        }
+      ]
+    },
+    "LRCX": {
+      "heuristic_missed": [
+        {
+          "from": "2024-09-29",
+          "to": "2024-10-24",
+          "yfinance": 10.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9959
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2012-04-27",
+          "to": "2012-06-24",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.552
+        },
+        {
+          "from": "2024-04-25",
+          "to": "2024-06-30",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 9.9722
+        },
+        {
+          "from": "2024-06-30",
+          "to": "2024-08-22",
+          "yfinance": 1.0,
+          "heuristic": 0.1,
+          "share_ratio": 0.0996
+        },
+        {
+          "from": "2024-08-22",
+          "to": "2024-09-29",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 9.9476
+        }
+      ]
+    },
+    "LULU": {
+      "heuristic_only": [
+        {
+          "from": "2010-12-06",
+          "to": "2011-01-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0204
+        },
+        {
+          "from": "2011-01-30",
+          "to": "2011-03-14",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5017
+        }
+      ]
+    },
+    "MAA": {
+      "heuristic_only": [
+        {
+          "from": "2016-10-24",
+          "to": "2016-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5027
+        }
+      ]
+    },
+    "MAR": {
+      "heuristic_missed": [
+        {
+          "from": "2011-09-23",
+          "to": "2011-12-30",
+          "yfinance": 1.061,
+          "heuristic": 1.0,
+          "share_ratio": 0.9937
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2016-07-15",
+          "to": "2016-09-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.535
+        }
+      ]
+    },
+    "MAS": {
+      "heuristic_missed": [
+        {
+          "from": "2015-06-30",
+          "to": "2015-09-30",
+          "yfinance": 1.138,
+          "heuristic": 1.0,
+          "share_ratio": 0.9783
+        }
+      ]
+    },
+    "MCHP": {
+      "heuristic_missed": [
+        {
+          "from": "2021-09-30",
+          "to": "2021-10-28",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2021-01-31",
+          "to": "2021-03-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0317
+        },
+        {
+          "from": "2021-03-31",
+          "to": "2021-05-07",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        },
+        {
+          "from": "2021-07-28",
+          "to": "2021-09-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0248
+        }
+      ]
+    },
+    "MDT": {
+      "heuristic_only": [
+        {
+          "from": "2014-04-25",
+          "to": "2015-02-24",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4265
+        }
+      ]
+    },
+    "MET": {
+      "heuristic_missed": [
+        {
+          "from": "2017-07-31",
+          "to": "2017-09-30",
+          "yfinance": 1.122,
+          "heuristic": 1.0,
+          "share_ratio": 0.9919
+        }
+      ]
+    },
+    "MLM": {
+      "heuristic_only": [
+        {
+          "from": "2014-04-24",
+          "to": "2014-07-25",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4435
+        },
+        {
+          "from": "2014-12-31",
+          "to": "2015-02-14",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6859
+        },
+        {
+          "from": "2015-02-14",
+          "to": "2015-05-01",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4619
+        }
+      ]
+    },
+    "MMM": {
+      "heuristic_missed": [
+        {
+          "from": "2024-03-31",
+          "to": "2024-06-30",
+          "yfinance": 1.196,
+          "heuristic": 1.0,
+          "share_ratio": 0.9928
+        }
+      ]
+    },
+    "MNST": {
+      "heuristic_missed": [
+        {
+          "from": "2011-12-31",
+          "to": "2012-02-24",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0002
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2010-10-25",
+          "to": "2010-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0091
+        },
+        {
+          "from": "2010-12-31",
+          "to": "2011-02-22",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5001
+        },
+        {
+          "from": "2011-10-25",
+          "to": "2011-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0015
+        },
+        {
+          "from": "2015-10-26",
+          "to": "2015-12-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.0026
+        },
+        {
+          "from": "2015-12-31",
+          "to": "2016-02-04",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3334
+        },
+        {
+          "from": "2022-10-31",
+          "to": "2022-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0021
+        },
+        {
+          "from": "2022-12-31",
+          "to": "2023-02-16",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5001
+        }
+      ]
+    },
+    "MOH": {
+      "heuristic_missed": [
+        {
+          "from": "2010-12-31",
+          "to": "2011-06-30",
+          "yfinance": 1.5,
+          "heuristic": 1.0,
+          "share_ratio": 0.001
+        }
+      ]
+    },
+    "MPC": {
+      "heuristic_only": [
+        {
+          "from": "2018-08-01",
+          "to": "2018-11-01",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5318
+        }
+      ]
+    },
+    "MRK": {
+      "heuristic_only": [
+        {
+          "from": "2009-09-30",
+          "to": "2010-01-29",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9006
+        }
+      ]
+    },
+    "MRNA": {
+      "heuristic_only": [
+        {
+          "from": "2017-12-31",
+          "to": "2018-12-31",
+          "yfinance": 1.0,
+          "heuristic": 5,
+          "share_ratio": 5.0424
+        }
+      ]
+    },
+    "MSI": {
+      "heuristic_missed": [
+        {
+          "from": "2010-12-31",
+          "to": "2011-01-31",
+          "yfinance": 0.24737167594310452,
+          "heuristic": 1.0,
+          "share_ratio": 1.0012
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2009-10-03",
+          "to": "2009-12-31",
+          "yfinance": 1.0,
+          "heuristic": 0.14285714285714285,
+          "share_ratio": 0.1429
+        },
+        {
+          "from": "2009-12-31",
+          "to": "2010-01-31",
+          "yfinance": 1.0,
+          "heuristic": 7,
+          "share_ratio": 7.0024
+        },
+        {
+          "from": "2010-10-02",
+          "to": "2010-12-31",
+          "yfinance": 1.0,
+          "heuristic": 0.14285714285714285,
+          "share_ratio": 0.1431
+        }
+      ]
+    },
+    "MTCH": {
+      "ratio_mismatch": [
+        {
+          "from": "2011-04-22",
+          "to": "2020-07-31",
+          "yfinance": 3.502,
+          "heuristic": 3,
+          "share_ratio": 2.8927
+        }
+      ]
+    },
+    "NCLH": {
+      "heuristic_only": [
+        {
+          "from": "2012-12-31",
+          "to": "2013-03-31",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 9.7142
+        }
+      ]
+    },
+    "NDAQ": {
+      "heuristic_only": [
+        {
+          "from": "2021-10-26",
+          "to": "2021-12-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.99
+        },
+        {
+          "from": "2021-12-31",
+          "to": "2022-02-14",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3288
+        },
+        {
+          "from": "2022-02-14",
+          "to": "2022-03-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9986
+        },
+        {
+          "from": "2022-03-31",
+          "to": "2022-04-26",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.334
+        },
+        {
+          "from": "2022-04-26",
+          "to": "2022-06-30",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9816
+        },
+        {
+          "from": "2022-06-30",
+          "to": "2022-07-26",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3335
+        }
+      ]
+    },
+    "NDSN": {
+      "heuristic_only": [
+        {
+          "from": "2010-07-31",
+          "to": "2010-10-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9987
+        },
+        {
+          "from": "2010-10-31",
+          "to": "2010-11-30",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5006
+        }
+      ]
+    },
+    "NEE": {
+      "heuristic_only": [
+        {
+          "from": "2019-09-30",
+          "to": "2019-12-31",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 4.0018
+        },
+        {
+          "from": "2019-12-31",
+          "to": "2020-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.25,
+          "share_ratio": 0.25
+        }
+      ]
+    },
+    "NEM": {
+      "heuristic_only": [
+        {
+          "from": "2019-02-14",
+          "to": "2019-04-18",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5387
+        },
+        {
+          "from": "2023-10-19",
+          "to": "2023-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4494
+        }
+      ]
+    },
+    "NFLX": {
+      "heuristic_missed": [
+        {
+          "from": "2015-06-30",
+          "to": "2015-09-30",
+          "yfinance": 7.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0032
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2014-09-30",
+          "to": "2014-12-31",
+          "yfinance": 1.0,
+          "heuristic": 7,
+          "share_ratio": 7.0197
+        },
+        {
+          "from": "2014-12-31",
+          "to": "2015-01-28",
+          "yfinance": 1.0,
+          "heuristic": 0.14285714285714285,
+          "share_ratio": 0.1431
+        },
+        {
+          "from": "2015-03-31",
+          "to": "2015-06-30",
+          "yfinance": 1.0,
+          "heuristic": 7,
+          "share_ratio": 7.0274
+        },
+        {
+          "from": "2024-09-30",
+          "to": "2024-12-31",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 10.007
+        },
+        {
+          "from": "2024-12-31",
+          "to": "2025-03-31",
+          "yfinance": 1.0,
+          "heuristic": 0.1,
+          "share_ratio": 0.0995
+        }
+      ]
+    },
+    "NI": {
+      "heuristic_missed": [
+        {
+          "from": "2015-06-30",
+          "to": "2015-07-30",
+          "yfinance": 2.545,
+          "heuristic": 1.0,
+          "share_ratio": 1.0006
+        }
+      ]
+    },
+    "NKE": {
+      "heuristic_missed": [
+        {
+          "from": "2012-11-30",
+          "to": "2013-02-28",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9977
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2012-08-31",
+          "to": "2012-11-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.988
+        }
+      ]
+    },
+    "NOC": {
+      "heuristic_missed": [
+        {
+          "from": "2011-02-07",
+          "to": "2011-03-31",
+          "yfinance": 1.1068068622025458,
+          "heuristic": 1.0,
+          "share_ratio": 1.0044
+        }
+      ]
+    },
+    "NOW": {
+      "heuristic_only": [
+        {
+          "from": "2024-09-30",
+          "to": "2024-12-31",
+          "yfinance": 1.0,
+          "heuristic": 5,
+          "share_ratio": 5.0118
+        },
+        {
+          "from": "2024-12-31",
+          "to": "2025-01-23",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.1995
+        }
+      ]
+    },
+    "NTAP": {
+      "heuristic_only": [
+        {
+          "from": "2024-01-26",
+          "to": "2024-02-23",
+          "yfinance": 1.0,
+          "heuristic": 0.1,
+          "share_ratio": 0.1002
+        },
+        {
+          "from": "2024-02-23",
+          "to": "2024-04-26",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 9.9817
+        }
+      ]
+    },
+    "NVDA": {
+      "heuristic_only": [
+        {
+          "from": "2020-11-13",
+          "to": "2021-01-31",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 4.0048
+        },
+        {
+          "from": "2021-01-31",
+          "to": "2021-02-19",
+          "yfinance": 1.0,
+          "heuristic": 0.25,
+          "share_ratio": 0.2501
+        },
+        {
+          "from": "2023-11-17",
+          "to": "2024-01-28",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 9.9769
+        },
+        {
+          "from": "2024-01-28",
+          "to": "2024-02-16",
+          "yfinance": 1.0,
+          "heuristic": 0.1,
+          "share_ratio": 0.1014
+        }
+      ]
+    },
+    "O": {
+      "ratio_mismatch": [
+        {
+          "from": "2021-10-29",
+          "to": "2021-12-31",
+          "yfinance": 1.032,
+          "heuristic": 1.5,
+          "share_ratio": 1.4627
+        }
+      ]
+    },
+    "ODFL": {
+      "heuristic_only": [
+        {
+          "from": "2009-12-31",
+          "to": "2010-06-30",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6667
+        },
+        {
+          "from": "2011-11-08",
+          "to": "2011-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5
+        },
+        {
+          "from": "2011-12-31",
+          "to": "2012-02-28",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6667
+        },
+        {
+          "from": "2019-11-01",
+          "to": "2019-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4975
+        },
+        {
+          "from": "2019-12-31",
+          "to": "2020-02-24",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6667
+        },
+        {
+          "from": "2023-11-03",
+          "to": "2023-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9973
+        },
+        {
+          "from": "2023-12-31",
+          "to": "2024-02-21",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4994
+        }
+      ]
+    },
+    "OKE": {
+      "heuristic_missed": [
+        {
+          "from": "2013-12-31",
+          "to": "2014-02-19",
+          "yfinance": 1.1422,
+          "heuristic": 1.0,
+          "share_ratio": 1.0058
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2011-10-27",
+          "to": "2011-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0052
+        },
+        {
+          "from": "2011-12-31",
+          "to": "2012-02-14",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5031
+        }
+      ]
+    },
+    "ORLY": {
+      "heuristic_only": [
+        {
+          "from": "2024-11-04",
+          "to": "2024-12-31",
+          "yfinance": 1.0,
+          "heuristic": 15,
+          "share_ratio": 14.9354
+        },
+        {
+          "from": "2024-12-31",
+          "to": "2025-02-24",
+          "yfinance": 1.0,
+          "heuristic": 0.06666666666666667,
+          "share_ratio": 0.0664
+        }
+      ]
+    },
+    "PANW": {
+      "heuristic_only": [
+        {
+          "from": "2022-05-12",
+          "to": "2022-07-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9989
+        },
+        {
+          "from": "2022-07-31",
+          "to": "2022-08-22",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3338
+        },
+        {
+          "from": "2024-05-10",
+          "to": "2024-07-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.008
+        },
+        {
+          "from": "2024-07-31",
+          "to": "2024-08-19",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5008
+        }
+      ]
+    },
+    "PFE": {
+      "heuristic_missed": [
+        {
+          "from": "2020-11-02",
+          "to": "2021-02-23",
+          "yfinance": 1.054,
+          "heuristic": 1.0,
+          "share_ratio": 1.0035
+        }
+      ]
+    },
+    "PLD": {
+      "heuristic_only": [
+        {
+          "from": "2010-11-01",
+          "to": "2010-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5113
+        },
+        {
+          "from": "2010-12-31",
+          "to": "2011-02-16",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6657
+        }
+      ]
+    },
+    "PLTR": {
+      "heuristic_only": [
+        {
+          "from": "2019-12-31",
+          "to": "2020-09-30",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9694
+        }
+      ]
+    },
+    "PNR": {
+      "heuristic_missed": [
+        {
+          "from": "2018-03-31",
+          "to": "2018-06-30",
+          "yfinance": 1.489,
+          "heuristic": 1.0,
+          "share_ratio": 0.9833
+        }
+      ]
+    },
+    "PPG": {
+      "heuristic_only": [
+        {
+          "from": "2012-09-30",
+          "to": "2012-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0028
+        },
+        {
+          "from": "2013-09-30",
+          "to": "2013-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9525
+        },
+        {
+          "from": "2013-12-31",
+          "to": "2014-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4995
+        },
+        {
+          "from": "2014-09-30",
+          "to": "2014-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9817
+        },
+        {
+          "from": "2014-12-31",
+          "to": "2015-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5002
+        }
+      ]
+    },
+    "PPL": {
+      "heuristic_missed": [
+        {
+          "from": "2015-04-30",
+          "to": "2015-06-30",
+          "yfinance": 1.0736525660296328,
+          "heuristic": 1.0,
+          "share_ratio": 1.0021
+        }
+      ]
+    },
+    "RJF": {
+      "heuristic_only": [
+        {
+          "from": "2020-08-06",
+          "to": "2020-09-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4939
+        },
+        {
+          "from": "2020-09-30",
+          "to": "2020-11-19",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6683
+        }
+      ]
+    },
+    "RMD": {
+      "heuristic_missed": [
+        {
+          "from": "2010-06-30",
+          "to": "2010-09-30",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.003
+        }
+      ]
+    },
+    "ROL": {
+      "heuristic_missed": [
+        {
+          "from": "2015-03-10",
+          "to": "2015-03-31",
+          "yfinance": 1.5,
+          "heuristic": 1.0,
+          "share_ratio": 1.0008
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2014-10-15",
+          "to": "2014-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5013
+        },
+        {
+          "from": "2014-12-31",
+          "to": "2015-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6673
+        },
+        {
+          "from": "2015-01-31",
+          "to": "2015-03-10",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5
+        },
+        {
+          "from": "2016-01-31",
+          "to": "2016-03-09",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6663
+        },
+        {
+          "from": "2016-03-09",
+          "to": "2016-03-10",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5
+        },
+        {
+          "from": "2019-10-16",
+          "to": "2019-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5
+        },
+        {
+          "from": "2019-12-31",
+          "to": "2020-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6674
+        }
+      ]
+    },
+    "ROST": {
+      "heuristic_only": [
+        {
+          "from": "2010-08-19",
+          "to": "2010-11-18",
+          "yfinance": 1.0,
+          "heuristic": 0.16666666666666666,
+          "share_ratio": 0.1584
+        },
+        {
+          "from": "2011-01-29",
+          "to": "2011-03-10",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.498
+        },
+        {
+          "from": "2014-11-20",
+          "to": "2015-01-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9902
+        },
+        {
+          "from": "2015-01-31",
+          "to": "2015-03-09",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        }
+      ]
+    },
+    "RTX": {
+      "heuristic_missed": [
+        {
+          "from": "2020-03-31",
+          "to": "2020-07-21",
+          "yfinance": 1.589,
+          "heuristic": 1.0,
+          "share_ratio": 1.7637
+        }
+      ]
+    },
+    "SBUX": {
+      "heuristic_missed": [
+        {
+          "from": "2015-03-29",
+          "to": "2015-04-22",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9997
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2014-07-23",
+          "to": "2014-09-28",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9956
+        },
+        {
+          "from": "2014-09-28",
+          "to": "2014-11-07",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4992
+        },
+        {
+          "from": "2015-01-21",
+          "to": "2015-03-29",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0019
+        }
+      ]
+    },
+    "SHW": {
+      "heuristic_missed": [
+        {
+          "from": "2021-03-31",
+          "to": "2021-06-30",
+          "yfinance": 3.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9902
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2019-09-30",
+          "to": "2019-12-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9946
+        },
+        {
+          "from": "2019-12-31",
+          "to": "2020-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3337
+        },
+        {
+          "from": "2020-01-31",
+          "to": "2020-03-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9536
+        },
+        {
+          "from": "2020-12-31",
+          "to": "2021-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3335
+        },
+        {
+          "from": "2021-01-31",
+          "to": "2021-03-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9676
+        }
+      ]
+    },
+    "SLB": {
+      "heuristic_only": [
+        {
+          "from": "2010-06-30",
+          "to": "2010-08-27",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.2078
+        }
+      ]
+    },
+    "SMCI": {
+      "heuristic_missed": [
+        {
+          "from": "2024-09-30",
+          "to": "2024-12-31",
+          "yfinance": 10.0,
+          "heuristic": 1.0,
+          "share_ratio": 1.0042
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2023-04-30",
+          "to": "2023-06-30",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 10.0787
+        },
+        {
+          "from": "2023-06-30",
+          "to": "2023-07-31",
+          "yfinance": 1.0,
+          "heuristic": 0.1,
+          "share_ratio": 0.1
+        },
+        {
+          "from": "2024-04-30",
+          "to": "2024-06-30",
+          "yfinance": 1.0,
+          "heuristic": 10,
+          "share_ratio": 10.0431
+        }
+      ]
+    },
+    "SRE": {
+      "heuristic_only": [
+        {
+          "from": "2020-11-02",
+          "to": "2020-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0
+        },
+        {
+          "from": "2020-12-31",
+          "to": "2021-02-22",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5245
+        },
+        {
+          "from": "2021-11-01",
+          "to": "2021-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9849
+        },
+        {
+          "from": "2021-12-31",
+          "to": "2022-02-18",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.498
+        },
+        {
+          "from": "2022-10-31",
+          "to": "2022-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0
+        },
+        {
+          "from": "2022-12-31",
+          "to": "2023-02-21",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5004
+        }
+      ]
+    },
+    "SWK": {
+      "heuristic_only": [
+        {
+          "from": "2010-01-02",
+          "to": "2010-07-29",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0585
+        }
+      ]
+    },
+    "T": {
+      "heuristic_missed": [
+        {
+          "from": "2022-02-11",
+          "to": "2022-04-27",
+          "yfinance": 1.324,
+          "heuristic": 1.0,
+          "share_ratio": 1.0023
+        }
+      ]
+    },
+    "TECH": {
+      "heuristic_only": [
+        {
+          "from": "2022-05-03",
+          "to": "2022-06-30",
+          "yfinance": 1.0,
+          "heuristic": 4,
+          "share_ratio": 3.9926
+        },
+        {
+          "from": "2022-06-30",
+          "to": "2022-08-19",
+          "yfinance": 1.0,
+          "heuristic": 0.25,
+          "share_ratio": 0.2503
+        }
+      ]
+    },
+    "TJX": {
+      "heuristic_missed": [
+        {
+          "from": "2012-01-28",
+          "to": "2012-04-28",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9923
+        },
+        {
+          "from": "2018-11-03",
+          "to": "2019-02-02",
+          "yfinance": 2.0,
+          "heuristic": 1.0,
+          "share_ratio": 0.9871
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2011-07-30",
+          "to": "2011-10-29",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9798
+        },
+        {
+          "from": "2017-07-29",
+          "to": "2017-10-28",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9875
+        },
+        {
+          "from": "2018-02-03",
+          "to": "2018-03-03",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4993
+        },
+        {
+          "from": "2018-03-03",
+          "to": "2018-05-05",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.994
+        }
+      ]
+    },
+    "TMUS": {
+      "heuristic_only": [
+        {
+          "from": "2012-10-19",
+          "to": "2012-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4701
+        },
+        {
+          "from": "2012-12-31",
+          "to": "2013-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6873
+        },
+        {
+          "from": "2020-03-31",
+          "to": "2020-04-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4351
+        }
+      ],
+      "ratio_mismatch": [
+        {
+          "from": "2013-04-19",
+          "to": "2013-06-30",
+          "yfinance": 0.5,
+          "heuristic": 2,
+          "share_ratio": 1.9608
+        }
+      ]
+    },
+    "TPL": {
+      "heuristic_only": [
+        {
+          "from": "2023-10-30",
+          "to": "2023-12-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9978
+        },
+        {
+          "from": "2023-12-31",
+          "to": "2024-02-14",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3333
+        },
+        {
+          "from": "2024-10-31",
+          "to": "2024-12-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.9996
+        },
+        {
+          "from": "2024-12-31",
+          "to": "2025-02-12",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3335
+        }
+      ]
+    },
+    "TRGP": {
+      "heuristic_only": [
+        {
+          "from": "2015-12-31",
+          "to": "2016-02-17",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 2.8662
+        }
+      ]
+    },
+    "TRMB": {
+      "heuristic_only": [
+        {
+          "from": "2012-11-02",
+          "to": "2012-12-28",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0167
+        },
+        {
+          "from": "2012-12-28",
+          "to": "2013-02-22",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5016
+        }
+      ]
+    },
+    "TSCO": {
+      "heuristic_only": [
+        {
+          "from": "2009-06-27",
+          "to": "2009-09-26",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0096
+        },
+        {
+          "from": "2010-06-26",
+          "to": "2010-07-24",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4999
+        },
+        {
+          "from": "2012-07-28",
+          "to": "2012-09-29",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9908
+        },
+        {
+          "from": "2012-09-29",
+          "to": "2012-10-27",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4991
+        },
+        {
+          "from": "2012-10-27",
+          "to": "2012-12-29",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9735
+        },
+        {
+          "from": "2012-12-29",
+          "to": "2013-01-26",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4979
+        },
+        {
+          "from": "2013-01-26",
+          "to": "2013-03-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0081
+        },
+        {
+          "from": "2013-03-30",
+          "to": "2013-04-27",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5021
+        },
+        {
+          "from": "2013-04-27",
+          "to": "2013-06-29",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9994
+        },
+        {
+          "from": "2013-06-29",
+          "to": "2013-07-27",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5003
+        },
+        {
+          "from": "2023-10-28",
+          "to": "2023-12-30",
+          "yfinance": 1.0,
+          "heuristic": 5,
+          "share_ratio": 4.9936
+        },
+        {
+          "from": "2023-12-30",
+          "to": "2024-01-27",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.1999
+        },
+        {
+          "from": "2024-01-27",
+          "to": "2024-03-30",
+          "yfinance": 1.0,
+          "heuristic": 5,
+          "share_ratio": 4.9988
+        },
+        {
+          "from": "2024-03-30",
+          "to": "2024-04-27",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.1998
+        },
+        {
+          "from": "2024-04-27",
+          "to": "2024-06-29",
+          "yfinance": 1.0,
+          "heuristic": 5,
+          "share_ratio": 4.9831
+        },
+        {
+          "from": "2024-06-29",
+          "to": "2024-07-27",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.2008
+        },
+        {
+          "from": "2024-07-27",
+          "to": "2024-09-28",
+          "yfinance": 1.0,
+          "heuristic": 5,
+          "share_ratio": 4.9561
+        },
+        {
+          "from": "2024-09-28",
+          "to": "2024-10-26",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.1998
+        }
+      ]
+    },
+    "TSLA": {
+      "heuristic_only": [
+        {
+          "from": "2019-10-21",
+          "to": "2019-12-31",
+          "yfinance": 1.0,
+          "heuristic": 5,
+          "share_ratio": 5.0209
+        },
+        {
+          "from": "2019-12-31",
+          "to": "2020-02-07",
+          "yfinance": 1.0,
+          "heuristic": 0.2,
+          "share_ratio": 0.2004
+        },
+        {
+          "from": "2021-12-30",
+          "to": "2021-12-31",
+          "yfinance": 1.0,
+          "heuristic": 3,
+          "share_ratio": 3.001
+        },
+        {
+          "from": "2021-12-31",
+          "to": "2022-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.3333333333333333,
+          "share_ratio": 0.3334
+        }
+      ]
+    },
+    "TT": {
+      "heuristic_missed": [
+        {
+          "from": "2013-10-11",
+          "to": "2014-02-03",
+          "yfinance": 1.252,
+          "heuristic": 1.0,
+          "share_ratio": 0.9651
+        },
+        {
+          "from": "2020-02-01",
+          "to": "2020-04-17",
+          "yfinance": 1.289,
+          "heuristic": 1.0,
+          "share_ratio": 1.0034
+        }
+      ]
+    },
+    "TTWO": {
+      "heuristic_only": [
+        {
+          "from": "2022-05-05",
+          "to": "2022-06-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4351
+        }
+      ]
+    },
+    "UAL": {
+      "heuristic_only": [
+        {
+          "from": "2010-09-30",
+          "to": "2010-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.946
+        }
+      ]
+    },
+    "UNP": {
+      "heuristic_only": [
+        {
+          "from": "2013-10-11",
+          "to": "2013-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9802
+        },
+        {
+          "from": "2013-12-31",
+          "to": "2014-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.499
+        }
+      ]
+    },
+    "URI": {
+      "heuristic_only": [
+        {
+          "from": "2012-04-13",
+          "to": "2012-06-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4532
+        }
+      ]
+    },
+    "VLO": {
+      "heuristic_missed": [
+        {
+          "from": "2013-04-30",
+          "to": "2013-07-31",
+          "yfinance": 1.094,
+          "heuristic": 1.0,
+          "share_ratio": 0.9941
+        }
+      ]
+    },
+    "VTR": {
+      "heuristic_missed": [
+        {
+          "from": "2015-07-22",
+          "to": "2015-10-22",
+          "yfinance": 0.8757,
+          "heuristic": 1.0,
+          "share_ratio": 1.0014
+        }
+      ]
+    },
+    "VZ": {
+      "heuristic_missed": [
+        {
+          "from": "2010-06-30",
+          "to": "2010-09-30",
+          "yfinance": 1.0662242546825904,
+          "heuristic": 1.0,
+          "share_ratio": 1.0
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2013-09-30",
+          "to": "2014-02-24",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4471
+        }
+      ]
+    },
+    "WAB": {
+      "heuristic_only": [
+        {
+          "from": "2012-10-26",
+          "to": "2012-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9923
+        },
+        {
+          "from": "2012-12-31",
+          "to": "2013-02-15",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5002
+        }
+      ]
+    },
+    "WBD": {
+      "heuristic_missed": [
+        {
+          "from": "2010-02-11",
+          "to": "2021-12-31",
+          "yfinance": 1.957,
+          "heuristic": 1.0,
+          "share_ratio": 1.2498
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2021-12-31",
+          "to": "2022-04-18",
+          "yfinance": 1.0,
+          "heuristic": 15,
+          "share_ratio": 14.36
+        }
+      ]
+    },
+    "WDC": {
+      "heuristic_missed": [
+        {
+          "from": "2025-01-22",
+          "to": "2025-03-28",
+          "yfinance": 1.323,
+          "heuristic": 1.0,
+          "share_ratio": 1.0034
+        }
+      ]
+    },
+    "WEC": {
+      "heuristic_only": [
+        {
+          "from": "2010-09-30",
+          "to": "2010-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9998
+        },
+        {
+          "from": "2010-12-31",
+          "to": "2011-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        }
+      ]
+    },
+    "WMB": {
+      "heuristic_missed": [
+        {
+          "from": "2011-10-31",
+          "to": "2012-02-22",
+          "yfinance": 1.2266928361138372,
+          "heuristic": 1.0,
+          "share_ratio": 1.0047
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2018-07-30",
+          "to": "2018-10-29",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4621
+        }
+      ]
+    },
+    "WRB": {
+      "heuristic_missed": [
+        {
+          "from": "2019-03-31",
+          "to": "2019-05-06",
+          "yfinance": 1.5,
+          "heuristic": 1.0,
+          "share_ratio": 1.0005
+        },
+        {
+          "from": "2024-06-30",
+          "to": "2024-07-29",
+          "yfinance": 1.5,
+          "heuristic": 1.0,
+          "share_ratio": 0.9997
+        }
+      ],
+      "heuristic_only": [
+        {
+          "from": "2016-11-02",
+          "to": "2016-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4978
+        },
+        {
+          "from": "2016-12-31",
+          "to": "2017-03-31",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6746
+        },
+        {
+          "from": "2017-11-06",
+          "to": "2017-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4966
+        },
+        {
+          "from": "2017-12-31",
+          "to": "2018-02-20",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6668
+        },
+        {
+          "from": "2018-11-05",
+          "to": "2018-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4984
+        },
+        {
+          "from": "2018-12-31",
+          "to": "2019-02-19",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6668
+        },
+        {
+          "from": "2019-02-19",
+          "to": "2019-03-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.5
+        },
+        {
+          "from": "2019-11-04",
+          "to": "2019-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4979
+        },
+        {
+          "from": "2019-12-31",
+          "to": "2020-02-18",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6667
+        },
+        {
+          "from": "2020-10-28",
+          "to": "2020-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4967
+        },
+        {
+          "from": "2020-12-31",
+          "to": "2021-02-11",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6649
+        },
+        {
+          "from": "2022-10-31",
+          "to": "2022-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4947
+        },
+        {
+          "from": "2022-12-31",
+          "to": "2023-02-15",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6639
+        },
+        {
+          "from": "2023-10-30",
+          "to": "2023-12-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4923
+        },
+        {
+          "from": "2023-12-31",
+          "to": "2024-02-15",
+          "yfinance": 1.0,
+          "heuristic": 0.6666666666666666,
+          "share_ratio": 0.6667
+        },
+        {
+          "from": "2024-04-29",
+          "to": "2024-06-30",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4889
+        }
+      ]
+    },
+    "WSM": {
+      "heuristic_only": [
+        {
+          "from": "2023-05-21",
+          "to": "2023-07-30",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9976
+        },
+        {
+          "from": "2023-07-30",
+          "to": "2023-08-27",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5
+        },
+        {
+          "from": "2023-08-27",
+          "to": "2023-10-29",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 1.9997
+        },
+        {
+          "from": "2023-10-29",
+          "to": "2023-11-26",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5001
+        },
+        {
+          "from": "2023-11-26",
+          "to": "2024-01-28",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0002
+        },
+        {
+          "from": "2024-01-28",
+          "to": "2024-03-17",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4997
+        },
+        {
+          "from": "2024-03-17",
+          "to": "2024-04-28",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.007
+        },
+        {
+          "from": "2024-04-28",
+          "to": "2024-05-19",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.4998
+        }
+      ]
+    },
+    "WST": {
+      "heuristic_only": [
+        {
+          "from": "2012-10-31",
+          "to": "2012-12-31",
+          "yfinance": 1.0,
+          "heuristic": 2,
+          "share_ratio": 2.0104
+        },
+        {
+          "from": "2012-12-31",
+          "to": "2013-01-31",
+          "yfinance": 1.0,
+          "heuristic": 0.5,
+          "share_ratio": 0.5008
+        }
+      ]
+    },
+    "WTW": {
+      "heuristic_missed": [
+        {
+          "from": "2015-10-30",
+          "to": "2016-02-26",
+          "yfinance": 0.3775,
+          "heuristic": 1.0,
+          "share_ratio": 0.7667
+        }
+      ]
+    },
+    "WY": {
+      "heuristic_only": [
+        {
+          "from": "2016-01-29",
+          "to": "2016-03-31",
+          "yfinance": 1.0,
+          "heuristic": 1.5,
+          "share_ratio": 1.4869
+        }
+      ]
+    },
+    "YUM": {
+      "heuristic_missed": [
+        {
+          "from": "2016-10-07",
+          "to": "2017-02-14",
+          "yfinance": 1.391,
+          "heuristic": 1.0,
+          "share_ratio": 0.0
+        }
+      ]
+    }
+  }
+}

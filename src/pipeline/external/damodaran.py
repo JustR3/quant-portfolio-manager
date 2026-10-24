@@ -14,6 +14,7 @@ Data Source: https://pages.stern.nyu.edu/~adamodar/New_Home_Page/data.html
 
 from dataclasses import dataclass
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 from typing import Optional
 import io
 import json
@@ -25,12 +26,41 @@ import requests
 
 from src.logging_config import get_logger
 from src.constants import DEFAULT_EQUITY_RISK_PREMIUM
+from src.pipeline.external.freshness import stale_data_warning
 
 logger = get_logger(__name__)
 
 # Cache directory for Damodaran data
 CACHE_DIR = Path("data/cache/damodaran")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# Damodaran republishes the industry datasets each January. The files carry no as-of column, so the
+# live data's date is the server's Last-Modified header. Warning-only (self-harden Check #3) — the
+# loader already falls back to generic priors, a stale reading should be visible, never fatal.
+DAMODARAN_UPDATE_CADENCE_DAYS = 365
+DAMODARAN_STALENESS_TOLERANCE_DAYS = 90
+
+
+def _warn_if_stale(response, source_name: str, now=None) -> None:
+    """Log (never raise) if the download's Last-Modified is older than the annual cadence.
+    A missing/unparseable header is silent: it says nothing about the data's age."""
+    try:
+        raw = response.headers.get("Last-Modified")
+        if not raw:
+            return
+        latest = pd.Timestamp(parsedate_to_datetime(raw))
+    except Exception:
+        return
+    msg = stale_data_warning(
+        latest,
+        now if now is not None else pd.Timestamp.now(),
+        cadence_days=DAMODARAN_UPDATE_CADENCE_DAYS,
+        tolerance_days=DAMODARAN_STALENESS_TOLERANCE_DAYS,
+        source_name=source_name,
+    )
+    if msg:
+        logger.warning(msg)
 
 
 @dataclass
@@ -144,7 +174,7 @@ class DamodaranLoader:
         self._cache_file_betas = CACHE_DIR / "betas_cache.parquet"
         self._cache_file_margins = CACHE_DIR / "margins_cache.parquet"
         self._cache_metadata_file = CACHE_DIR / "cache_metadata.json"
-        
+
         # Try to load from disk cache first
         self._load_from_disk_cache()
 
@@ -196,6 +226,7 @@ class DamodaranLoader:
                 self.URL_BETAS, timeout=self.REQUEST_TIMEOUT_SECONDS
             )
             beta_response.raise_for_status()
+            _warn_if_stale(beta_response, "Damodaran betas")
 
             self._beta_cache = pd.read_excel(
                 io.BytesIO(beta_response.content),
@@ -204,9 +235,7 @@ class DamodaranLoader:
             )
             self._beta_cache.columns = self._beta_cache.columns.str.strip()
 
-            logger.info(
-                f"Loaded {len(self._beta_cache)} industries from beta dataset"
-            )
+            logger.info(f"Loaded {len(self._beta_cache)} industries from beta dataset")
 
         except Exception as e:
             logger.error(f"Failed to load beta data: {e}")
@@ -218,6 +247,7 @@ class DamodaranLoader:
                 self.URL_MARGINS, timeout=self.REQUEST_TIMEOUT_SECONDS
             )
             margin_response.raise_for_status()
+            _warn_if_stale(margin_response, "Damodaran margins")
 
             self._margin_cache = pd.read_excel(
                 io.BytesIO(margin_response.content),
@@ -235,7 +265,7 @@ class DamodaranLoader:
             self._margin_cache = None
 
         self._cache_timestamp = datetime.now()
-        
+
         # Save to disk cache
         self._save_to_disk_cache()
 
@@ -245,17 +275,17 @@ class DamodaranLoader:
             if not self._cache_metadata_file.exists():
                 logger.debug("No disk cache metadata found")
                 return
-            
-            with open(self._cache_metadata_file, 'r') as f:
+
+            with open(self._cache_metadata_file, "r") as f:
                 metadata = json.load(f)
-            
-            cache_timestamp = datetime.fromisoformat(metadata['timestamp'])
+
+            cache_timestamp = datetime.fromisoformat(metadata["timestamp"])
             age_days = (datetime.now() - cache_timestamp).days
-            
+
             if age_days >= self.cache_days:
                 logger.debug(f"Disk cache expired ({age_days} days old)")
                 return
-            
+
             if self._cache_file_betas.exists() and self._cache_file_margins.exists():
                 self._beta_cache = pd.read_parquet(self._cache_file_betas)
                 self._margin_cache = pd.read_parquet(self._cache_file_margins)
@@ -266,29 +296,29 @@ class DamodaranLoader:
                 )
             else:
                 logger.debug("Disk cache files not found")
-                
+
         except Exception as e:
             logger.debug(f"Failed to load disk cache: {e}")
             self._beta_cache = None
             self._margin_cache = None
             self._cache_timestamp = None
-    
+
     def _save_to_disk_cache(self) -> None:
         """Save current cache to disk."""
         try:
             if self._beta_cache is not None and self._margin_cache is not None:
                 self._beta_cache.to_parquet(self._cache_file_betas)
                 self._margin_cache.to_parquet(self._cache_file_margins)
-                
+
                 metadata = {
-                    'timestamp': self._cache_timestamp.isoformat(),
-                    'beta_industries': len(self._beta_cache),
-                    'margin_industries': len(self._margin_cache),
+                    "timestamp": self._cache_timestamp.isoformat(),
+                    "beta_industries": len(self._beta_cache),
+                    "margin_industries": len(self._margin_cache),
                 }
-                
-                with open(self._cache_metadata_file, 'w') as f:
+
+                with open(self._cache_metadata_file, "w") as f:
                     json.dump(metadata, f, indent=2)
-                
+
                 logger.info("Saved Damodaran data to disk cache")
         except Exception as e:
             logger.warning(f"Failed to save disk cache: {e}")

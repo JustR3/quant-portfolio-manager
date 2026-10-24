@@ -23,11 +23,30 @@ strategy claim through an honest, costed, PIT-correct gate.
 ## Run it
 - Harnesses: `uv run ./main.py signal-eval --fundamentals sec --t-gate 2.4` /
   `uv run ./main.py ts-eval` / `uv run ./main.py pead-eval` (all offline from local stores;
-  JSON artifacts to `data/research/`)
+  JSON artifacts to `data/research/`). Every artifact carries a report-only `power` block
+  (SE / 95% CI / MDE80 / power@reference); `signal-eval --power-sim N --workers K` runs injected-signal
+  positive/negative controls (`docs/research/2026-09-26-harness-power-and-positive-controls.md`).
+  SEC caches without `period_start` (pre-duration-fix) are refused; `--allow-legacy-cache`
+  (signal-eval/pead-eval) reproduces pre-errata numbers, stamped non-canonical.
+  Verdicts are PASS / FAIL / INCONCLUSIVE (`src/research/verdict.py`: no computable statistic, or
+  < 24 IC periods / < 252 days); any INCONCLUSIVE → exit 3. `passed`/`pass` in JSON is True only for
+  a canonical PASS (raw gate in `gate_met`). signal-eval defaults: `--fundamentals sec`, t-gate =
+  Bonferroni over the k factors tested (explicit `--t-gate` wins).
 - Legacy tool: `uv run ./main.py optimize --universe sp500 --top-n 50`;
   backtest: `uv run ./main.py backtest --start 2023-07-01 --end 2025-06-01 --top-n 20 --frequency quarterly`
-- Tests: `uv run pytest -q` (network/integration tests are opt-in: `-m integration`)
+- Tests: `uv run pytest -q` (network/integration tests are opt-in: `-m integration`). The default
+  run is enforced offline: `tests/conftest.py` fails any test not marked `integration` that opens
+  an internet connection (AF_INET/AF_INET6 sockets and yfinance's `curl_cffi`), even when the code
+  under test swallows the error. Mark live-data tests `@pytest.mark.integration` or mock the fetch.
 - Price store integrity: `uv run python tools/verify_price_store.py`
+- SEC cache 3-month-vs-YTD contamination: `uv run python tools/check_sec_duration_contamination.py`
+  (see `docs/research/2026-09-25-sec-duration-contamination-check.md`)
+- FY-cache scope outliers (out-of-scope XBRL concept, e.g. AMT FY2018 revenue, PR #14):
+  `uv run python tools/check_fy_scope_outliers.py`
+  (see `docs/research/2026-09-27-fy-scope-outlier-check.md`)
+- Split cache (network; required for `--fundamentals sec`): `uv run python tools/build_split_cache.py`;
+  cross-check vs the SEC share heuristic: `uv run python tools/check_split_consistency.py`
+  (see `docs/research/2026-09-26-split-basis-errata.md`)
 
 ## Key flags
 - `--transaction-cost-bps` (default 10): per-side cost on turnover; backtest reports net of costs.
@@ -41,22 +60,41 @@ strategy claim through an honest, costed, PIT-correct gate.
   ~3 years; index membership is the CURRENT constituent list (survivorship). Treat backtests as
   sanity checks, not statistically strong evidence.
 - Backtest never silently runs momentum-only or hides skipped rebalances.
+- **SEC concept scope is not guaranteed.** `CONCEPT_MAP` picks the first concept a filer uses, and
+  some filers use it for only part of the total: REIT revenue under
+  `RevenueFromContractWithCustomer…` excludes lease income, and some capex tags are partial. The FY
+  scope check (`tools/check_fy_scope_outliers.py`) catches one-off outliers but not multi-year
+  plateaus. Check scope before trusting a revenue- or capex-driven claim on REITs, utilities or
+  energy names.
 
 ## Invariants (don't break)
 - Price parquets are untracked/gitignored, regenerable; schema `(field, ticker)` MultiIndex +
   tz-naive `Date`. `historical_store.load_prices` enforces a ticker-identity guard.
 - Factors are computed by the single source of truth `fundamentals.compute_pit_factors`
   (PIT/no-clamp: negatives allowed) for both live and backtest.
+- SEC share counts are as-filed; the price store is split-adjusted. Any `shares × price` must first
+  put shares on the price basis (`splits.SplitAdjuster`); a name without a split cache is excluded,
+  never mis-sized.
 
 ## Edge status (validated-edge phase — FIVE honest NEGATIVES; hunt CLOSED)
 No demonstrated edge on free data in any testable signal class — cross-sectional (`signal-eval`),
 time-series (`ts-eval`), or event-time (`pead-eval`):
-- **#1 Momentum** (~11yr): ~0 IC; 12-1/6-1/sector-neutral variants all fail (dead-end branch).
+- **#1 Momentum** (~11yr): ~0 IC. 12-0 (plain 12-month return, `src/research/signal_panel.py`) is
+  reproducible via `signal-eval`. The 12-1/6-1/sector-neutral variants were reported (all fail) from a
+  since-deleted branch and are not reproducible from `main`.
 - **#2 Value/Quality** on deep true-PIT SEC data: Value's thin lead was a small-sample mirage
   (IC +0.036/t=1.58 → +0.014/t=1.11); Quality flat. Closes "needs more data."
+  **Corrected under errata (2026-09-26, split-basis + duration fixes): Value IC +0.014/t=1.11 →
+  −0.013/t=−0.88 (sign flip — confirmed as the split-basis look-ahead fix via a window-matched
+  isolation: Quality reproduces published numbers exactly as a control, Value flips to −0.007/t=−0.44
+  under the split fix alone, before any duration-fix effect); Quality unchanged (~0). Still FAIL.**
+  See `docs/research/2026-09-26-split-basis-errata.md`.
 - **#3 New q-leg inputs** (gross profitability, net issuance, asset growth), pre-registered + Bonferroni
   bar: all flat, best t=0.73, none clears |t|=2.0. Closes "needs new inputs." See
   `docs/research/2026-06-09-new-factor-inputs-results.md`.
+  **Corrected under errata (2026-09-26): gross_profitability t=0.73→0.44, net_issuance t=0.11→−0.26,
+  asset_growth t=−0.04→−0.17. Still all FAIL, none near the bar.** See
+  `docs/research/2026-09-26-split-basis-errata.md`.
 
 **Survivorship-kill spike (2026-06-09): NO-GO on free data** — membership reconstruction PASS, but
 delisted-price coverage only 56% and non-random (`docs/research/2026-06-09-survivorship-free-sp500-spike.md`).
@@ -64,17 +102,23 @@ Closes the down-cap/survivorship lead until paid data is justified.
 
 - **#4 TS timing (iter-5, 2026-06-10):** five pre-registered rules (legacy regime overlay as-coded/
   as-documented/VIX-only + vol-targeting + vol-filter) on SPY + 10 multi-asset ETFs via the new
-  `qpm ts-eval` harness — ALL FAIL the two-part gate (best p=0.070 vs 0.010 bar). The legacy
+  `main.py ts-eval` harness — ALL FAIL the two-part gate (best p=0.070 vs 0.010 bar). The legacy
   "validated 25yr regime" claim is dead with data: as-coded SMA-only is +1.2%/yr *insignificant*;
   as-documented combined **underperforms B&H** (its VIX leg was never even computable historically —
   `RegimeDetector` hard-codes `vix=None` for as_of_date). See
   `docs/research/2026-06-10-ts-timing-study-results.md`.
 - **#5 PEAD/SEC-event drift (iter-6, 2026-06-10):** three pre-registered measures (SUE-earnings,
   SUE-revenue, EAR) on 21k–25k quarterly-filing events (2015–2026, new quarterly SEC cache in
-  `data/historical/fundamentals_sec_q/`) via `qpm pead-eval` — ALL FAIL (best p=0.745 vs 0.0167
+  `data/historical/fundamentals_sec_q/`) via `main.py pead-eval` — ALL FAIL (best p=0.745 vs 0.0167
   bar). All three spreads are *negative* net of costs; EAR points to **reversal** (NW-t −2.04 in
   the wrong direction); quintile drift U-shaped, not monotone. See
   `docs/research/2026-06-10-pead-event-drift-results.md`.
+  **Corrected under errata (2026-09-26, duration fix): sue_e net/yr −2.63%→−1.16%, sue_r
+  −1.81%→−2.49%, ear −4.47%→−4.33% (NW-t −2.04→−1.96, still reversal-direction). Still all FAIL.**
+  **Addendum (2026-09-27, impossible imputed Q4 revenue — replaces a rejected concept rule):
+  sue_r −2.49%→−2.36%/yr (51 negative-imputed-Q4-revenue events skipped); sue_e and ear
+  unchanged (neither reads the revenue Q4-imputation path). Still all FAIL.**
+  See `docs/research/2026-09-25-sec-duration-contamination-check.md`.
 
 ## Direction: PARKED (reframe executed 2026-06-10; stopping rule fired, counter 2 of 2)
 The pre-registered stopping rule (iters #5 AND #6 both negative → reframe, no relitigating)
@@ -82,6 +126,18 @@ The pre-registered stopping rule (iters #5 AND #6 both negative → reframe, no 
 five-negatives table. Active investment in this project has STOPPED.
 - **Standing job: claim-tester.** Any new strategy claim gets an afternoon through the relevant
   harness — pre-registered gate, realistic costs, PIT data — before it earns another minute.
+- **Errata protocol (adopted 2026-09-26).** A correctness fix (a data/pipeline bug, not a
+  parameter choice) → re-run the affected study with its ORIGINAL locked commands → publish original
+  and corrected results side by side in an errata doc; the corrected verdict becomes canonical
+  (README/CLAUDE tables updated). No parameter, window, universe, or gate change is allowed under
+  errata. A corrected verdict that flips to PASS does NOT reopen the project: it triggers a fresh
+  pre-registered out-of-sample confirmation first. **Errata closed (2026-09-26): split basis**
+  (`docs/research/2026-09-26-split-basis-errata.md`) **and 3-month/YTD durations**
+  (`docs/research/2026-09-25-sec-duration-contamination-check.md`) **re-run on studies #2/#3/#5 —
+  no verdict flipped to PASS; corrected numbers are now canonical (see "Errata results" sections in
+  both docs).**
+- **Candidate claims** (listed, not scheduled; listing ≠ reopening): `docs/research/2026-09-26-candidate-claims.md`
+  (C1: announcement-date PEAD on the free 8-K Item 2.02 clock).
 - **Reopening criteria (pre-registered):** a genuinely NEW data tier (paid survivorship-free,
   e.g. down-cap + delisted) AND a fresh pre-registration, treated as a new project with its own
   budget decision. Re-tuning any iter-1–6 parameter is p-hacking, not reopening.

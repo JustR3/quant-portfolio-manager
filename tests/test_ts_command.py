@@ -1,4 +1,5 @@
 """End-to-end: synthetic parquet mini-store -> exposures -> gate verdicts. Offline."""
+
 import numpy as np
 import pandas as pd
 
@@ -24,8 +25,13 @@ def _mini_store(tmp_path):
 
 def test_a_rules_run_end_to_end(tmp_path):
     base = _mini_store(tmp_path)
-    res = tc.run_ts_eval_rules(rules=["a1_sma", "a2_combined", "a3_vix"], base_dir=base,
-                               end="2022-06-01", n_boot=200, seed=42)
+    res = tc.run_ts_eval_rules(
+        rules=["a1_sma", "a2_combined", "a3_vix"],
+        base_dir=base,
+        end="2022-06-01",
+        n_boot=200,
+        seed=42,
+    )
     assert {r["rule"] for r in res.rules} == {"a1_sma", "a2_combined", "a3_vix"}
     for r in res.rules:  # windows pinned by availability, not hardcoded dates
         assert r["n_days"] > 1500
@@ -35,8 +41,9 @@ def test_a_rules_run_end_to_end(tmp_path):
 
 def test_a1_window_starts_after_sma_warmup(tmp_path):
     base = _mini_store(tmp_path)
-    res = tc.run_ts_eval_rules(rules=["a1_sma"], base_dir=base, end="2022-06-01",
-                               n_boot=100, seed=42)
+    res = tc.run_ts_eval_rules(
+        rules=["a1_sma"], base_dir=base, end="2022-06-01", n_boot=100, seed=42
+    )
     start = pd.to_datetime(res.rules[0]["window"].split("..")[0])
     assert start >= pd.Timestamp("2014-01-01") + pd.tseries.offsets.BDay(199)
 

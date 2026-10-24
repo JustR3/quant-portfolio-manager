@@ -1,0 +1,136 @@
+{
+  "params": {
+    "factors": [
+      "value",
+      "quality"
+    ],
+    "frequency": "monthly",
+    "horizon_months": 1,
+    "quantiles": 10,
+    "min_names_per_bucket": 10,
+    "start": "2010-01-01",
+    "end": "2026-04-01",
+    "transaction_cost_bps": 10.0,
+    "fundamentals": "sec",
+    "t_gate": 2.0,
+    "t_gate_source": "explicit --t-gate",
+    "power_sim_n": 0,
+    "allow_legacy_cache": true
+  },
+  "caveats": [
+    "LEGACY SEC CACHE (--allow-legacy-cache): pre-2026-09-26 cache without period_start; 3-month vs YTD durations unverified. Pre-errata reproduction only \u2014 NOT a canonical verdict.",
+    "SURVIVORSHIP: universe = CURRENT index membership (price store) for all dates; delisted/removed names are absent. Results are biased upward.",
+    "SEC PIT FUNDAMENTALS: true point-in-time (filed-date) data ~2008+; the testable window is bounded by the price store start (~2015). EBIT=OperatingIncomeLoss; banks/financials excluded (no LiabilitiesCurrent/OperatingIncomeLoss). Market cap and net issuance put as-filed SEC shares on the price store's split basis via the cached split history, src/pipeline/splits.py (names without it are excluded)."
+  ],
+  "factors": [
+    {
+      "factor": "value",
+      "ic": {
+        "mean_ic": -0.01378622180227887,
+        "std_ic": 0.1719132970554952,
+        "t_stat": -0.9317570256961272,
+        "n_periods": 135
+      },
+      "decile_table": [
+        0.023513957271999838,
+        0.016656817261008202,
+        0.014196559537481,
+        0.01475573370313859,
+        0.01359147536984651,
+        0.01282221173939529,
+        0.012044715112560193,
+        0.012657098571402372,
+        0.014639097623119712,
+        0.015478362252786105
+      ],
+      "monotonic": false,
+      "gross_spread": {
+        "ann_mean": -0.09642714023056487,
+        "ann_vol": 0.17077479715006214,
+        "sharpe": -0.5646450286562661,
+        "n_periods": 135
+      },
+      "net_spread": {
+        "ann_mean": -0.10105170818640219,
+        "ann_vol": 0.17069611041056712,
+        "sharpe": -0.5919977200613851,
+        "n_periods": 135
+      },
+      "n_obs": 23987,
+      "date_range": [
+        "2015-01-31",
+        "2026-03-31"
+      ],
+      "passed": false,
+      "power": {
+        "se": 0.014795940810834256,
+        "ci95": [
+          -0.04278626579151401,
+          0.015213822186956272
+        ],
+        "z_gate": 2.0,
+        "mde80": 0.04204445957875466,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.2584026086102851
+      },
+      "verdict": "FAIL",
+      "gate_met": false,
+      "inconclusive_reason": ""
+    },
+    {
+      "factor": "quality",
+      "ic": {
+        "mean_ic": 0.002271487965603041,
+        "std_ic": 0.12147358638722718,
+        "t_stat": 0.2172678519718798,
+        "n_periods": 135
+      },
+      "decile_table": [
+        0.016024240255380746,
+        0.016692772536233694,
+        0.01744353562346049,
+        0.011934892612489393,
+        0.014587489997525729,
+        0.015143613771248732,
+        0.01611440279322527,
+        0.012456062111344915,
+        0.01801861613454306,
+        0.012566434660245105
+      ],
+      "monotonic": false,
+      "gross_spread": {
+        "ann_mean": -0.04149366714162767,
+        "ann_vol": 0.12026443046914813,
+        "sharpe": -0.34502027723211304,
+        "n_periods": 135
+      },
+      "net_spread": {
+        "ann_mean": -0.04305371879581762,
+        "ann_vol": 0.12026575710990672,
+        "sharpe": -0.35798817411070977,
+        "n_periods": 135
+      },
+      "n_obs": 23987,
+      "date_range": [
+        "2015-01-31",
+        "2026-03-31"
+      ],
+      "passed": false,
+      "power": {
+        "se": 0.010454781712929307,
+        "ci95": [
+          -0.0182198841917384,
+          0.022762860122944484
+        ],
+        "z_gate": 2.0,
+        "mde80": 0.029708529707829723,
+        "ref_effect": 0.02,
+        "power_at_ref": 0.46533585425256274
+      },
+      "verdict": "FAIL",
+      "gate_met": false,
+      "inconclusive_reason": ""
+    }
+  ],
+  "power_sim": []
+}

@@ -11,12 +11,16 @@ def test_turnover_first_rebalance_deploys_cash():
 
 
 def test_turnover_no_change_is_zero():
-    assert compute_turnover({"A": 0.5, "B": 0.5}, {"A": 0.5, "B": 0.5}) == pytest.approx(0.0)
+    assert compute_turnover(
+        {"A": 0.5, "B": 0.5}, {"A": 0.5, "B": 0.5}
+    ) == pytest.approx(0.0)
 
 
 def test_turnover_partial():
     # A: 0.6->0.4 (0.2), B: 0.4->0.4 (0.0), C: 0->0.2 (0.2) => 0.4
-    assert compute_turnover({"A": 0.6, "B": 0.4}, {"A": 0.4, "B": 0.4, "C": 0.2}) == pytest.approx(0.4)
+    assert compute_turnover(
+        {"A": 0.6, "B": 0.4}, {"A": 0.4, "B": 0.4, "C": 0.2}
+    ) == pytest.approx(0.4)
 
 
 def test_cost_fraction_10bps_full_switch_is_20bps_roundtrip():

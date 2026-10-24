@@ -15,7 +15,9 @@ def test_get_statements_uses_default_cache_and_roundtrips(tmp_path, monkeypatch)
         @property
         def income_stmt(self):
             calls["n"] += 1
-            return pd.DataFrame({pd.Timestamp("2023-12-31"): {"EBIT": 1, "Total Revenue": 9}})
+            return pd.DataFrame(
+                {pd.Timestamp("2023-12-31"): {"EBIT": 1, "Total Revenue": 9}}
+            )
 
         @property
         def balance_sheet(self):

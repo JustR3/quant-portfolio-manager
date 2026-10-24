@@ -47,5 +47,6 @@ def __getattr__(name):
     # systematic_workflow is only loaded when run_systematic_portfolio is first accessed.
     if name == "run_systematic_portfolio":
         from src.pipeline.systematic_workflow import run_systematic_portfolio
+
         return run_systematic_portfolio
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

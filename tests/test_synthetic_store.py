@@ -69,3 +69,17 @@ def test_build_synthetic_store_ticker_identity_matches_filename(tmp_path):
         close_cols = [c for c in df.columns if c[0] == "Close"]
         assert len(close_cols) == 1
         assert close_cols[0][1] == t
+
+
+def test_build_synthetic_store_sec_provider_not_excluded(tmp_path, monkeypatch):
+    """The production SEC provider (split-basis market cap) must see usable names in the fixture,
+    or self-harden's signal-eval dry run would silently exclude everything."""
+    from src.research.fundamentals_provider import SECFundamentals
+
+    info = build_synthetic_store(tmp_path / "data" / "historical")
+    monkeypatch.chdir(tmp_path)
+    as_of = pd.Timestamp(info["signal_eval_window"][0])
+    prov = SECFundamentals()
+    for t in CROSS_SECTIONAL_TICKERS:
+        pf = prov.pit_factors(t, as_of, price=100.0)
+        assert not pf.excluded, f"{t}: {pf.exclusion_reason}"

@@ -50,7 +50,7 @@ Key sector betas from Damodaran's latest update:
 ### View Current Data
 ```bash
 # Display all sector priors
-PYTHONPATH=/Users/justra/Python/quant-portfolio-manager uv run python tools/show_damodaran_data.py
+PYTHONPATH=. uv run python tools/show_damodaran_data.py
 ```
 
 ### Programmatic Access

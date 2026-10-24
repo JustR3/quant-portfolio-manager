@@ -30,6 +30,7 @@ from src.pipeline import fundamentals as fnd
 # Try to import tqdm for progress bars
 try:
     from tqdm import tqdm
+
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
@@ -40,11 +41,11 @@ logger = get_logger(__name__)
 class FactorEngine:
     """
     Multi-factor stock ranking engine.
-    
+
     Fetches fundamental and price data, calculates factor scores,
     and ranks stocks by composite Z-score.
     """
-    
+
     def __init__(
         self,
         tickers: List[str],
@@ -55,7 +56,7 @@ class FactorEngine:
     ):
         """
         Initialize the Factor Engine.
-        
+
         Args:
             tickers: List of stock tickers to analyze
             batch_size: Number of tickers to process per batch (default: 50)
@@ -73,19 +74,19 @@ class FactorEngine:
         self.universe_stats = {}  # Store mean/std for each factor
         self.raw_factors = None  # Store raw factor values for auditing
         self.excluded = {}  # ticker -> exclusion reason (point-in-time path)
-        
+
     def _fetch_ticker_data(self, ticker: str) -> Optional[Dict]:
         """Fetch data for a single ticker with caching and retry.
-        
+
         Data priority (automatic fallback):
         1. Historical storage (local parquet files) - for backtesting with as_of_date
         2. Consolidated cache (24h expiry) - for recent data
         3. Legacy cache files - backward compatibility
         4. Live Yahoo Finance API - fallback if above unavailable
-        
+
         Args:
             ticker: Stock ticker
-            
+
         Returns:
             Dictionary with history, financial statements, and info, or None if failed
         """
@@ -97,57 +98,71 @@ class FactorEngine:
 
         # 2. TRY CONSOLIDATED CACHE (Phase 2 optimization)
         consolidated_key = f"ticker_{ticker}"
-        cached_data = default_cache.get_consolidated(consolidated_key, expiry_hours=self.cache_expiry_hours)
-        
+        cached_data = default_cache.get_consolidated(
+            consolidated_key, expiry_hours=self.cache_expiry_hours
+        )
+
         if cached_data is not None:
             # Full cache hit from consolidated file
             # Filter historical data to as_of_date if specified
-            if self.as_of_date and 'history' in cached_data:
-                hist = cached_data['history']
+            if self.as_of_date and "history" in cached_data:
+                hist = cached_data["history"]
                 if hist is not None and not hist.empty:
-                    cached_data['history'] = hist[hist.index < self.as_of_date]
+                    cached_data["history"] = hist[hist.index < self.as_of_date]
             return cached_data
-        
+
         # 3. FALLBACK: Try legacy cache (individual files)
         hist_key = f"history_{ticker}_2y"
         info_key = f"info_{ticker}"
         cashflow_key = f"cashflow_{ticker}"
         income_key = f"income_{ticker}"
         balance_key = f"balance_{ticker}"
-        
+
         cached_hist = default_cache.get(hist_key, expiry_hours=self.cache_expiry_hours)
         cached_info = default_cache.get(info_key, expiry_hours=self.cache_expiry_hours)
-        cached_cashflow = default_cache.get(cashflow_key, expiry_hours=self.cache_expiry_hours)
-        cached_income = default_cache.get(income_key, expiry_hours=self.cache_expiry_hours)
-        cached_balance = default_cache.get(balance_key, expiry_hours=self.cache_expiry_hours)
-        
-        if all([cached_hist is not None, cached_info is not None, 
-                cached_cashflow is not None, cached_income is not None, 
-                cached_balance is not None]):
+        cached_cashflow = default_cache.get(
+            cashflow_key, expiry_hours=self.cache_expiry_hours
+        )
+        cached_income = default_cache.get(
+            income_key, expiry_hours=self.cache_expiry_hours
+        )
+        cached_balance = default_cache.get(
+            balance_key, expiry_hours=self.cache_expiry_hours
+        )
+
+        if all(
+            [
+                cached_hist is not None,
+                cached_info is not None,
+                cached_cashflow is not None,
+                cached_income is not None,
+                cached_balance is not None,
+            ]
+        ):
             # Full cache hit from legacy files - migrate to consolidated format
             # Filter historical data to as_of_date if specified
             filtered_hist = cached_hist
             if self.as_of_date and cached_hist is not None and not cached_hist.empty:
                 filtered_hist = cached_hist[cached_hist.index < self.as_of_date]
-            
+
             legacy_data = {
-                'history': filtered_hist,
-                'info': cached_info,
-                'cash_flow': cached_cashflow,
-                'income_stmt': cached_income,
-                'balance_sheet': cached_balance
+                "history": filtered_hist,
+                "info": cached_info,
+                "cash_flow": cached_cashflow,
+                "income_stmt": cached_income,
+                "balance_sheet": cached_balance,
             }
             # Migrate to consolidated format in background
             default_cache.set_consolidated(consolidated_key, legacy_data)
             return legacy_data
-        
+
         # Cache miss - fetch from API with retry and rate limiting
         def fetch():
             # Apply thread-safe rate limiting before API call
             thread_safe_rate_limiter.wait()
-            
+
             stock = yf.Ticker(ticker)
-            
+
             # Use as_of_date for point-in-time integrity in backtesting
             if cached_hist is None:
                 if self.as_of_date:
@@ -155,43 +170,47 @@ class FactorEngine:
                     start_date = self.as_of_date - pd.DateOffset(years=2)
                     hist = stock.history(start=start_date, end=self.as_of_date)
                 else:
-                    hist = stock.history(period='2y')
+                    hist = stock.history(period="2y")
             else:
                 hist = cached_hist
-            
+
             # Always filter historical data to as_of_date if specified (whether cached or fresh)
             if self.as_of_date and hist is not None and not hist.empty:
                 hist = hist[hist.index < self.as_of_date]
-            
+
             info = stock.info if cached_info is None else cached_info
             cash_flow = stock.cashflow if cached_cashflow is None else cached_cashflow
             income_stmt = stock.income_stmt if cached_income is None else cached_income
-            balance_sheet = stock.balance_sheet if cached_balance is None else cached_balance
-            
+            balance_sheet = (
+                stock.balance_sheet if cached_balance is None else cached_balance
+            )
+
             # Validate we got some data
             if hist is None or hist.empty:
                 return None
-            
+
             return {
-                'history': hist,
-                'info': info,
-                'cash_flow': cash_flow,
-                'income_stmt': income_stmt,
-                'balance_sheet': balance_sheet
+                "history": hist,
+                "info": info,
+                "cash_flow": cash_flow,
+                "income_stmt": income_stmt,
+                "balance_sheet": balance_sheet,
             }
-        
+
         # Try to fetch with retry logic, but don't retry on 404s (delisted tickers)
         try:
             result = retry_with_backoff(fetch, max_attempts=3)
         except Exception as e:
             error_msg = str(e).lower()
             # Don't retry 404 errors - ticker is likely delisted or invalid
-            if '404' in error_msg or 'not found' in error_msg:
-                logger.debug(f"Ticker {ticker} not found (404) - likely delisted or invalid")
+            if "404" in error_msg or "not found" in error_msg:
+                logger.debug(
+                    f"Ticker {ticker} not found (404) - likely delisted or invalid"
+                )
                 return None
             # For other errors, let retry_with_backoff handle it
             result = None
-        
+
         # If fetch failed due to rate limiting, trigger circuit breaker
         if result is None:
             # Check if last error was rate limit related
@@ -200,15 +219,19 @@ class FactorEngine:
                 fetch()
             except Exception as e:
                 error_msg = str(e).lower()
-                if any(kw in error_msg for kw in ['429', 'rate limit', 'too many requests']):
-                    thread_safe_rate_limiter.trigger_circuit_breaker(duration_seconds=120.0)
-        
+                if any(
+                    kw in error_msg for kw in ["429", "rate limit", "too many requests"]
+                ):
+                    thread_safe_rate_limiter.trigger_circuit_breaker(
+                        duration_seconds=120.0
+                    )
+
         if result:
             # Save to consolidated cache (Phase 2 optimization)
             default_cache.set_consolidated(consolidated_key, result)
-        
+
         return result
-        
+
     def fetch_data(self) -> None:
         """
         Fetch all required data for the ticker universe.
@@ -216,32 +239,48 @@ class FactorEngine:
         """
         overall_timer_start = time.time()
         if self.verbose:
-            print(f"📊 Fetching data for {len(self.tickers)} tickers (batch size: {self.batch_size})...")
-        
+            print(
+                f"📊 Fetching data for {len(self.tickers)} tickers (batch size: {self.batch_size})..."
+            )
+
         # Process in batches
-        batches = [self.tickers[i:i + self.batch_size] 
-                   for i in range(0, len(self.tickers), self.batch_size)]
-        
+        batches = [
+            self.tickers[i : i + self.batch_size]
+            for i in range(0, len(self.tickers), self.batch_size)
+        ]
+
         total_batches = len(batches)
         successful = 0
         failed = 0
-        
+
         # Use tqdm only if verbose is True
-        batch_iterator = tqdm(enumerate(batches, 1), total=total_batches, desc="Batches", leave=False, disable=not self.verbose) if HAS_TQDM else enumerate(batches, 1)
-        
+        batch_iterator = (
+            tqdm(
+                enumerate(batches, 1),
+                total=total_batches,
+                desc="Batches",
+                leave=False,
+                disable=not self.verbose,
+            )
+            if HAS_TQDM
+            else enumerate(batches, 1)
+        )
+
         for batch_num, batch in batch_iterator:
             if not HAS_TQDM and self.verbose:
-                print(f"  Processing batch {batch_num}/{total_batches} ({len(batch)} tickers)...")
-            
+                print(
+                    f"  Processing batch {batch_num}/{total_batches} ({len(batch)} tickers)..."
+                )
+
             # Process batch in parallel with ThreadPoolExecutor
             # Use MAX_PARALLEL_WORKERS to parallelize while respecting rate limits
             with ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as executor:
                 # Submit all fetch tasks
                 future_to_ticker = {
-                    executor.submit(self._fetch_ticker_data, ticker): ticker 
+                    executor.submit(self._fetch_ticker_data, ticker): ticker
                     for ticker in batch
                 }
-                
+
                 # Collect results as they complete
                 for future in as_completed(future_to_ticker):
                     ticker = future_to_ticker[future]
@@ -260,12 +299,12 @@ class FactorEngine:
                         failed += 1
                         if not HAS_TQDM:
                             print(f"    ⚠️  Error fetching {ticker}: {e}")
-        
+
         overall_elapsed = time.time() - overall_timer_start
         if self.verbose:
             print(f"\n✅ Data fetched: {successful} successful, {failed} failed")
             print(f"⏱️  Data Fetching - Total: {overall_elapsed:.2f}s\n")
-    
+
     def _live_pit_factors(self, ticker: str):
         """Live Value/Quality via the shared compute_pit_factors (single source of truth).
 
@@ -278,12 +317,15 @@ class FactorEngine:
         data = self.data.get(ticker)
         if data is None:
             return None
-        info = data.get('info') or {}
-        market_cap = info.get('marketCap')
+        info = data.get("info") or {}
+        market_cap = info.get("marketCap")
         return fnd.compute_pit_factors(
-            income=data.get('income_stmt'), balance=data.get('balance_sheet'),
-            cashflow=data.get('cash_flow'), market_cap=market_cap,
-            as_of=pd.Timestamp.today().normalize(), lag_days=0,
+            income=data.get("income_stmt"),
+            balance=data.get("balance_sheet"),
+            cashflow=data.get("cash_flow"),
+            market_cap=market_cap,
+            as_of=pd.Timestamp.today().normalize(),
+            lag_days=0,
         )
 
     def calculate_value_factor(self, ticker: str) -> float:
@@ -299,100 +341,108 @@ class FactorEngine:
         if pf is None or pf.excluded:
             return np.nan
         return pf.quality_raw
-    
+
     def calculate_momentum_factor(self, ticker: str) -> float:
         """
         Calculate Momentum Factor: 12-Month Price Return
-        
+
         Return = (Price_Now / Price_12M_Ago) - 1
         """
         try:
             data = self.data.get(ticker)
             if data is None:
                 return np.nan
-            
-            hist = data['history']
-            
+
+            hist = data["history"]
+
             if hist.empty or len(hist) < 250:  # Need at least ~1 year of data
                 return np.nan
-            
+
             # Get current price and 12-month ago price
-            current_price = hist['Close'].iloc[-1]
-            
+            current_price = hist["Close"].iloc[-1]
+
             # Try to get price from ~252 trading days ago (1 year)
             lookback_days = min(252, len(hist) - 1)
-            past_price = hist['Close'].iloc[-lookback_days]
-            
+            past_price = hist["Close"].iloc[-lookback_days]
+
             if pd.notna(current_price) and pd.notna(past_price) and past_price > 0:
                 momentum = (current_price / past_price) - 1
                 return momentum
             else:
                 return np.nan
-                
+
         except Exception:
             # print(f"  Momentum calc failed for {ticker}: {e}")
             return np.nan
-    
-    def calculate_z_scores(self, values: pd.Series, factor_name: str = None) -> pd.Series:
+
+    def calculate_z_scores(
+        self, values: pd.Series, factor_name: str = None
+    ) -> pd.Series:
         """
         Calculate Z-scores and winsorize at +/- 3.
-        
+
         Z-Score = (Value - Mean) / StdDev
-        
+
         Args:
             values: Series of raw factor values
             factor_name: Name of the factor (for storing universe stats)
         """
         # Drop NaN values for mean/std calculation
         valid_values = values.dropna()
-        
+
         if len(valid_values) < 2:
             # Not enough data to calculate std
             if factor_name:
-                self.universe_stats[factor_name] = {'mean': 0, 'std': 0, 'count': len(valid_values)}
+                self.universe_stats[factor_name] = {
+                    "mean": 0,
+                    "std": 0,
+                    "count": len(valid_values),
+                }
             return pd.Series(0, index=values.index)
-        
+
         mean = valid_values.mean()
         std = valid_values.std()
-        
+
         # Store universe statistics for this factor
         if factor_name:
             self.universe_stats[factor_name] = {
-                'mean': mean,
-                'std': std,
-                'count': len(valid_values),
-                'min': valid_values.min(),
-                'max': valid_values.max()
+                "mean": mean,
+                "std": std,
+                "count": len(valid_values),
+                "min": valid_values.min(),
+                "max": valid_values.max(),
             }
-        
+
         if std == 0 or np.isnan(std):
             # No variation, return zeros
             return pd.Series(0, index=values.index)
-        
+
         # Calculate Z-scores
         z_scores = (values - mean) / std
-        
+
         # Fill NaN with 0 (neutral score for missing data)
         z_scores = z_scores.fillna(0)
-        
+
         # Winsorize at +/- 3
         z_scores = z_scores.clip(-3, 3)
-        
+
         return z_scores
-    
+
     def _finalize_scores(self, df: pd.DataFrame) -> pd.DataFrame:
         """Z-score the raw factors, build the composite, sort. Shared by both paths."""
         self.raw_factors = df.copy()
-        df['Value_Z'] = self.calculate_z_scores(df['Value_Raw'], 'value')
-        df['Quality_Z'] = self.calculate_z_scores(df['Quality_Raw'], 'quality')
-        df['Momentum_Z'] = self.calculate_z_scores(df['Momentum_Raw'], 'momentum')
+        df["Value_Z"] = self.calculate_z_scores(df["Value_Raw"], "value")
+        df["Quality_Z"] = self.calculate_z_scores(df["Quality_Raw"], "quality")
+        df["Momentum_Z"] = self.calculate_z_scores(df["Momentum_Raw"], "momentum")
         # Composite score: 40% Value, 40% Quality, 20% Momentum
-        df['Total_Score'] = (
-            0.4 * df['Value_Z'] + 0.4 * df['Quality_Z'] + 0.2 * df['Momentum_Z']
+        df["Total_Score"] = (
+            0.4 * df["Value_Z"] + 0.4 * df["Quality_Z"] + 0.2 * df["Momentum_Z"]
         )
-        df = df.sort_values('Total_Score', ascending=False).reset_index(drop=True)
+        df = df.sort_values("Total_Score", ascending=False).reset_index(drop=True)
         self.factor_scores = df
-        return df[['Ticker', 'Value_Z', 'Quality_Z', 'Momentum_Z', 'Total_Score']].copy()
+        return df[
+            ["Ticker", "Value_Z", "Quality_Z", "Momentum_Z", "Total_Score"]
+        ].copy()
 
     def _pit_momentum(self, ticker: str) -> float:
         """12-month price return from the local store, strictly before as_of_date."""
@@ -414,18 +464,21 @@ class FactorEngine:
         market_cap = fnd.pit_market_cap_from(shares, price, self.as_of_date)
         stmts = fnd.get_statements(ticker)
         pf = fnd.compute_pit_factors(
-            income=stmts.get('income'), balance=stmts.get('balance'),
-            cashflow=stmts.get('cashflow'), market_cap=market_cap,
-            as_of=self.as_of_date, lag_days=FUNDAMENTALS_REPORTING_LAG_DAYS,
+            income=stmts.get("income"),
+            balance=stmts.get("balance"),
+            cashflow=stmts.get("cashflow"),
+            market_cap=market_cap,
+            as_of=self.as_of_date,
+            lag_days=FUNDAMENTALS_REPORTING_LAG_DAYS,
         )
         if pf.excluded:
             self.excluded[ticker] = pf.exclusion_reason
             return None
         return {
-            'Ticker': ticker,
-            'Value_Raw': pf.value_raw,
-            'Quality_Raw': pf.quality_raw,
-            'Momentum_Raw': self._pit_momentum(ticker),
+            "Ticker": ticker,
+            "Value_Raw": pf.value_raw,
+            "Quality_Raw": pf.quality_raw,
+            "Momentum_Raw": self._pit_momentum(ticker),
         }
 
     def rank_universe(self) -> pd.DataFrame:
@@ -447,8 +500,11 @@ class FactorEngine:
 
         if self.as_of_date is not None:
             self.excluded = {}
-            results = [row for row in (self._pit_factor_row(t) for t in self.tickers)
-                       if row is not None]
+            results = [
+                row
+                for row in (self._pit_factor_row(t) for t in self.tickers)
+                if row is not None
+            ]
             if not results:
                 raise RuntimeError(
                     f"No point-in-time fundamentals available at {self.as_of_date.date()}; "
@@ -459,12 +515,15 @@ class FactorEngine:
         else:
             if not self.data:
                 self.fetch_data()
-            results = [{
-                'Ticker': ticker,
-                'Value_Raw': self.calculate_value_factor(ticker),
-                'Quality_Raw': self.calculate_quality_factor(ticker),
-                'Momentum_Raw': self.calculate_momentum_factor(ticker),
-            } for ticker in self.tickers]
+            results = [
+                {
+                    "Ticker": ticker,
+                    "Value_Raw": self.calculate_value_factor(ticker),
+                    "Quality_Raw": self.calculate_quality_factor(ticker),
+                    "Momentum_Raw": self.calculate_momentum_factor(ticker),
+                }
+                for ticker in self.tickers
+            ]
             output_df = self._finalize_scores(pd.DataFrame(results))
 
         calc_elapsed = time.time() - calc_start
@@ -472,44 +531,44 @@ class FactorEngine:
             print("✅ Factor ranking complete!")
             print(f"⏱️  Factor Calculation - Total: {calc_elapsed:.2f}s\n")
         return output_df
-    
+
     def generate_audit_report(self, ticker: str) -> Dict:
         """
         Generate a detailed audit report for a specific stock.
-        
+
         Args:
             ticker: Stock ticker to audit
-            
+
         Returns:
             Dictionary containing detailed factor analysis and ranking explanation
         """
         if self.factor_scores is None:
             raise ValueError("No rankings available. Run rank_universe() first.")
-        
+
         # Find the ticker in the results
-        stock_data = self.factor_scores[self.factor_scores['Ticker'] == ticker]
-        
+        stock_data = self.factor_scores[self.factor_scores["Ticker"] == ticker]
+
         if stock_data.empty:
             raise ValueError(f"Ticker {ticker} not found in universe.")
-        
+
         row = stock_data.iloc[0]
-        
+
         # Calculate rank and percentile
         rank = stock_data.index[0] + 1
         total_stocks = len(self.factor_scores)
         percentile = 1 - (rank - 1) / total_stocks
-        
+
         # Extract scores
-        value_z = row['Value_Z']
-        quality_z = row['Quality_Z']
-        momentum_z = row['Momentum_Z']
-        total_score = row['Total_Score']
-        
+        value_z = row["Value_Z"]
+        quality_z = row["Quality_Z"]
+        momentum_z = row["Momentum_Z"]
+        total_score = row["Total_Score"]
+
         # Get raw values
-        value_raw = row['Value_Raw']
-        quality_raw = row['Quality_Raw']
-        momentum_raw = row['Momentum_Raw']
-        
+        value_raw = row["Value_Raw"]
+        quality_raw = row["Quality_Raw"]
+        momentum_raw = row["Momentum_Raw"]
+
         # Helper function to interpret Z-score
         def interpret_z(z: float) -> str:
             if z > 1.5:
@@ -522,52 +581,62 @@ class FactorEngine:
                 return "Weak/Negative"
             else:
                 return "Very Weak/Negative"
-        
+
         # Build the report
         report = {
-            'ticker': ticker,
-            'rank': rank,
-            'total_stocks': total_stocks,
-            'rank_percentile': percentile,
-            'total_score': total_score,
-            'factors': {
-                'value': {
-                    'z_score': value_z,
-                    'raw_value': value_raw,
-                    'universe_mean': self.universe_stats.get('value', {}).get('mean', 0),
-                    'universe_std': self.universe_stats.get('value', {}).get('std', 0),
-                    'contribution': 0.4 * value_z,
-                    'interpretation': interpret_z(value_z)
+            "ticker": ticker,
+            "rank": rank,
+            "total_stocks": total_stocks,
+            "rank_percentile": percentile,
+            "total_score": total_score,
+            "factors": {
+                "value": {
+                    "z_score": value_z,
+                    "raw_value": value_raw,
+                    "universe_mean": self.universe_stats.get("value", {}).get(
+                        "mean", 0
+                    ),
+                    "universe_std": self.universe_stats.get("value", {}).get("std", 0),
+                    "contribution": 0.4 * value_z,
+                    "interpretation": interpret_z(value_z),
                 },
-                'quality': {
-                    'z_score': quality_z,
-                    'raw_value': quality_raw,
-                    'universe_mean': self.universe_stats.get('quality', {}).get('mean', 0),
-                    'universe_std': self.universe_stats.get('quality', {}).get('std', 0),
-                    'contribution': 0.4 * quality_z,
-                    'interpretation': interpret_z(quality_z)
+                "quality": {
+                    "z_score": quality_z,
+                    "raw_value": quality_raw,
+                    "universe_mean": self.universe_stats.get("quality", {}).get(
+                        "mean", 0
+                    ),
+                    "universe_std": self.universe_stats.get("quality", {}).get(
+                        "std", 0
+                    ),
+                    "contribution": 0.4 * quality_z,
+                    "interpretation": interpret_z(quality_z),
                 },
-                'momentum': {
-                    'z_score': momentum_z,
-                    'raw_value': momentum_raw,
-                    'universe_mean': self.universe_stats.get('momentum', {}).get('mean', 0),
-                    'universe_std': self.universe_stats.get('momentum', {}).get('std', 0),
-                    'contribution': 0.2 * momentum_z,
-                    'interpretation': interpret_z(momentum_z)
-                }
-            }
+                "momentum": {
+                    "z_score": momentum_z,
+                    "raw_value": momentum_raw,
+                    "universe_mean": self.universe_stats.get("momentum", {}).get(
+                        "mean", 0
+                    ),
+                    "universe_std": self.universe_stats.get("momentum", {}).get(
+                        "std", 0
+                    ),
+                    "contribution": 0.2 * momentum_z,
+                    "interpretation": interpret_z(momentum_z),
+                },
+            },
         }
-        
+
         # Generate summary
         strengths = []
         weaknesses = []
-        
-        for factor_name, factor_data in report['factors'].items():
-            if factor_data['z_score'] > 0.5:
+
+        for factor_name, factor_data in report["factors"].items():
+            if factor_data["z_score"] > 0.5:
                 strengths.append(factor_name.capitalize())
-            elif factor_data['z_score'] < -0.5:
+            elif factor_data["z_score"] < -0.5:
                 weaknesses.append(factor_name.capitalize())
-        
+
         if strengths and weaknesses:
             summary = f"Mixed profile. Strong in {', '.join(strengths)}. Weak in {', '.join(weaknesses)}."
         elif strengths:
@@ -576,15 +645,15 @@ class FactorEngine:
             summary = f"Weak across {', '.join(weaknesses)}. Underperforming peers."
         else:
             summary = "Neutral profile. Near universe average across all factors."
-        
-        report['summary'] = summary
-        
+
+        report["summary"] = summary
+
         return report
-    
+
     def display_audit_report(self, ticker: str) -> None:
         """
         Display a formatted audit report for a specific stock.
-        
+
         Args:
             ticker: Stock ticker to audit
         """
@@ -593,48 +662,58 @@ class FactorEngine:
         except ValueError as e:
             print(f"❌ {e}")
             return
-        
+
         print("\n" + "=" * 80)
         print(f"🔍 FACTOR AUDIT REPORT: {report['ticker']}")
         print("=" * 80)
-        
+
         print("\n📊 OVERALL RANKING")
         print(f"   Rank: #{report['rank']} of {report['total_stocks']} stocks")
         print(f"   Percentile: {report['rank_percentile']:.1%}")
         print(f"   Total Score: {report['total_score']:.3f}")
-        
+
         print("\n📈 FACTOR BREAKDOWN\n")
-        
-        for factor_name, factor_data in report['factors'].items():
+
+        for factor_name, factor_data in report["factors"].items():
             print(f"   {factor_name.upper()}:")
-            print(f"      Z-Score: {factor_data['z_score']:>8.2f}  ({factor_data['interpretation']})")
-            print(f"      Raw Value: {factor_data['raw_value']:>6.4f}  (Universe Mean: {factor_data['universe_mean']:.4f})")
-            print(f"      Contribution to Total Score: {factor_data['contribution']:>+.3f}")
+            print(
+                f"      Z-Score: {factor_data['z_score']:>8.2f}  ({factor_data['interpretation']})"
+            )
+            print(
+                f"      Raw Value: {factor_data['raw_value']:>6.4f}  (Universe Mean: {factor_data['universe_mean']:.4f})"
+            )
+            print(
+                f"      Contribution to Total Score: {factor_data['contribution']:>+.3f}"
+            )
             print()
-        
+
         print("💡 SUMMARY")
         print(f"   {report['summary']}")
-        
+
         print("\n" + "=" * 80 + "\n")
-    
+
     def display_rankings(self) -> None:
         """Display the rankings in a formatted table."""
         if self.factor_scores is None:
             print("❌ No rankings available. Run rank_universe() first.")
             return
-        
+
         print("=" * 80)
         print("📈 FACTOR-BASED STOCK RANKINGS")
         print("=" * 80)
-        print(f"{'Rank':<6} {'Ticker':<8} {'Value Z':<10} {'Quality Z':<12} {'Momentum Z':<12} {'Total Score':<12}")
+        print(
+            f"{'Rank':<6} {'Ticker':<8} {'Value Z':<10} {'Quality Z':<12} {'Momentum Z':<12} {'Total Score':<12}"
+        )
         print("-" * 80)
-        
+
         # Use iloc instead of iterrows for better performance
         for idx in range(len(self.factor_scores)):
             row = self.factor_scores.iloc[idx]
             rank = idx + 1
-            print(f"{rank:<6} {row['Ticker']:<8} {row['Value_Z']:>9.2f} {row['Quality_Z']:>11.2f} {row['Momentum_Z']:>11.2f} {row['Total_Score']:>11.2f}")
-        
+            print(
+                f"{rank:<6} {row['Ticker']:<8} {row['Value_Z']:>9.2f} {row['Quality_Z']:>11.2f} {row['Momentum_Z']:>11.2f} {row['Total_Score']:>11.2f}"
+            )
+
         print("=" * 80)
         print("\n💡 Higher scores = Better ranking")
         print("   Weights: Value 40% | Quality 40% | Momentum 20%\n")
@@ -644,28 +723,28 @@ if __name__ == "__main__":
     print("\n" + "=" * 80)
     print("🚀 PHASE 2: FACTOR ENGINE - MINI-UNIVERSE TEST")
     print("=" * 80 + "\n")
-    
+
     # Mini-universe: 5 diverse stocks
     test_tickers = ["NVDA", "XOM", "JPM", "PFE", "TSLA"]
-    
+
     print(f"Testing with mini-universe: {test_tickers}\n")
-    
+
     # Initialize engine
     engine = FactorEngine(tickers=test_tickers)
-    
+
     # Rank stocks
     rankings = engine.rank_universe()
-    
+
     # Display results
     engine.display_rankings()
-    
+
     # Test the audit report for the top-ranked stock
     print("\n" + "=" * 80)
     print("🔍 TESTING AUDIT REPORT - Top Ranked Stock")
     print("=" * 80)
-    top_ticker = rankings.iloc[0]['Ticker']
+    top_ticker = rankings.iloc[0]["Ticker"]
     engine.display_audit_report(top_ticker)
-    
+
     # Export to CSV
     output_file = "factor_rankings_test.csv"
     rankings.to_csv(output_file, index=False)

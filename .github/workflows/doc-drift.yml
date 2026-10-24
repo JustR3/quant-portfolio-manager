@@ -1,7 +1,11 @@
 name: doc-drift
 
 # Monthly sweep that checks every command shown in README.md/docs still runs, and fixes stale
-# YAML front-matter headers. Opens a PR if anything changed.
+# YAML front-matter headers. Opens a PR if anything changed. It merges that PR itself only when no
+# changed file is a protected record (README.md, CLAUDE.md, docs/research/, docs/superpowers/,
+# docs/HANDOFF.md: the results tables, pre-registered specs and write-ups) and the in-job checks
+# pass. A change to any of those stays an open PR for the owner to review. Opens an issue if the
+# run fails.
 # Auth: CLAUDE_CODE_OAUTH_TOKEN (generated via `claude setup-token`), so runs draw from the
 # Claude subscription instead of separate API billing — same as self-harden.yml.
 #
@@ -28,7 +32,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: read
+  issues: write # opens an issue when a run fails
   id-token: write # required by anthropics/claude-code-action's own OIDC token exchange
 
 concurrency:
@@ -38,7 +42,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -69,13 +73,54 @@ jobs:
             why, or state plainly that you found nothing.
           claude_args: '--allowedTools "Read,Edit,Bash"'
 
+      - name: Discard changes outside the allowed paths
+        # The tree verified below must be exactly the tree the PR merges, so
+        # out-of-scope changes (for example data files rewritten by running a
+        # documented command) are discarded here, with a warning, before the
+        # checks run.
+        run: |
+          while IFS= read -r f; do
+            case "$f" in
+              README.md|docs/*|*.md) ;;
+              *)
+                echo "::warning::discarding change outside the allowed paths: $f"
+                if git ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
+                  git restore --source=HEAD --staged --worktree -- "$f"
+                else
+                  rm -rf -- "$f"
+                fi
+                ;;
+            esac
+          done < <(git status --porcelain --untracked-files=all | cut -c4-)
+
       - name: Verify tests and lint pass
         run: |
           uv run pytest -q
           uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Decide whether the change may merge without review
+        id: scope
+        # Auto-merge only edits to the how-to guides under docs/. README.md and CLAUDE.md carry the
+        # five-negatives table and edge status, docs/research/ holds the published results and
+        # errata, docs/superpowers/ holds the pre-registered specs and plans, and HANDOFF.md is the
+        # checkpoint log. An unattended agent must not rewrite those on green tests alone (the
+        # prompt forbids touching verdicts, but the merge gate shouldn't depend on it being obeyed).
+        run: |
+          git add -A
+          auto=true
+          while IFS= read -r path; do
+            case "$path" in
+              README.md|CLAUDE.md|docs/HANDOFF.md|docs/research/*|docs/superpowers/*) auto=false ;;
+            esac
+          done < <(git diff --cached --no-renames --name-only)
+          git reset -q
+          echo "auto_merge=$auto" >> "$GITHUB_OUTPUT"
+          echo "auto_merge=$auto"
 
       - name: Open PR if anything changed
-        uses: peter-evans/create-pull-request@v7
+        id: cpr
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore(doc-drift): fix stale docs and examples"
           title: "doc-drift: automated doc/example fixes"
@@ -86,3 +131,49 @@ jobs:
             README.md
             docs/**
             *.md
+
+      - name: Merge PR
+        # GitHub holds pull_request runs on bot-created PRs for manual approval
+        # (changelog 2026-06-11), so the PR's own `test` check never starts on
+        # its own. This job already ran the same tests and lint on the exact
+        # tree the PR contains, so it merges the PR itself. --match-head-commit
+        # refuses the merge if the branch moved after the checks ran.
+        if: >-
+          steps.scope.outputs.auto_merge == 'true' &&
+          (steps.cpr.outputs.pull-request-operation == 'created' ||
+           steps.cpr.outputs.pull-request-operation == 'updated')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --merge --delete-branch \
+            --match-head-commit "${{ steps.cpr.outputs.pull-request-head-sha }}"
+
+      - name: Ask the owner to review
+        if: >-
+          steps.scope.outputs.auto_merge != 'true' &&
+          (steps.cpr.outputs.pull-request-operation == 'created' ||
+           steps.cpr.outputs.pull-request-operation == 'updated')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          gh pr comment "${{ steps.cpr.outputs.pull-request-number }}" --body \
+            "@$OWNER this doc-drift PR edits a protected record (README.md, CLAUDE.md, docs/HANDOFF.md, docs/research/ or docs/superpowers/), so it was not auto-merged. Tests and lint passed in the job; review the diff before merging."
+
+      - name: Open issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          title="doc-drift run failed"
+          n=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body "@$OWNER failed again: $RUN_URL"
+          else
+            gh issue create --title "$title" --body "@$OWNER the doc-drift workflow failed and nothing was merged. Run: $RUN_URL"
+          fi

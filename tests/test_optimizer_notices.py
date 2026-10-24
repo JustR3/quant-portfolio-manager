@@ -3,14 +3,20 @@
 These exist so a portfolio built from an unvalidated, sometimes-silently-
 falling-back optimizer never reads as more authoritative than it is.
 """
+
 from src.models.optimizer import OptimizationResult
 from src.pipeline.systematic_workflow import fallback_notice, FACTOR_VALIDITY_DISCLAIMER
 
 
 def _result(objective_used):
     return OptimizationResult(
-        weights={"A": 1.0}, expected_return=0.1, volatility=0.1,
-        sharpe_ratio=1.0, performance={}, objective_used=objective_used)
+        weights={"A": 1.0},
+        expected_return=0.1,
+        volatility=0.1,
+        sharpe_ratio=1.0,
+        performance={},
+        objective_used=objective_used,
+    )
 
 
 def test_fallback_notice_is_none_when_max_sharpe_actually_ran():

@@ -23,6 +23,7 @@ import src.env_loader  # noqa: F401
 
 from src.constants import DEFAULT_RISK_FREE_RATE
 from src.logging_config import get_logger
+from src.pipeline.external.freshness import stale_data_warning
 
 try:
     from fredapi import Fred
@@ -73,6 +74,12 @@ class FredConnector:
     # one systematic_workflow.py uses on a hard FredConnector failure always agree.
     FALLBACK_RISK_FREE_RATE = DEFAULT_RISK_FREE_RATE
     STALE_DATA_WARNING_DAYS = 7
+    # CPI (monthly, obs dated the 1st, released mid next month) and real GDP (quarterly, obs dated
+    # the quarter start, released ~1 month after quarter end). Warning-only (self-harden Check #3).
+    CPI_UPDATE_CADENCE_DAYS = 31
+    CPI_STALENESS_TOLERANCE_DAYS = 45
+    GDP_UPDATE_CADENCE_DAYS = 92
+    GDP_STALENESS_TOLERANCE_DAYS = 45
 
     def __init__(self, api_key: Optional[str] = None, cache_hours: int = 24):
         """
@@ -107,6 +114,20 @@ class FredConnector:
         self._cached_data: Optional[MacroData] = None
         self._cache_timestamp: Optional[datetime] = None
 
+    @staticmethod
+    def _warn_if_stale(series, cadence_days, tolerance_days, source_name, now=None):
+        """Log (never raise) if the newest observation in `series` is older than its cadence."""
+        latest = series.index[-1] if series is not None and len(series) else None
+        msg = stale_data_warning(
+            latest,
+            now if now is not None else datetime.now(),
+            cadence_days=cadence_days,
+            tolerance_days=tolerance_days,
+            source_name=source_name,
+        )
+        if msg:
+            logger.warning(msg)
+
     def get_risk_free_rate(self) -> float:
         """
         Fetch current 10-Year Treasury yield as risk-free rate.
@@ -136,7 +157,7 @@ class FredConnector:
 
             logger.info(
                 f"Fetched risk-free rate: {risk_free_rate:.4f} "
-                f"({risk_free_rate*100:.2f}%) as of {latest_date.date()}"
+                f"({risk_free_rate * 100:.2f}%) as of {latest_date.date()}"
             )
 
             return risk_free_rate
@@ -166,6 +187,13 @@ class FredConnector:
             if len(series) < 12:
                 logger.warning("Insufficient CPI data for YoY calculation")
                 return None
+
+            self._warn_if_stale(
+                series,
+                self.CPI_UPDATE_CADENCE_DAYS,
+                self.CPI_STALENESS_TOLERANCE_DAYS,
+                "FRED CPI",
+            )
 
             # Calculate YoY change
             current_cpi = series.iloc[-1]
@@ -198,6 +226,13 @@ class FredConnector:
             if len(series) < 2:
                 logger.warning("Insufficient GDP data")
                 return None
+
+            self._warn_if_stale(
+                series,
+                self.GDP_UPDATE_CADENCE_DAYS,
+                self.GDP_STALENESS_TOLERANCE_DAYS,
+                "FRED real GDP",
+            )
 
             current_gdp = series.iloc[-1]
             previous_gdp = series.iloc[-2]

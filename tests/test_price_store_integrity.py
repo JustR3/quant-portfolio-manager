@@ -1,4 +1,5 @@
 """Unit tests for the price-store integrity checker (no network)."""
+
 import pandas as pd
 from tools.verify_price_store import check_file
 

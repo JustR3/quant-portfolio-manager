@@ -57,6 +57,14 @@ significant in the wrong direction (NW-t = −2.04).
 
 Events are SEC **filing** dates, not 8-K announcement dates — this closes "post-filing drift on
 free SEC data," not announcement-day PEAD (untestable without paid announcement timestamps).
+
+> **Correction (2026-09-26):** announcement-day PEAD is *not* untestable on free data. Earnings releases
+> are furnished on Form 8-K Item 2.02, whose filing dates EDGAR publishes for free. The verdict above is
+> unchanged (it tests post-filing drift). Studies #2/#3/#5 are also subject to open errata (SEC
+> duration and split-basis fixes) and to a low-power caveat; see
+> `docs/research/2026-09-26-candidate-claims.md` (C1),
+> `docs/research/2026-09-25-sec-duration-contamination-check.md`, and
+> `docs/research/2026-09-26-harness-power-and-positive-controls.md`.
 Survivorship (current membership) inflates results, making the negative conservative. Financials
 included (unlike phases #1–#3; noted for comparability). First-filed values everywhere; entry at
 first close after signal completion.

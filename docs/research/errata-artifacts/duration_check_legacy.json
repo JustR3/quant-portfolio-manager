@@ -1,0 +1,226 @@
+{
+  "quarterly_cache": {
+    "dir": "data/historical/fundamentals_sec_q",
+    "tickers": 498,
+    "tickers_flagged": 482,
+    "share_flagged": 0.9678714859437751,
+    "totals": {
+      "fy_years": 6644,
+      "q4_negative": 6611,
+      "q2_ytd_like": 6518,
+      "q3_ytd_like": 6521
+    },
+    "worst": {
+      "WAT": {
+        "fy_years": 27,
+        "q4_negative": 27,
+        "q2_ytd_like": 22,
+        "q3_ytd_like": 21,
+        "flagged": true
+      },
+      "MSI": {
+        "fy_years": 23,
+        "q4_negative": 23,
+        "q2_ytd_like": 17,
+        "q3_ytd_like": 18,
+        "flagged": true
+      },
+      "TER": {
+        "fy_years": 21,
+        "q4_negative": 21,
+        "q2_ytd_like": 19,
+        "q3_ytd_like": 18,
+        "flagged": true
+      },
+      "CSX": {
+        "fy_years": 19,
+        "q4_negative": 19,
+        "q2_ytd_like": 19,
+        "q3_ytd_like": 19,
+        "flagged": true
+      },
+      "CAH": {
+        "fy_years": 20,
+        "q4_negative": 20,
+        "q2_ytd_like": 17,
+        "q3_ytd_like": 17,
+        "flagged": true
+      },
+      "HSY": {
+        "fy_years": 19,
+        "q4_negative": 19,
+        "q2_ytd_like": 18,
+        "q3_ytd_like": 18,
+        "flagged": true
+      },
+      "ADSK": {
+        "fy_years": 18,
+        "q4_negative": 18,
+        "q2_ytd_like": 18,
+        "q3_ytd_like": 18,
+        "flagged": true
+      },
+      "BXP": {
+        "fy_years": 18,
+        "q4_negative": 18,
+        "q2_ytd_like": 18,
+        "q3_ytd_like": 18,
+        "flagged": true
+      },
+      "CAT": {
+        "fy_years": 18,
+        "q4_negative": 18,
+        "q2_ytd_like": 18,
+        "q3_ytd_like": 18,
+        "flagged": true
+      },
+      "DHR": {
+        "fy_years": 19,
+        "q4_negative": 19,
+        "q2_ytd_like": 17,
+        "q3_ytd_like": 17,
+        "flagged": true
+      },
+      "EA": {
+        "fy_years": 18,
+        "q4_negative": 18,
+        "q2_ytd_like": 18,
+        "q3_ytd_like": 18,
+        "flagged": true
+      },
+      "MCK": {
+        "fy_years": 18,
+        "q4_negative": 18,
+        "q2_ytd_like": 18,
+        "q3_ytd_like": 18,
+        "flagged": true
+      },
+      "CVX": {
+        "fy_years": 18,
+        "q4_negative": 18,
+        "q2_ytd_like": 17,
+        "q3_ytd_like": 18,
+        "flagged": true
+      },
+      "ACN": {
+        "fy_years": 18,
+        "q4_negative": 18,
+        "q2_ytd_like": 17,
+        "q3_ytd_like": 17,
+        "flagged": true
+      },
+      "ADI": {
+        "fy_years": 18,
+        "q4_negative": 18,
+        "q2_ytd_like": 17,
+        "q3_ytd_like": 17,
+        "flagged": true
+      }
+    },
+    "verdict": "CONTAMINATED"
+  },
+  "fy_cache": {
+    "dir": "data/historical/fundamentals_sec",
+    "tickers": 498,
+    "tickers_flagged": 409,
+    "share_flagged": 0.821285140562249,
+    "totals": {
+      "periods": 35070,
+      "cross_filing_disagree": 164,
+      "quarter_sized": 4581
+    },
+    "worst": {
+      "SYK": {
+        "periods": 159,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 38,
+        "flagged": true
+      },
+      "EMR": {
+        "periods": 156,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 34,
+        "flagged": true
+      },
+      "ADM": {
+        "periods": 144,
+        "cross_filing_disagree": 2,
+        "quarter_sized": 39,
+        "flagged": true
+      },
+      "POOL": {
+        "periods": 138,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 46,
+        "flagged": true
+      },
+      "BAX": {
+        "periods": 151,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 31,
+        "flagged": true
+      },
+      "URI": {
+        "periods": 146,
+        "cross_filing_disagree": 4,
+        "quarter_sized": 24,
+        "flagged": true
+      },
+      "MSFT": {
+        "periods": 132,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 41,
+        "flagged": true
+      },
+      "MSI": {
+        "periods": 135,
+        "cross_filing_disagree": 6,
+        "quarter_sized": 28,
+        "flagged": true
+      },
+      "BBY": {
+        "periods": 124,
+        "cross_filing_disagree": 4,
+        "quarter_sized": 40,
+        "flagged": true
+      },
+      "DHR": {
+        "periods": 138,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 30,
+        "flagged": true
+      },
+      "HD": {
+        "periods": 123,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 44,
+        "flagged": true
+      },
+      "CAH": {
+        "periods": 143,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 22,
+        "flagged": true
+      },
+      "RVTY": {
+        "periods": 127,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 38,
+        "flagged": true
+      },
+      "HON": {
+        "periods": 135,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 29,
+        "flagged": true
+      },
+      "TPR": {
+        "periods": 120,
+        "cross_filing_disagree": 0,
+        "quarter_sized": 43,
+        "flagged": true
+      }
+    },
+    "verdict": "CONTAMINATED"
+  }
+}

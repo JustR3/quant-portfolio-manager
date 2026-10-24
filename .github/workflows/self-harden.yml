@@ -11,7 +11,11 @@ name: self-harden
 #      --refresh path is out of scope for the equivalent job in other repos).
 #   3. Check the remaining live feeds (FRED, French, Damodaran) for a staleness gap; Shiller CAPE
 #      already got one this session (src/pipeline/external/freshness.py).
-# Opens a PR if anything changed. Never writes to data/historical/, data/research/, or
+# Opens a PR if anything changed. It merges that PR itself only when the change is a pure test
+# addition (every path under tests/, no line deleted from a tracked file) and the in-job checks
+# pass. Any change to src/ (the research code behind the published results), or any edit or
+# removal of an existing test line, stays an open PR for the owner to review. Opens an issue if
+# the run fails. Never writes to data/historical/, data/research/, or
 # data/backtests/ for real.
 # Monthly (1st, 05:00 UTC), not weekly — no other scheduled workflow exists in this repo to avoid
 # colliding with, and the repo is PARKED (README "Status: PARKED") — no active development to
@@ -27,7 +31,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: read
+  issues: write # opens an issue when a run fails
   id-token: write # required by anthropics/claude-code-action's own OIDC token exchange
 
 concurrency:
@@ -60,24 +64,35 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            Read tests/test_sec_fundamentals.py, tests/test_sec_quarterly.py, and
+            Read tests/test_sec_fundamentals.py, tests/test_sec_quarterly.py,
+            tests/test_sec_durations.py, tests/test_splits.py, and
             tests/test_synthetic_store.py first. Do not repeat coverage that already exists
             there.
 
             1. Fuzz `pit_factors_from_facts` / `pit_factors_from_prepared` (both must always
                agree — see `test_prepared_fast_path_matches_pandas_path`'s convention) and
                `fetch_facts` / `fetch_facts_quarterly` in src/pipeline/sec_fundamentals.py and
-               src/pipeline/sec_quarterly.py. Two invariants are already enforced and MUST NOT
-               regress: `shares` must be a finite, positive number or `market_cap` is None
+               src/pipeline/sec_quarterly.py. Four invariants are already enforced and MUST
+               NOT regress: `shares` must be a finite, positive number or `market_cap` is None
                (excluded), never a corrupted number; a fact `value` must be finite or it is
-               dropped before caching, never NaN or +-inf. Push further, adversarial cases
+               dropped before caching, never NaN or +-inf; a duration fact is kept only if its
+               period_start..period_end span matches its fiscal_period (`duration_mask`: Q1-Q3
+               ~3 months, FY ~12 months), so a 3-month vs YTD (or 3-month Q4 vs annual) pair
+               under one key is resolved by DURATION, never by row order — see
+               tests/test_sec_durations.py; and SEC share counts are put on the price store's
+               split basis (`splits.SplitAdjuster`) before any `shares x price`, a name without
+               a split cache being excluded — see tests/test_splits.py. Push further, adversarial cases
                beyond those: duplicate (period_end, filed) rows with different values for the
                same concept, an extreme-magnitude value (e.g. 1e18) that would blow up a ratio
                downstream, a `filed` date earlier than its own `period_end` (impossible in
                reality — a filer error), and a concept-priority walk where a lower-priority
                concept in CONCEPT_MAP/QUARTERLY_CONCEPT_MAP returns rows for a (period_end,
                filed) pair the higher-priority concept already claimed under a DIFFERENT value
-               (dedup-by-key must keep the first, not silently blend them). If a case produces
+               AND the same duration (after the duration filter, the higher-priority concept's
+               value must win, not be blended). Exception: a concept QUERY that raises inside
+               fetch_facts / fetch_facts_quarterly must propagate (never `except: continue`) —
+               edgartools returns an empty frame for an absent concept, so a raise is a bug, and
+               the cache builders report the ticker as failed. If a case produces
                an unhandled exception instead of a graceful None/excluded/dropped result, or
                silently corrupts a number instead of excluding the name, fix the smallest code
                path and add a regression test. If a case already behaves correctly, add the test
@@ -110,7 +125,9 @@ jobs:
                  --dir "$SCRATCH/data/historical/prices" --spot 0
                ```
 
-               Confirm each exits 0 AND open each JSON artifact written to `$SCRATCH/export`:
+               Confirm each exits 0 or 3 (3 = at least one INCONCLUSIVE verdict — expected here,
+               since the synthetic windows are shorter than the harnesses' minimum samples; any
+               other code is a failure) AND open each JSON artifact written to `$SCRATCH/export`:
                `signal-eval`'s must show `N obs` > 0 for every factor (not `range ...  (N obs=0)`
                and not an empty `factors` list); `ts-eval`'s must show a real `window` with
                non-null `sharpe_strat`/`sharpe_bench` for every rule; `pead-eval`'s must show
@@ -119,9 +136,9 @@ jobs:
                likely: `data/historical` wasn't literally in the path) — that is a failure of
                THIS check, not a legitimate "degenerate small-universe" result, and must be
                fixed by correcting the paths, not by treating it as a pass. Once the paths are
-               right, it IS correct and expected for verdicts themselves to read FAIL on this
-               tiny synthetic universe (house rule: "degenerate cases fail loudly") — that part
-               is not a bug. Never touch this repo's own `data/historical/`, `data/research/`,
+               right, it IS correct and expected for verdicts themselves to read FAIL or
+               INCONCLUSIVE on this tiny synthetic universe (house rule: "degenerate cases are
+               INCONCLUSIVE, loudly") — that part is not a bug. Never touch this repo's own `data/historical/`, `data/research/`,
                or `data/backtests/` — everything above runs against `$SCRATCH` only.
 
             3. Check whether `src/pipeline/external/fred.py`, `french.py`, and `damodaran.py`
@@ -143,13 +160,53 @@ jobs:
             nothing.
           claude_args: '--allowedTools "Read,Edit,Bash"'
 
+      - name: Discard changes outside the allowed paths
+        # The tree verified below must be exactly the tree the PR merges, so
+        # out-of-scope changes (for example data files rewritten by running a
+        # documented command) are discarded here, with a warning, before the
+        # checks run.
+        run: |
+          while IFS= read -r f; do
+            case "$f" in
+              src/*|tests/*) ;;
+              *)
+                echo "::warning::discarding change outside the allowed paths: $f"
+                if git ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
+                  git restore --source=HEAD --staged --worktree -- "$f"
+                else
+                  rm -rf -- "$f"
+                fi
+                ;;
+            esac
+          done < <(git status --porcelain --untracked-files=all | cut -c4-)
+
       - name: Verify tests and lint pass
         run: |
           uv run pytest -q
-          uv run ruff check src/ tests/
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Decide whether the change may merge without review
+        id: scope
+        # Auto-merge only pure test additions. Everything else waits for a human:
+        # - src/ is the research code behind the published verdicts, so an unattended change
+        #   there must not reach main on green tests alone;
+        # - a deleted or rewritten line in an existing test could be a weakened check (the
+        #   prompt forbids that, but the merge gate shouldn't depend on the prompt being obeyed).
+        run: |
+          git add -A
+          auto=true
+          while IFS=$'\t' read -r _added deleted path; do
+            case "$path" in tests/*) ;; *) auto=false ;; esac
+            [ "$deleted" = "0" ] || auto=false
+          done < <(git diff --cached --no-renames --numstat)
+          git reset -q
+          echo "auto_merge=$auto" >> "$GITHUB_OUTPUT"
+          echo "auto_merge=$auto"
 
       - name: Open PR if anything changed
-        uses: peter-evans/create-pull-request@v7
+        id: cpr
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore(self-harden): fuzz fixes and regression tests"
           title: "self-harden: automated adversarial-QA fixes"
@@ -159,3 +216,49 @@ jobs:
           add-paths: |
             src/**
             tests/**
+
+      - name: Merge PR
+        # GitHub holds pull_request runs on bot-created PRs for manual approval
+        # (changelog 2026-06-11), so the PR's own `test` check never starts on
+        # its own. This job already ran the same tests and lint on the exact
+        # tree the PR contains, so it merges the PR itself. --match-head-commit
+        # refuses the merge if the branch moved after the checks ran.
+        if: >-
+          steps.scope.outputs.auto_merge == 'true' &&
+          (steps.cpr.outputs.pull-request-operation == 'created' ||
+           steps.cpr.outputs.pull-request-operation == 'updated')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --merge --delete-branch \
+            --match-head-commit "${{ steps.cpr.outputs.pull-request-head-sha }}"
+
+      - name: Ask the owner to review
+        if: >-
+          steps.scope.outputs.auto_merge != 'true' &&
+          (steps.cpr.outputs.pull-request-operation == 'created' ||
+           steps.cpr.outputs.pull-request-operation == 'updated')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          gh pr comment "${{ steps.cpr.outputs.pull-request-number }}" --body \
+            "@$OWNER this self-harden PR changes src/ or edits an existing test, so it was not auto-merged. Tests and lint passed in the job; review the diff before merging."
+
+      - name: Open issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          title="self-harden run failed"
+          n=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body "@$OWNER failed again: $RUN_URL"
+          else
+            gh issue create --title "$title" --body "@$OWNER the self-harden workflow failed and nothing was merged. Run: $RUN_URL"
+          fi
