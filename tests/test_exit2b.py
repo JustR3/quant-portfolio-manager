@@ -352,3 +352,46 @@ def test_cluster_diff_se_grows_with_common_shocks():
     d = np.tile([1, 0], 100)
     y = common + rng.normal(0, 0.1, 200)
     assert cluster_diff(y, d, g)["se"] < cluster_diff(y + common * d, d, g)["se"]
+
+
+# ------------------------------------------------------------------ runner helpers and CLI
+def test_rebalance_days_initial_buy_then_first_trading_day_of_timing_months():
+    from src.research.exit2b_command import rebalance_days
+
+    cal = pd.bdate_range("2016-01-04", "2017-08-31")
+    first = cal.get_loc(pd.Timestamp("2016-02-01"))
+    days = rebalance_days(cal, first, (1, 7))
+    assert days[0] == pd.Timestamp("2016-02-01")
+    assert days[1:] == [
+        pd.Timestamp("2016-07-01"),
+        pd.Timestamp("2017-01-02"),
+        pd.Timestamp("2017-07-03"),
+    ]
+    feb = rebalance_days(cal, first, (2, 8))
+    assert feb[:3] == [
+        pd.Timestamp("2016-02-01"),
+        pd.Timestamp("2016-08-01"),
+        pd.Timestamp("2017-02-01"),
+    ]
+
+
+def test_exit_eval_2b_help_runs_and_readme_documents_it():
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    out = subprocess.run(
+        [sys.executable, "main.py", "exit-eval-2b", "--help"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert out.returncode == 0, out.stderr
+    readme = (root / "README.md").read_text()
+    assert "uv run ./main.py exit-eval-2b" in readme
+    assert (
+        "tools/download_tbill.py" in readme
+        and (root / "tools/download_tbill.py").exists()
+    )

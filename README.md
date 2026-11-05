@@ -121,6 +121,14 @@ locked in `src/research/exit_config.py`. Report: `docs/research/exit-rule-test.m
 uv run ./main.py exit-eval          # offline; needs the two stores below
 ```
 
+`exit-eval-2b` repeats the test on a semi-annual hold (Jan/Jul primary, all 6 timings), with three
+proceeds variants (reinvest, SPY, T-bills), a return decomposition and coarser event clusters.
+Settings: `src/research/exit2b_config.py`. Report: `docs/research/exit-rule-test-2b.md`.
+
+```bash
+uv run ./main.py exit-eval-2b       # offline; needs the T-bill file below
+```
+
 ## Data infrastructure (all free, regenerable, gitignored)
 
 | Store | Contents | Builder | Integrity |
@@ -131,6 +139,7 @@ uv run ./main.py exit-eval          # offline; needs the two stores below
 | `data/historical/splits/` | Per-ticker split history (puts as-filed SEC shares on the price basis) | `tools/build_split_cache.py` | cross-checked by `tools/check_split_consistency.py`; missing → name excluded |
 | `data/historical/fundamentals_sec_q/` | Quarterly companyfacts incl. net income (498 names) | `tools/build_sec_q_cache.py` (probe mode first) | first-filed semantics; separate dir |
 | `data/historical/exit/etf/` | 11 SPDR sector ETFs (exit-rule test) | `tools/download_sector_etfs.py` | identity check; separate dir |
+| `data/historical/exit/rates/` | FRED DTB3 daily 3-month T-bill (exit-rule test 2b) | `tools/download_tbill.py` | ascending, [-1, 20] %, reaches the study end |
 | `data/historical/earnings_8k/` | 8-K Item 2.02 acceptance times (491 names) | `tools/build_8k_earnings_cache.py` (`--probe N` first) | sorted, no NaT, no duplicate accession |
 
 ## The portfolio tool (legacy, still functional)
@@ -216,7 +225,7 @@ Optional: `FRED_API_KEY` in `config/secrets.env` for live risk-free rates in the
 ## Project structure
 
 ```
-├── main.py                      # CLI: signal-eval | ts-eval | pead-eval | exit-eval | optimize | backtest | verify | portfolio
+├── main.py                      # CLI: signal-eval | ts-eval | pead-eval | exit-eval | exit-eval-2b | optimize | backtest | verify | portfolio
 ├── src/
 │   ├── research/                # the three harnesses (panels, metrics, gates, CLIs)
 │   ├── pipeline/                # price store (identity-guarded), SEC PIT pipelines (FY + quarterly), universe
