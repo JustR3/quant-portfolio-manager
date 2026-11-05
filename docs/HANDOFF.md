@@ -151,3 +151,4 @@ One line per checkpoint. Newest at the bottom.
 - 2026-11-05 exit-rule task 6: reviewer fixes (D joint funding, signal day, OOS overlap, size window), README + CLI test
 - 2026-11-05 exit-rule task 7: study re-run after review (exit-eval-20261105_230520.json), results docs/research/exit-rule-test.md; verdicts B/C/D all DOES NOT IMPROVE (biased toward holding)
 - 2026-11-05 audit phase 1: docs/audit/qpm-audit.md (read-only audit; tests 504 passed; baseline backtest 2023-07→2025-06 net CAGR 21.1%, Sharpe 0.94; no stop rules exist)
+- 2026-11-05 exit-2b tasks 1-3: DTB3 tool+loader (2014-01-02→2026-11-04), 2b simulator (P1/P2/P3, entry/blocks), decomposition (5 parts, identity test), stats; equals Phase 2 sim for P3 rf=0; suite 574 passed

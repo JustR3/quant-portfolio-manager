@@ -20,3 +20,4 @@ Mid-run choices, one line each, with the reason.
 ## Exit-rule test 2b (2026-11-05, branch `research/exit-rule-test-2b`)
 - PR #31 (Phase 2) was not merged at approval, so 2b is built on a branch from `research/exit-rule-test` and its draft PR is stacked on that branch; it retargets `main` after #31 merges. Reversible.
 - Spec defaults approved by the user: one initial buy at 2016-02-01 for all timings; 5-part decomposition (selection, exposure, drift, costs, compounding); DTB3 discount basis ACT/360 at t−1; entry resets only at rebalances; P2 SPY sleeve funds D top-ups first; residual post-exit window starts at the signal close.
+- DTB3 range contract is [-1, 20] %, not the spec's [0, 20]: FRED shows real negative 3-month bill yields (2015-09/10 down to -0.02 %, 2020-03-25/26 down to -0.05 %). Values are used as published.
