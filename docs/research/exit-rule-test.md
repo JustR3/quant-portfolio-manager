@@ -1,5 +1,16 @@
 # Exit-rule test — results (Phase 2)
 
+> **Design limits (note added 2026-11-05, after publication; no number below is changed).**
+> These limits make this study a test of a monthly book. It is not a test of a 6–12 month hold.
+> - Rule B resets the entry price and rebuys stopped stocks at each monthly rebalance. It does
+>   not test a −10% stop on a 6–12 month hold.
+> - Sale proceeds earn 0% until the next rebalance. Rules B–D therefore include cash drag.
+> - The +21 and +63 day post-exit returns are not the realized cost of an exit, because the
+>   book rebuys the stock at the next monthly rebalance.
+> - Sharpe charges rf = 4%, but cash earns 0%.
+>
+> Phase 2b addresses these limits: `docs/superpowers/specs/2026-11-05-exit-rule-test-2b-design.md`.
+
 - Date: 2026-11-05. Branch `research/exit-rule-test`.
 - Pre-registration (locked before results): `docs/superpowers/specs/2026-11-05-exit-rule-test-design.md`
   (commit `3f87fa5`). Mid-run choices: `docs/DECISIONS.md`.
