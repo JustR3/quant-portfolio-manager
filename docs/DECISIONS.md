@@ -22,3 +22,6 @@ Mid-run choices, one line each, with the reason.
 - Spec defaults approved by the user: one initial buy at 2016-02-01 for all timings; 5-part decomposition (selection, exposure, drift, costs, compounding); DTB3 discount basis ACT/360 at t−1; entry resets only at rebalances; P2 SPY sleeve funds D top-ups first; residual post-exit window starts at the signal close.
 - DTB3 range contract is [-1, 20] %, not the spec's [0, 20]: FRED shows real negative 3-month bill yields (2015-09/10 down to -0.02 %, 2020-03-25/26 down to -0.05 %). Values are used as published.
 - First 2b development run (exit-eval-2b-20261105_233410.json) had a rebalance-day bug in the 5 non-primary timings (Feb/Aug picked 2016-02-02); caught by a new unit test before any review or publication; file deleted; not a published result.
+- 2b same-day order under P1: sale proceeds pay for D top-ups first, then the rest is reinvested pro-rata (avoids a sell-then-buy round trip on the same open). Review #6.
+- 2b: a name held but not eligible at a rebalance (no open or no prior close) keeps entry = NaN, so B cannot stop it until it is eligible again. Rare; no change. Review #7.
+- 2b review #1 (Ask-user, not changed): coarse-cluster CIs keep the locked mean ± 1.96·SE; with 6 (OOS half-year) to 41 clusters this is too narrow. The report adds a supplementary t(G−1) CI.

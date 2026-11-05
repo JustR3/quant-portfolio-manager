@@ -349,7 +349,10 @@ def verdicts(portfolio: dict, timing: dict, cfg: Exit2bConfig) -> dict:
                 "IMPROVES (biased; not a recommendation)" if ok else "DOES NOT IMPROVE"
             )
             if not ok and o["max_drawdown"] > a_oos["max_drawdown"]:
-                text += " (reduces OOS max drawdown, fails the Sharpe test)"
+                text += (
+                    f" (reduces OOS max drawdown by {100 * (o['max_drawdown'] - a_oos['max_drawdown']):.1f} pp,"
+                    " fails the Sharpe test)"
+                )
             role = "primary" if v == cfg.primary_variant else "secondary"
             prim_sign = np.sign(o["sharpe"] - a_oos["sharpe"])
             same = sum(
