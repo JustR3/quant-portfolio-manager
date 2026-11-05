@@ -16,3 +16,7 @@ Mid-run choices, one line each, with the reason.
 - Review #1 (Ask-user, not changed): names whose EDGAR CIK changed (e.g. BLK, LIN, DIS, CI, AVGO, DD; XOM has no 2.02 filings) lack early 8-Ks, so their earnings shocks count as 'other' in those years (~3% of name-years). Kept as a stated limit; a fix needs predecessor CIKs.
 - Review #6 (no-op): events and the IS/OOS cut start at the first rebalance (2016-02-01), not at the first valid z (2016-01): one study window for both the event study and the portfolios.
 - Review #2/#4/#5/#7 fixed before publication: same-day rule-D adds are funded together and buys net of cost never exceed target; exits keep the real signal day; OOS turnover/costs/exits start at the first OOS day; size window needs a full 63 days. The first run (exit-eval-20261105_230008.json) predates these fixes and is superseded.
+
+## Exit-rule test 2b (2026-11-05, branch `research/exit-rule-test-2b`)
+- PR #31 (Phase 2) was not merged at approval, so 2b is built on a branch from `research/exit-rule-test` and its draft PR is stacked on that branch; it retargets `main` after #31 merges. Reversible.
+- Spec defaults approved by the user: one initial buy at 2016-02-01 for all timings; 5-part decomposition (selection, exposure, drift, costs, compounding); DTB3 discount basis ACT/360 at t−1; entry resets only at rebalances; P2 SPY sleeve funds D top-ups first; residual post-exit window starts at the signal close.

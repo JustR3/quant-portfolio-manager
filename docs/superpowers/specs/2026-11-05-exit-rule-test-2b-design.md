@@ -1,7 +1,8 @@
 # Exit-rule test 2b — pre-registered design (semi-annual hold, proceeds variants)
 
-- Date: 2026-11-05. Status: **DRAFT — waiting for user approval. Locked at approval, before any
-  result is computed.** After approval nothing below changes; mid-run choices go to `docs/DECISIONS.md`.
+- Date: 2026-11-05. Status: **LOCKED 2026-11-05 at user approval (all six open decisions approved
+  as written), before any result is computed.** Nothing below changes; mid-run choices go to
+  `docs/DECISIONS.md`.
 - Parent study (unchanged, not re-run): `docs/superpowers/specs/2026-11-05-exit-rule-test-design.md`,
   results `docs/research/exit-rule-test.md` (artifact `data/research/exit-eval-20261105_230520.json`).
 - Why 2b: Phase 2 tested a monthly book. Rule B reset entry and rebought every month, proceeds earned 0%,
