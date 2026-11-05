@@ -189,6 +189,10 @@ def compute_pit_factors(
 
     value_raw = 0.5 * (fcf / market_cap) + 0.5 * (ebit / market_cap)
     quality_raw = 0.5 * (ebit / invested) + 0.5 * (gp / rev)
+    if not (math.isfinite(value_raw) and math.isfinite(quality_raw)):
+        # overflowing / absurd-magnitude inputs (e.g. FCF = 1e308 - -1e308): exclude, never
+        # emit an inf/NaN factor that would poison cross-sectional ranks.
+        return PITFactors(excluded=True, exclusion_reason="non-finite factor")
     return PITFactors(
         value_raw=value_raw,
         quality_raw=quality_raw,

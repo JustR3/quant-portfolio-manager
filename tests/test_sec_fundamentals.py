@@ -676,3 +676,73 @@ def test_cache_builder_reports_failed_ticker_and_skips_write(monkeypatch, tmp_pa
     ticker, n, info = builder._one("FAKE")
     assert n == -1 and "edgar parse fault" in info
     assert not (tmp_path / "FAKE.parquet").exists()
+
+
+# --- audit 2026-11-01: overflow to inf must exclude the name, never emit a corrupted number ---
+# shares and price each finite, but shares x price overflows; FCF = CFO - capex overflows; a
+# subnormal revenue makes gp/rev infinite. Previously: Value silently 0.0 (inf market cap) or
+# an inf factor. Both paths must now agree on EXCLUDED.
+
+
+def _both_paths(facts, price, as_of=pd.Timestamp("2021-06-30")):
+    slow = sf.pit_factors_from_facts(facts, as_of, price=price)
+    fast = sf.pit_factors_from_prepared(sf.prepare_facts(facts), as_of, price=price)
+    return slow, fast
+
+
+@pytest.mark.parametrize(
+    "overrides,price",
+    [
+        ({"shares": 1e308}, 100.0),  # market cap overflows
+        ({}, float("inf")),  # non-finite price
+        ({"cfo": 1e308, "capex": -1e308}, 100.0),  # FCF overflows
+        ({"revenue": 5e-324}, 100.0),  # gross margin overflows
+    ],
+)
+def test_overflowing_inputs_exclude_on_both_paths(overrides, price):
+    facts = _full_facts()
+    for field, v in overrides.items():
+        facts.loc[facts["field"] == field, "value"] = v
+    slow, fast = _both_paths(facts, price)
+    assert slow.excluded and fast.excluded
+
+
+def test_random_fact_tables_never_crash_and_paths_agree():
+    """Seeded fuzz: random (field, period_end, filed, value) tables incl. NaN/inf/1e18/0 values,
+    filed before period_end, duplicate keys, absent fields, bad prices. The pandas and prepared
+    paths must agree on `excluded` and on Value/Quality, and any non-excluded factor is finite."""
+    import random
+
+    rng = random.Random(20261101)
+    fields = list(sf.CONCEPT_MAP)
+    pes = ["2018-12-31", "2019-12-31", "2020-12-31", "2021-03-31"]
+    for _ in range(300):
+        rows = [
+            (
+                rng.choice(fields),
+                pe := rng.choice(pes),
+                pd.Timestamp(pe) + pd.Timedelta(days=rng.randint(-100, 500)),
+                rng.choice(
+                    [
+                        rng.uniform(-1e3, 1e3),
+                        rng.uniform(1, 100),
+                        1e18,
+                        0.0,
+                        float("nan"),
+                        float("inf"),
+                        float("-inf"),
+                    ]
+                ),
+            )
+            for _ in range(rng.randint(1, 25))
+        ]
+        facts = _facts(rows)
+        price = rng.choice([100.0, None, 0.0, -1.0, float("nan"), float("inf"), 1e6])
+        as_of = pd.Timestamp("2018-01-01") + pd.Timedelta(days=rng.randint(0, 1800))
+        slow = sf.pit_factors_from_facts(facts, as_of, price=price)
+        fast = sf.pit_factors_from_prepared(sf.prepare_facts(facts), as_of, price=price)
+        assert slow.excluded == fast.excluded
+        if not slow.excluded:
+            assert np.isfinite(slow.value_raw) and np.isfinite(slow.quality_raw)
+            assert fast.value_raw == pytest.approx(slow.value_raw)
+            assert fast.quality_raw == pytest.approx(slow.quality_raw)
