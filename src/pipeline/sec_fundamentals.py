@@ -179,14 +179,17 @@ def pit_shares(facts: pd.DataFrame, as_of: pd.Timestamp) -> Optional[float]:
 def _market_cap(shares_res, price, adjuster):
     """PIT shares (as-filed, dated) x split-adjusted price, with the share count converted to the
     price's split basis when an adjuster is given (see src/pipeline/splits.py). None if invalid."""
-    if shares_res is None or price is None or not price > 0:
+    if shares_res is None or price is None or not (np.isfinite(price) and price > 0):
         return None
     share_date, shares = shares_res
     if not (np.isfinite(shares) and shares > 0):
         return None
     if adjuster is not None:
         shares = adjuster.to_basis(shares, share_date)
-    return shares * price
+    market_cap = shares * price
+    # A finite shares x finite price can still overflow to inf, which would turn Value into a
+    # silent 0.0 instead of excluding the name.
+    return market_cap if np.isfinite(market_cap) and market_cap > 0 else None
 
 
 def pit_factors_from_facts(
