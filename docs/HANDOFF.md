@@ -154,3 +154,4 @@ One line per checkpoint. Newest at the bottom.
 - 2026-11-05 exit-2b tasks 1-3: DTB3 tool+loader (2014-01-02→2026-11-04), 2b simulator (P1/P2/P3, entry/blocks), decomposition (5 parts, identity test), stats; equals Phase 2 sim for P3 rf=0; suite 574 passed
 - 2026-11-05 exit-2b task 4: runner + CLI exit-eval-2b, README, runner tests; rebalance-day bug fixed
 - 2026-11-05 exit-2b tasks 5-6: run (exit-eval-2b-20261105_234157.json), review fixes (verdict wording, notes), report docs/research/exit-rule-test-2b.md with survivorship survey; all 2b verdicts DOES NOT IMPROVE; suite 576 passed
+- 2026-11-05 exit-2b report revision: vs-book mean/median by period, B by variant + B|P1 concentration (tools/exit2b_concentration.py), B|P3 Sharpe by period, 6-timing A vs B|P3 table, P2 cap-weight note, C selection by period, t(G-1) used for conclusions; no locked result or spec changed

@@ -37,9 +37,29 @@ if its OOS Sharpe is higher **and** the OOS Newey-West t of the daily difference
 
 - **No rule improves on holding.** No t-statistic vs A reaches +2.0: in the primary timing the highest
   is +1.64 (D@−3.5σ, P2); across the 6 timings at σ = 3.0 and P1 the highest is +1.85 (D, Jun/Dec).
-- **The −10% hard stop (B) is the clear loser** when the book stays invested (P1): −1.9 (full) and
-  −4.1 (OOS) points of return per year vs A, 6 of 6 timings negative. With T-bills (P3) it cuts max drawdown from −37.6% to −15.1%
-  over the full window, but it also cuts CAGR from 17.7% to 13.0%. It reduces drawdown and fails the
+- **The −10% hard stop (B) is worse than A out-of-sample in every variant, but the size depends on
+  where the proceeds go.** It is a clear loss only with P1 out-of-sample:
+
+  | B vs A | Full CAGR | Full Sharpe | Full t vs A | OOS CAGR | OOS Sharpe | OOS t vs A |
+  |---|---|---|---|---|---|---|
+  | A | 17.69% | 0.88 | — | 19.42% | 1.02 | — |
+  | B, P1 (reinvest) | 15.79% | 0.85 | −0.83 | 14.82% | 0.79 | −2.00 |
+  | B, P2 (SPY) | 16.71% | 0.87 | −1.19 | 18.78% | 1.02 | −0.44 |
+  | B, P3 (T-bills) | 13.01% | 0.95 | −1.72 | 11.41% | 0.70 | −2.42 |
+
+  Over the full window the P1 loss is not significant (t −0.83). With P2 the OOS result is close to A.
+  The OOS Sharpe is lower than A's in 6 of 6 timings under P1.
+- **B under P1 was concentrated in 2020.** P1 reinvests the proceeds in the names that have not stopped
+  out. In the spring-2020 crash most names stopped out, so the book fell to 17 names on 2020-05-18: the
+  largest single weight was 17.3% and the effective N (1/Σw²) was 14. On 74 trading days the effective N
+  was below 50, and on 70 days one name had more than 5% (all in-sample, 2020). Otherwise the book is
+  diversified: median max weight 0.43% and median effective N 372 (A: 0.34% and 474). Out-of-sample the
+  max weight never exceeded 2.3% and the effective N never fell below 170. So the full-window and IS
+  results for B|P1 include a short, highly concentrated period; the OOS result does not.
+  Source: `uv run python tools/exit2b_concentration.py` (supplementary; not part of the locked results).
+- **B with T-bills (P3):** Sharpe 0.95 (full), 1.05 (IS) and 0.70 (OOS), against A's 0.88, 0.84 and 1.02.
+  It cuts the full-window max drawdown from −37.6% to −15.1%, but also CAGR from 17.7% to 13.0%. It had a
+  higher Sharpe than A in-sample and a lower one out-of-sample. It reduces drawdown and fails the locked
   Sharpe test. That is not an improvement.
 - **The cause rule (C/D) is about neutral.** Its OOS Sharpe is slightly higher than A in all 6 timings
   (+0.02 to +0.07), but the difference is not significant (t 0.45 to 1.85). Its drawdown change is less
@@ -59,35 +79,77 @@ Return difference vs A, % per year (sum of daily differences × 252 / days). Pri
   in T-bills while stocks earned more) and selection −1.8. Most of B's loss in P3 is cash drag, not the
   choice of stock. The same cash is also why B|P3 has the lowest drawdown (−15.1% full window, from the
   2020 sales).
-- **C with P1:** OOS +0.25%/yr = selection +0.39 + drift +0.17 − costs 0.31. Selling earnings-linked
-  shocks picked stocks that then lagged the book, but the gain is about the size of the costs.
+- **C with P1:** OOS +0.25%/yr = selection +0.39 + drift +0.17 − costs 0.31. The C selection effect is
+  +0.19%/yr over the full window, +0.11%/yr in-sample and +0.39%/yr out-of-sample (the same under P1 and
+  P3, because the exits are the same). Selling earnings-linked shocks picked stocks that then lagged the
+  book, but the gain is about the size of the costs.
 - **C with P3:** OOS −3.0%/yr, almost all exposure (−3.3): cash drag again.
+- **P2 includes a cap-weight vs equal-weight bet.** SPY is cap-weighted; the book is equal-weighted. So
+  every P2 result mixes the exit rule with a switch from equal weight to cap weight for the sold amount.
+  SPY CAGR was 12.79% in-sample vs 16.96% for the equal-weight book, and 22.64% out-of-sample vs 19.42%.
+  This is why P2 rules lag A in-sample and look better out-of-sample (e.g. C@3.0|P2: IS t −2.27, OOS t
+  +1.35). Read P2 as "exit rule + index bet", not as a clean exit effect.
 - Every decomposition sums to the total within 1e−16 per day (tolerance 1e−10).
 
 ## Post-exit returns and event study
 
-- **B exits:** from the exit open to the next rebalance, the sold stocks rose +7.0% (full) and +10.9%
-  (OOS) in raw terms, and beat the book by +1.0% and +3.1%. Residual +1.7% and +1.1%. The stop sells
-  near local lows. These are now the realized costs of an exit, because the book does not rebuy before
-  the next semi-annual rebalance.
-- **C exits:** raw +3.8% (full), but −0.2% vs the book and +0.4% residual (CIs include 0). OOS: −0.5% vs
-  the book, −0.4% residual. Earnings-linked drops do not rebound relative to the market.
-- **Earnings − other (σ = −3, residual):** −1.4% at +63 and −1.9% at +126 days over the full window.
-  The gap stays significant with quarter clusters (+63: [−2.3, −0.5]) and half-year clusters (+126:
-  [−3.1, −0.7], 20 clusters). In-sample and OOS both show the same sign. OOS with 6 half-year clusters,
-  the CI includes 0 ([−6.3, +0.4]; with a t(5) critical value [−7.3, +1.5]).
+- **B exits**, return from the exit open to the next rebalance open, relative to the book (A) over the
+  same dates (mean [95% CI], median):
+
+  | Period | n | Mean vs book | Median vs book | Raw mean | Residual mean |
+  |---|---|---|---|---|---|
+  | Full | 3,906 | +1.04% [+0.09, +1.99] | −0.52% | +7.01% | +1.74% |
+  | IS | 2,767 | +0.19% [−0.80, +1.18] | −0.77% | +5.40% | not split |
+  | OOS | 1,139 | +3.10% [+1.13, +5.08] | +0.08% | +10.93% | +1.07% |
+
+  The mean is positive because a minority of sold stocks rebounded strongly. The median sold stock lagged
+  the book in-sample and over the full window, and was about even out-of-sample. These are the realized
+  costs of an exit, because the book does not rebuy before the next semi-annual rebalance.
+- **C exits:** vs the book, mean −0.19% (full, median −1.07%), −0.06% (IS, median −0.89%) and −0.47%
+  (OOS, median −1.39%); all CIs include 0. Raw +3.8% (full). Earnings-linked drops do not rebound
+  relative to the market.
+- **Earnings − other (σ = −3, residual).** Conclusions use the supplementary t(G−1) intervals on the
+  coarse clusters (the locked 1.96 intervals are in the tables):
+
+  | Period | +63 days (quarter clusters) | +126 days (half-year clusters) |
+  |---|---|---|
+  | Full | −1.40% [−2.35, −0.44], G = 41 | −1.88% [−3.18, −0.59], G = 20 |
+  | IS | −1.18% [−2.23, −0.12], G = 30 | −1.29% [−2.47, −0.11], G = 15 |
+  | OOS | −1.62% [−3.82, +0.58], G = 12 | −2.93% [−7.34, +1.48], G = 6 |
+
+  The gap is significant over the full window and in-sample. Out-of-sample it has the same sign but is
+  not significant (the CIs include 0).
 - This supports the idea behind C (earnings drops do not reverse, other drops partly do), but the
   portfolio effect is small: about +0.4%/yr of selection before costs.
 
 ## Limits found in review
 
-- Coarse-cluster CIs use the locked 1.96 critical value. With 6–41 clusters this is too narrow; the
-  supplementary column gives t(G−1) intervals. OOS half-year results (6 clusters) are weak evidence.
+- Coarse-cluster CIs use the locked 1.96 critical value (kept, as locked). With 6–41 clusters this is
+  too narrow, so the conclusions in this report use the supplementary t(G−1) intervals. OOS half-year
+  results (6 clusters) are weak evidence.
 - Full and IS turnover and costs include the initial buy (about 0.10/yr of A's 0.36). Same for all rules.
 - Post-exit statistics leave out exits after the last rebalance (no next rebalance; B: 243 in 2026).
 - IS event windows (+63, +126) can run into the OOS period; half-year clusters overlap at +126.
 - A name held but not eligible at a rebalance has no entry price, so B cannot stop it (rare).
 - 8-K coverage gap for names whose CIK changed (about 3% of name-years).
+
+## Supplementary: full-window results across the 6 timings (A and B|P3)
+
+Not part of the verdict rule (the verdict uses OOS Sharpe and t at Jan/Jul). Full window 2016-02-01 → 2026-06-05.
+
+| Timing | A Sharpe | A max DD | A CAGR | B\|P3 Sharpe | B\|P3 max DD | B\|P3 CAGR |
+|---|---|---|---|---|---|---|
+| Jan/Jul | 0.88 | −37.6% | 17.69% | 0.95 | −15.1% | 13.01% |
+| Feb/Aug | 0.87 | −37.8% | 17.52% | 0.63 | −16.4% | 8.49% |
+| Mar/Sep | 0.88 | −38.2% | 17.75% | 0.53 | −24.4% | 7.70% |
+| Apr/Oct | 0.87 | −37.7% | 17.82% | 0.85 | −19.2% | 12.87% |
+| May/Nov | 0.87 | −37.8% | 17.84% | 0.93 | −19.3% | 13.40% |
+| Jun/Dec | 0.88 | −37.8% | 17.92% | 0.83 | −17.3% | 11.34% |
+
+B|P3 has a lower max drawdown than A in all 6 timings (−15.1% to −24.4% vs about −38%). Its Sharpe is
+higher than A's in 2 of 6 timings (Jan/Jul, May/Nov) and lower in 4. Its CAGR is lower in all 6. The
+primary Jan/Jul timing is the most favorable one for B|P3, so the full-window Sharpe gain in the primary
+timing is not robust to the rebalance date.
 
 ## Detailed tables
 
@@ -96,81 +158,81 @@ Return difference vs A, % per year (sum of daily differences × 252 / days). Pri
 | Run | CAGR | Vol | Sharpe | Max DD | Worst month | Turnover/yr | Costs (% start) | Exits | Sleeve wt | t vs A |
 |---|---|---|---|---|---|---|---|---|---|---|
 | A | 17.69% | 17.87% | 0.88 | -37.64% | -16.23% | 0.36 | 0.86% | 0 | 0.00% | — |
-| B|P1 | 15.79% | 16.10% | 0.85 | -33.94% | -17.53% | 3.82 | 9.86% | 4,149 | 0.00% | -0.83 |
-| C@2.5|P1 | 17.65% | 17.88% | 0.87 | -38.14% | -16.60% | 3.65 | 10.17% | 4,140 | 0.00% | -0.12 |
-| C@3.0|P1 | 17.69% | 17.93% | 0.87 | -38.27% | -16.66% | 2.93 | 8.20% | 3,403 | 0.00% | +0.02 |
-| C@3.5|P1 | 17.78% | 17.92% | 0.88 | -38.24% | -16.65% | 2.37 | 6.65% | 2,792 | 0.00% | +0.39 |
-| D@2.5|P1 | 17.84% | 17.99% | 0.88 | -38.08% | -16.55% | 3.67 | 10.36% | 4,140 | 0.00% | +0.47 |
-| D@3.0|P1 | 17.91% | 18.07% | 0.88 | -38.24% | -16.59% | 2.95 | 8.36% | 3,403 | 0.00% | +0.74 |
-| D@3.5|P1 | 17.98% | 18.07% | 0.88 | -38.21% | -16.57% | 2.39 | 6.77% | 2,792 | 0.00% | +1.02 |
-| B|P2 | 16.71% | 16.89% | 0.87 | -33.16% | -12.19% | 3.19 | 8.46% | 4,149 | 22.29% | -1.19 |
-| C@2.5|P2 | 17.48% | 17.73% | 0.87 | -36.93% | -15.50% | 3.34 | 8.93% | 4,140 | 22.66% | -0.41 |
-| C@3.0|P2 | 17.58% | 17.79% | 0.87 | -37.32% | -15.81% | 2.79 | 7.55% | 3,403 | 18.20% | -0.28 |
-| C@3.5|P2 | 17.72% | 17.80% | 0.88 | -37.39% | -15.88% | 2.34 | 6.38% | 2,792 | 14.69% | +0.03 |
-| D@2.5|P2 | 17.72% | 17.98% | 0.87 | -37.34% | -15.75% | 3.46 | 9.41% | 4,140 | 21.01% | +0.09 |
-| D@3.0|P2 | 17.83% | 18.05% | 0.87 | -37.73% | -16.00% | 2.87 | 7.90% | 3,403 | 16.89% | +0.37 |
-| D@3.5|P2 | 17.94% | 18.05% | 0.88 | -37.71% | -15.97% | 2.39 | 6.64% | 2,792 | 13.65% | +0.68 |
-| B|P3 | 13.01% | 11.08% | 0.95 | -15.12% | -7.59% | 1.76 | 3.89% | 4,149 | 21.94% | -1.72 |
-| C@2.5|P3 | 15.30% | 13.19% | 0.97 | -28.33% | -11.77% | 1.83 | 4.38% | 4,140 | 22.58% | -1.81 |
-| C@3.0|P3 | 15.81% | 14.19% | 0.95 | -30.85% | -12.95% | 1.56 | 3.84% | 3,403 | 18.13% | -1.82 |
-| C@3.5|P3 | 16.32% | 14.77% | 0.94 | -31.56% | -13.29% | 1.34 | 3.37% | 2,792 | 14.64% | -1.66 |
-| D@2.5|P3 | 15.98% | 14.14% | 0.96 | -30.51% | -12.05% | 1.92 | 4.79% | 4,140 | 20.87% | -1.64 |
-| D@3.0|P3 | 16.46% | 15.09% | 0.94 | -32.75% | -13.05% | 1.62 | 4.16% | 3,403 | 16.78% | -1.53 |
-| D@3.5|P3 | 16.92% | 15.58% | 0.94 | -33.16% | -13.18% | 1.38 | 3.62% | 2,792 | 13.57% | -1.26 |
+| B\|P1 | 15.79% | 16.10% | 0.85 | -33.94% | -17.53% | 3.82 | 9.86% | 4,149 | 0.00% | -0.83 |
+| C@2.5\|P1 | 17.65% | 17.88% | 0.87 | -38.14% | -16.60% | 3.65 | 10.17% | 4,140 | 0.00% | -0.12 |
+| C@3.0\|P1 | 17.69% | 17.93% | 0.87 | -38.27% | -16.66% | 2.93 | 8.20% | 3,403 | 0.00% | +0.02 |
+| C@3.5\|P1 | 17.78% | 17.92% | 0.88 | -38.24% | -16.65% | 2.37 | 6.65% | 2,792 | 0.00% | +0.39 |
+| D@2.5\|P1 | 17.84% | 17.99% | 0.88 | -38.08% | -16.55% | 3.67 | 10.36% | 4,140 | 0.00% | +0.47 |
+| D@3.0\|P1 | 17.91% | 18.07% | 0.88 | -38.24% | -16.59% | 2.95 | 8.36% | 3,403 | 0.00% | +0.74 |
+| D@3.5\|P1 | 17.98% | 18.07% | 0.88 | -38.21% | -16.57% | 2.39 | 6.77% | 2,792 | 0.00% | +1.02 |
+| B\|P2 | 16.71% | 16.89% | 0.87 | -33.16% | -12.19% | 3.19 | 8.46% | 4,149 | 22.29% | -1.19 |
+| C@2.5\|P2 | 17.48% | 17.73% | 0.87 | -36.93% | -15.50% | 3.34 | 8.93% | 4,140 | 22.66% | -0.41 |
+| C@3.0\|P2 | 17.58% | 17.79% | 0.87 | -37.32% | -15.81% | 2.79 | 7.55% | 3,403 | 18.20% | -0.28 |
+| C@3.5\|P2 | 17.72% | 17.80% | 0.88 | -37.39% | -15.88% | 2.34 | 6.38% | 2,792 | 14.69% | +0.03 |
+| D@2.5\|P2 | 17.72% | 17.98% | 0.87 | -37.34% | -15.75% | 3.46 | 9.41% | 4,140 | 21.01% | +0.09 |
+| D@3.0\|P2 | 17.83% | 18.05% | 0.87 | -37.73% | -16.00% | 2.87 | 7.90% | 3,403 | 16.89% | +0.37 |
+| D@3.5\|P2 | 17.94% | 18.05% | 0.88 | -37.71% | -15.97% | 2.39 | 6.64% | 2,792 | 13.65% | +0.68 |
+| B\|P3 | 13.01% | 11.08% | 0.95 | -15.12% | -7.59% | 1.76 | 3.89% | 4,149 | 21.94% | -1.72 |
+| C@2.5\|P3 | 15.30% | 13.19% | 0.97 | -28.33% | -11.77% | 1.83 | 4.38% | 4,140 | 22.58% | -1.81 |
+| C@3.0\|P3 | 15.81% | 14.19% | 0.95 | -30.85% | -12.95% | 1.56 | 3.84% | 3,403 | 18.13% | -1.82 |
+| C@3.5\|P3 | 16.32% | 14.77% | 0.94 | -31.56% | -13.29% | 1.34 | 3.37% | 2,792 | 14.64% | -1.66 |
+| D@2.5\|P3 | 15.98% | 14.14% | 0.96 | -30.51% | -12.05% | 1.92 | 4.79% | 4,140 | 20.87% | -1.64 |
+| D@3.0\|P3 | 16.46% | 15.09% | 0.94 | -32.75% | -13.05% | 1.62 | 4.16% | 3,403 | 16.78% | -1.53 |
+| D@3.5\|P3 | 16.92% | 15.58% | 0.94 | -33.16% | -13.18% | 1.38 | 3.62% | 2,792 | 13.57% | -1.26 |
 
 **In-sample (2016-02-01 → 2023-04-25)**
 
 | Run | CAGR | Vol | Sharpe | Max DD | Worst month | Turnover/yr | Costs (% start) | Exits | Sleeve wt | t vs A |
 |---|---|---|---|---|---|---|---|---|---|---|
 | A | 16.96% | 19.32% | 0.84 | -37.64% | -16.23% | 0.40 | 0.50% | 0 | 0.00% | — |
-| B|P1 | 16.21% | 17.32% | 0.88 | -33.94% | -17.53% | 3.86 | 5.52% | 2,767 | 0.00% | -0.32 |
-| C@2.5|P1 | 16.62% | 19.35% | 0.83 | -38.14% | -16.60% | 3.45 | 4.91% | 2,671 | 0.00% | -0.89 |
-| C@3.0|P1 | 16.82% | 19.42% | 0.83 | -38.27% | -16.66% | 2.75 | 3.90% | 2,174 | 0.00% | -0.36 |
-| C@3.5|P1 | 16.90% | 19.41% | 0.84 | -38.24% | -16.65% | 2.24 | 3.15% | 1,770 | 0.00% | -0.14 |
-| D@2.5|P1 | 16.89% | 19.50% | 0.83 | -38.08% | -16.55% | 3.46 | 4.98% | 2,671 | 0.00% | -0.06 |
-| D@3.0|P1 | 17.10% | 19.60% | 0.84 | -38.24% | -16.59% | 2.77 | 3.96% | 2,174 | 0.00% | +0.51 |
-| D@3.5|P1 | 17.15% | 19.60% | 0.84 | -38.21% | -16.57% | 2.26 | 3.20% | 1,770 | 0.00% | +0.65 |
-| B|P2 | 15.83% | 18.20% | 0.83 | -33.16% | -12.19% | 3.15 | 4.54% | 2,767 | 21.49% | -1.12 |
-| C@2.5|P2 | 15.74% | 19.13% | 0.79 | -36.93% | -15.50% | 3.20 | 4.41% | 2,671 | 21.03% | -2.46 |
-| C@3.0|P2 | 16.08% | 19.23% | 0.81 | -37.32% | -15.81% | 2.66 | 3.66% | 2,174 | 16.68% | -2.27 |
-| C@3.5|P2 | 16.32% | 19.25% | 0.82 | -37.39% | -15.88% | 2.22 | 3.08% | 1,770 | 13.28% | -1.96 |
-| D@2.5|P2 | 16.06% | 19.45% | 0.80 | -37.34% | -15.75% | 3.31 | 4.61% | 2,671 | 19.35% | -1.80 |
-| D@3.0|P2 | 16.39% | 19.57% | 0.81 | -37.73% | -16.00% | 2.73 | 3.81% | 2,174 | 15.33% | -1.14 |
-| D@3.5|P2 | 16.61% | 19.57% | 0.82 | -37.71% | -15.97% | 2.28 | 3.18% | 1,770 | 12.20% | -0.69 |
-| B|P3 | 13.70% | 11.72% | 1.05 | -15.12% | -7.59% | 1.75 | 2.23% | 2,767 | 21.21% | -1.00 |
-| C@2.5|P3 | 15.07% | 14.32% | 0.96 | -28.33% | -11.77% | 1.78 | 2.27% | 2,671 | 21.02% | -1.27 |
-| C@3.0|P3 | 15.56% | 15.44% | 0.93 | -30.85% | -12.95% | 1.51 | 1.96% | 2,174 | 16.67% | -1.24 |
-| C@3.5|P3 | 16.00% | 16.03% | 0.93 | -31.56% | -13.29% | 1.30 | 1.71% | 1,770 | 13.30% | -1.10 |
-| D@2.5|P3 | 15.82% | 15.49% | 0.94 | -30.51% | -12.05% | 1.87 | 2.46% | 2,671 | 19.24% | -1.08 |
-| D@3.0|P3 | 16.30% | 16.56% | 0.92 | -32.75% | -13.05% | 1.58 | 2.10% | 2,174 | 15.27% | -0.91 |
-| D@3.5|P3 | 16.72% | 17.04% | 0.92 | -33.16% | -13.18% | 1.35 | 1.81% | 1,770 | 12.17% | -0.63 |
+| B\|P1 | 16.21% | 17.32% | 0.88 | -33.94% | -17.53% | 3.86 | 5.52% | 2,767 | 0.00% | -0.32 |
+| C@2.5\|P1 | 16.62% | 19.35% | 0.83 | -38.14% | -16.60% | 3.45 | 4.91% | 2,671 | 0.00% | -0.89 |
+| C@3.0\|P1 | 16.82% | 19.42% | 0.83 | -38.27% | -16.66% | 2.75 | 3.90% | 2,174 | 0.00% | -0.36 |
+| C@3.5\|P1 | 16.90% | 19.41% | 0.84 | -38.24% | -16.65% | 2.24 | 3.15% | 1,770 | 0.00% | -0.14 |
+| D@2.5\|P1 | 16.89% | 19.50% | 0.83 | -38.08% | -16.55% | 3.46 | 4.98% | 2,671 | 0.00% | -0.06 |
+| D@3.0\|P1 | 17.10% | 19.60% | 0.84 | -38.24% | -16.59% | 2.77 | 3.96% | 2,174 | 0.00% | +0.51 |
+| D@3.5\|P1 | 17.15% | 19.60% | 0.84 | -38.21% | -16.57% | 2.26 | 3.20% | 1,770 | 0.00% | +0.65 |
+| B\|P2 | 15.83% | 18.20% | 0.83 | -33.16% | -12.19% | 3.15 | 4.54% | 2,767 | 21.49% | -1.12 |
+| C@2.5\|P2 | 15.74% | 19.13% | 0.79 | -36.93% | -15.50% | 3.20 | 4.41% | 2,671 | 21.03% | -2.46 |
+| C@3.0\|P2 | 16.08% | 19.23% | 0.81 | -37.32% | -15.81% | 2.66 | 3.66% | 2,174 | 16.68% | -2.27 |
+| C@3.5\|P2 | 16.32% | 19.25% | 0.82 | -37.39% | -15.88% | 2.22 | 3.08% | 1,770 | 13.28% | -1.96 |
+| D@2.5\|P2 | 16.06% | 19.45% | 0.80 | -37.34% | -15.75% | 3.31 | 4.61% | 2,671 | 19.35% | -1.80 |
+| D@3.0\|P2 | 16.39% | 19.57% | 0.81 | -37.73% | -16.00% | 2.73 | 3.81% | 2,174 | 15.33% | -1.14 |
+| D@3.5\|P2 | 16.61% | 19.57% | 0.82 | -37.71% | -15.97% | 2.28 | 3.18% | 1,770 | 12.20% | -0.69 |
+| B\|P3 | 13.70% | 11.72% | 1.05 | -15.12% | -7.59% | 1.75 | 2.23% | 2,767 | 21.21% | -1.00 |
+| C@2.5\|P3 | 15.07% | 14.32% | 0.96 | -28.33% | -11.77% | 1.78 | 2.27% | 2,671 | 21.02% | -1.27 |
+| C@3.0\|P3 | 15.56% | 15.44% | 0.93 | -30.85% | -12.95% | 1.51 | 1.96% | 2,174 | 16.67% | -1.24 |
+| C@3.5\|P3 | 16.00% | 16.03% | 0.93 | -31.56% | -13.29% | 1.30 | 1.71% | 1,770 | 13.30% | -1.10 |
+| D@2.5\|P3 | 15.82% | 15.49% | 0.94 | -30.51% | -12.05% | 1.87 | 2.46% | 2,671 | 19.24% | -1.08 |
+| D@3.0\|P3 | 16.30% | 16.56% | 0.92 | -32.75% | -13.05% | 1.58 | 2.10% | 2,174 | 15.27% | -0.91 |
+| D@3.5\|P3 | 16.72% | 17.04% | 0.92 | -33.16% | -13.18% | 1.35 | 1.81% | 1,770 | 12.17% | -0.63 |
 
 **Out-of-sample (2023-04-26 → 2026-06-05)**
 
 | Run | CAGR | Vol | Sharpe | Max DD | Worst month | Turnover/yr | Costs (% start) | Exits | Sleeve wt | t vs A |
 |---|---|---|---|---|---|---|---|---|---|---|
 | A | 19.42% | 13.92% | 1.02 | -17.68% | -6.26% | 0.28 | 0.12% | 0 | 0.00% | — |
-| B|P1 | 14.82% | 12.80% | 0.79 | -17.78% | -6.82% | 3.73 | 1.46% | 1,382 | 0.00% | -2.00 |
-| C@2.5|P1 | 20.07% | 13.87% | 1.06 | -17.64% | -5.81% | 4.13 | 1.73% | 1,469 | 0.00% | +0.78 |
-| C@3.0|P1 | 19.73% | 13.84% | 1.04 | -17.57% | -5.97% | 3.34 | 1.40% | 1,229 | 0.00% | +0.45 |
-| C@3.5|P1 | 19.87% | 13.88% | 1.05 | -17.60% | -6.15% | 2.69 | 1.13% | 1,022 | 0.00% | +0.80 |
-| D@2.5|P1 | 20.08% | 13.87% | 1.06 | -17.60% | -5.79% | 4.15 | 1.74% | 1,469 | 0.00% | +0.79 |
-| D@3.0|P1 | 19.81% | 13.85% | 1.05 | -17.55% | -5.96% | 3.35 | 1.41% | 1,229 | 0.00% | +0.55 |
-| D@3.5|P1 | 19.93% | 13.88% | 1.05 | -17.57% | -6.13% | 2.70 | 1.14% | 1,022 | 0.00% | +0.91 |
-| B|P2 | 18.78% | 13.34% | 1.02 | -17.23% | -6.01% | 3.29 | 1.35% | 1,382 | 24.13% | -0.44 |
-| C@2.5|P2 | 21.62% | 13.94% | 1.15 | -17.23% | -5.38% | 3.67 | 1.57% | 1,469 | 26.46% | +1.43 |
-| C@3.0|P2 | 21.14% | 13.88% | 1.12 | -16.94% | -5.37% | 3.10 | 1.32% | 1,229 | 21.73% | +1.35 |
-| C@3.5|P2 | 21.02% | 13.88% | 1.12 | -16.98% | -5.52% | 2.60 | 1.11% | 1,022 | 17.96% | +1.52 |
-| D@2.5|P2 | 21.66% | 13.96% | 1.15 | -17.14% | -5.36% | 3.80 | 1.64% | 1,469 | 24.89% | +1.51 |
-| D@3.0|P2 | 21.24% | 13.90% | 1.13 | -16.88% | -5.33% | 3.19 | 1.37% | 1,229 | 20.52% | +1.47 |
-| D@3.5|P2 | 21.09% | 13.89% | 1.12 | -16.94% | -5.49% | 2.66 | 1.14% | 1,022 | 17.02% | +1.64 |
-| B|P3 | 11.41% | 9.46% | 0.70 | -11.62% | -5.11% | 1.77 | 0.66% | 1,382 | 23.65% | -2.42 |
-| C@2.5|P3 | 15.84% | 10.06% | 1.06 | -11.57% | -4.18% | 1.94 | 0.76% | 1,469 | 26.24% | -1.47 |
-| C@3.0|P3 | 16.39% | 10.72% | 1.04 | -12.39% | -4.45% | 1.66 | 0.66% | 1,229 | 21.53% | -1.50 |
-| C@3.5|P3 | 17.06% | 11.29% | 1.05 | -13.16% | -4.74% | 1.42 | 0.57% | 1,022 | 17.78% | -1.46 |
-| D@2.5|P3 | 16.34% | 10.37% | 1.07 | -11.85% | -4.31% | 2.04 | 0.81% | 1,469 | 24.66% | -1.37 |
-| D@3.0|P3 | 16.85% | 10.95% | 1.06 | -12.58% | -4.54% | 1.73 | 0.69% | 1,229 | 20.30% | -1.37 |
-| D@3.5|P3 | 17.40% | 11.46% | 1.06 | -13.28% | -4.81% | 1.47 | 0.59% | 1,022 | 16.83% | -1.33 |
+| B\|P1 | 14.82% | 12.80% | 0.79 | -17.78% | -6.82% | 3.73 | 1.46% | 1,382 | 0.00% | -2.00 |
+| C@2.5\|P1 | 20.07% | 13.87% | 1.06 | -17.64% | -5.81% | 4.13 | 1.73% | 1,469 | 0.00% | +0.78 |
+| C@3.0\|P1 | 19.73% | 13.84% | 1.04 | -17.57% | -5.97% | 3.34 | 1.40% | 1,229 | 0.00% | +0.45 |
+| C@3.5\|P1 | 19.87% | 13.88% | 1.05 | -17.60% | -6.15% | 2.69 | 1.13% | 1,022 | 0.00% | +0.80 |
+| D@2.5\|P1 | 20.08% | 13.87% | 1.06 | -17.60% | -5.79% | 4.15 | 1.74% | 1,469 | 0.00% | +0.79 |
+| D@3.0\|P1 | 19.81% | 13.85% | 1.05 | -17.55% | -5.96% | 3.35 | 1.41% | 1,229 | 0.00% | +0.55 |
+| D@3.5\|P1 | 19.93% | 13.88% | 1.05 | -17.57% | -6.13% | 2.70 | 1.14% | 1,022 | 0.00% | +0.91 |
+| B\|P2 | 18.78% | 13.34% | 1.02 | -17.23% | -6.01% | 3.29 | 1.35% | 1,382 | 24.13% | -0.44 |
+| C@2.5\|P2 | 21.62% | 13.94% | 1.15 | -17.23% | -5.38% | 3.67 | 1.57% | 1,469 | 26.46% | +1.43 |
+| C@3.0\|P2 | 21.14% | 13.88% | 1.12 | -16.94% | -5.37% | 3.10 | 1.32% | 1,229 | 21.73% | +1.35 |
+| C@3.5\|P2 | 21.02% | 13.88% | 1.12 | -16.98% | -5.52% | 2.60 | 1.11% | 1,022 | 17.96% | +1.52 |
+| D@2.5\|P2 | 21.66% | 13.96% | 1.15 | -17.14% | -5.36% | 3.80 | 1.64% | 1,469 | 24.89% | +1.51 |
+| D@3.0\|P2 | 21.24% | 13.90% | 1.13 | -16.88% | -5.33% | 3.19 | 1.37% | 1,229 | 20.52% | +1.47 |
+| D@3.5\|P2 | 21.09% | 13.89% | 1.12 | -16.94% | -5.49% | 2.66 | 1.14% | 1,022 | 17.02% | +1.64 |
+| B\|P3 | 11.41% | 9.46% | 0.70 | -11.62% | -5.11% | 1.77 | 0.66% | 1,382 | 23.65% | -2.42 |
+| C@2.5\|P3 | 15.84% | 10.06% | 1.06 | -11.57% | -4.18% | 1.94 | 0.76% | 1,469 | 26.24% | -1.47 |
+| C@3.0\|P3 | 16.39% | 10.72% | 1.04 | -12.39% | -4.45% | 1.66 | 0.66% | 1,229 | 21.53% | -1.50 |
+| C@3.5\|P3 | 17.06% | 11.29% | 1.05 | -13.16% | -4.74% | 1.42 | 0.57% | 1,022 | 17.78% | -1.46 |
+| D@2.5\|P3 | 16.34% | 10.37% | 1.07 | -11.85% | -4.31% | 2.04 | 0.81% | 1,469 | 24.66% | -1.37 |
+| D@3.0\|P3 | 16.85% | 10.95% | 1.06 | -12.58% | -4.54% | 1.73 | 0.69% | 1,229 | 20.30% | -1.37 |
+| D@3.5\|P3 | 17.40% | 11.46% | 1.06 | -13.28% | -4.81% | 1.47 | 0.59% | 1,022 | 16.83% | -1.33 |
 
 ### Timing sensitivity (σ = 3.0; OOS Sharpe − A, with OOS t vs A)
 
