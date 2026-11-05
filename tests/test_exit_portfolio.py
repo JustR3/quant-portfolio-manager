@@ -155,3 +155,62 @@ def test_daily_cost_and_turnover_add_up_to_totals():
     assert res.daily_cost.sum() == pytest.approx(res.total_cost)
     assert res.daily_traded.sum() == pytest.approx(res.traded_notional_frac)
     assert res.daily_cost.iloc[3] > 0  # the stop exit day
+
+
+def test_rule_d_two_adds_same_day_are_funded_together_and_reach_target():
+    idx = pd.bdate_range("2024-01-01", periods=5)
+    o = pd.DataFrame(
+        {"A": [100, 100, 50, 50, 50], "B": [100, 100, 50, 50, 50], "C": [100.0] * 5},
+        index=idx,
+    )
+    c = pd.DataFrame(
+        {"A": [100, 50, 50, 50, 50], "B": [100, 50, 50, 50, 50], "C": [100.0] * 5},
+        index=idx,
+    )
+    z = pd.DataFrame(0.0, index=idx, columns=list("ABC"))
+    z.loc[idx[1], ["A", "B"]] = -5.0
+    res = simulate(
+        open_px=o,
+        close_px=c,
+        rebalance_days=[idx[0]],
+        rule="D",
+        z=z,
+        earnings=pd.DataFrame(False, index=idx, columns=list("ABC")),
+        sigma=3.0,
+        stop_loss=-0.10,
+        cost_bps=0.0,
+        initial_value=900.0,
+    )
+    assert res.n_adds == 2
+    w = res.last_weights
+    for t in "ABC":
+        assert w[t] == pytest.approx(1 / 3)
+
+
+def test_adds_never_exceed_target_with_costs():
+    idx = pd.bdate_range("2024-01-01", periods=5)
+    o = pd.DataFrame({"A": [100, 100, 50, 50, 50], "B": [100.0] * 5}, index=idx)
+    c = pd.DataFrame({"A": [100, 50, 50, 50, 50], "B": [100.0] * 5}, index=idx)
+    z = pd.DataFrame(0.0, index=idx, columns=list("AB"))
+    z.loc[idx[1], "A"] = -5.0
+    res = simulate(
+        open_px=o,
+        close_px=c,
+        rebalance_days=[idx[0]],
+        rule="D",
+        z=z,
+        earnings=pd.DataFrame(False, index=idx, columns=list("AB")),
+        sigma=3.0,
+        stop_loss=-0.10,
+        cost_bps=50.0,
+        initial_value=1000.0,
+    )
+    assert res.last_weights["A"] <= 0.5 + 1e-12
+    assert res.values.iloc[-1] > 0
+
+
+def test_exit_records_the_real_signal_day_when_the_open_is_missing():
+    o, c = _px([100, 100, 100, np.nan, 80, 80], [100, 100, 89, 85, 80, 80])
+    res = _run("B", o, c)
+    ex = res.exits.iloc[0]
+    assert ex.signal_date == IDX[2] and ex.exit_date == IDX[4]

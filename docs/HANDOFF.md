@@ -148,3 +148,4 @@ One line per checkpoint. Newest at the bottom.
 - 2026-10-24 diag-1 open items closed (user decisions): #4 hashes only, #5 keep literal spike rule + download-then-run runbook, #9 Adj Close noted, #12 no k=6 view. Recorded in spec Amendment 2 and the results doc. Doc-only change; no code touched.
 - 2026-11-05 exit-rule tasks 1-3: sector ETF tool (11 ETFs to 2026-06-05), residual model, event stats, A-D simulator; 25 new tests; suite 529 passed
 - 2026-11-05 exit-rule tasks 4-5: 8-K Item 2.02 cache (491 tickers, implementer), exit-eval runner + CLI, daily cost/turnover in simulator
+- 2026-11-05 exit-rule task 6: reviewer fixes (D joint funding, signal day, OOS overlap, size window), README + CLI test

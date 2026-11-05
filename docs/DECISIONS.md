@@ -12,3 +12,7 @@ Mid-run choices, one line each, with the reason.
 - Size proxy = 63-day mean dollar volume: point-in-time from local data; market cap needs share counts that are not on the price basis for every name.
 - Rule D funding = cash first, then pro-rata sales of other holdings: equal-weight books hold no spare cash, so without funding D would equal C.
 - 10 tickers have no EDGAR CIK match (AVB, BK, CTRA, EA, EQR, HOLX, MER, PSKY, SHLD, WBD): they stay in the book; their shocks count as 'other'. Reversible: a later CIK fix re-runs with the same locked settings.
+- A rule signal whose next open is a rebalance day is dropped: the rebalance trades the same name at the same open, so the exit would be undone at once.
+- Review #1 (Ask-user, not changed): names whose EDGAR CIK changed (e.g. BLK, LIN, DIS, CI, AVGO, DD; XOM has no 2.02 filings) lack early 8-Ks, so their earnings shocks count as 'other' in those years (~3% of name-years). Kept as a stated limit; a fix needs predecessor CIKs.
+- Review #6 (no-op): events and the IS/OOS cut start at the first rebalance (2016-02-01), not at the first valid z (2016-01): one study window for both the event study and the portfolios.
+- Review #2/#4/#5/#7 fixed before publication: same-day rule-D adds are funded together and buys net of cost never exceed target; exits keep the real signal day; OOS turnover/costs/exits start at the first OOS day; size window needs a full 63 days. The first run (exit-eval-20261105_230008.json) predates these fixes and is superseded.

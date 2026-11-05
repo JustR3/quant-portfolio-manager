@@ -81,6 +81,7 @@ def simulate(
     last_close = np.full(N, np.nan)
     pend_sell = np.zeros(N, dtype=bool)
     pend_add = np.zeros(N, dtype=bool)
+    pend_sig = np.zeros(N, dtype=int)  # signal-day position of a pending sell
     n_target = 0
     total_cost = 0.0
     traded_frac = 0.0
@@ -149,43 +150,48 @@ def simulate(
                 day_cost[t] += c
                 traded_frac += notional / V if V > 0 else 0.0
                 day_traded[t] += notional / V if V > 0 else 0.0
-                exits.append((tickers[i], idx[t - 1], idx[t], t, OP[t, i]))
+                exits.append((tickers[i], idx[pend_sig[i]], idx[t], t, OP[t, i]))
                 sh[i] = 0.0
                 blocked[i] = True
                 pend_sell[i] = False
-            # adds at this open (rule D)
-            for i in np.nonzero(pend_add)[0]:
-                pend_add[i] = False
-                if (
-                    sh[i] == 0
-                    or blocked[i]
-                    or not np.isfinite(OP[t, i])
-                    or n_target == 0
-                ):
-                    continue
+            # adds at this open (rule D), funded together so no add sells another
+            adds = [
+                i
+                for i in np.nonzero(pend_add)[0]
+                if sh[i] != 0
+                and not blocked[i]
+                and np.isfinite(OP[t, i])
+                and n_target > 0
+            ]
+            pend_add[:] = False
+            if adds:
                 px_now = mark_open(t)
                 V = cash + float(np.nansum(sh * px_now))
-                need = V / n_target - sh[i] * OP[t, i]
-                if need <= 0:
-                    continue
-                from_cash = min(max(cash, 0.0), need)
-                rest = need - from_cash
-                others = (sh != 0) & np.isfinite(OP[t]) & (np.arange(N) != i)
-                o_val = float(sh[others] @ OP[t, others])
-                sold = 0.0
-                if rest > 0 and o_val > 0:
-                    f = min(rest / o_val, 1.0)
-                    sold = f * o_val
-                    sh[others] *= 1.0 - f
-                buy = from_cash + sold
-                sh[i] += buy / OP[t, i]
-                c = k * (buy + sold)
-                cash += -from_cash - c
-                total_cost += c
-                day_cost[t] += c
-                traded_frac += (buy + sold) / V if V > 0 else 0.0
-                day_traded[t] += (buy + sold) / V if V > 0 else 0.0
-                n_adds += 1
+                need = {i: V / n_target - sh[i] * OP[t, i] for i in adds}
+                need = {i: v for i, v in need.items() if v > 0}
+                total = sum(need.values())
+                if total > 0:
+                    from_cash = min(max(cash, 0.0), total)
+                    rest = total - from_cash
+                    others = (sh != 0) & np.isfinite(OP[t])
+                    others[list(need)] = False
+                    o_val = float(sh[others] @ OP[t, others])
+                    sold = 0.0
+                    if rest > 0 and o_val > 0:
+                        f = min(rest / o_val, 1.0)
+                        sold = f * o_val
+                        sh[others] *= 1.0 - f
+                    # costs come out of the funded pool: buys never exceed target
+                    buy = (from_cash + sold * (1 - k)) / (1 + k)
+                    for i, v in need.items():
+                        sh[i] += buy * v / total / OP[t, i]
+                    c = k * (buy + sold)
+                    cash -= from_cash
+                    total_cost += c
+                    day_cost[t] += c
+                    traded_frac += (buy + sold) / V if V > 0 else 0.0
+                    day_traded[t] += (buy + sold) / V if V > 0 else 0.0
+                    n_adds += len(need)
 
         ok = np.isfinite(CL[t])
         last_close = np.where(ok, CL[t], last_close)
@@ -193,13 +199,16 @@ def simulate(
 
         # signals at this close, traded at the next open (dropped if it is a rebalance)
         held = (sh != 0) & ok
+        new_sell = np.zeros(N, dtype=bool)
         if rule == "B":
-            pend_sell |= held & (CL[t] <= thr * entry)
+            new_sell = held & (CL[t] <= thr * entry)
         elif rule in ("C", "D"):
             shock = held & np.isfinite(Z[t]) & (Z[t] < -sigma)
-            pend_sell |= shock & E[t]
+            new_sell = shock & E[t]
             if rule == "D":
                 pend_add |= shock & ~E[t]
+        pend_sig = np.where(new_sell & ~pend_sell, t, pend_sig)
+        pend_sell |= new_sell
 
     vals = pd.Series(values, index=idx, name=f"rule_{rule}")
     if not np.isfinite(vals).all():

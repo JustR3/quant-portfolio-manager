@@ -154,7 +154,7 @@ def _event_table(mask, start_pos, cut_pos, ctx, model, cfg):
     ev["size"] = ctx["size"].to_numpy()[rows, cidx]
     etf = model.etf.to_numpy()[rows, cidx]
     ev["sector"] = [model.sector_names[j] if j >= 0 else "none" for j in etf]
-    ev["regime"] = ctx["regime"].to_numpy()[rows]
+    ev["regime"] = ctx["regime"][rows]
     ev["period"] = np.where(rows >= cut_pos, "oos", "is")
     return _forward(
         ev, ctx["r"], ctx["m"], ctx["s_ret"], model, cfg.horizons, ctx["adj_close"]
@@ -247,13 +247,15 @@ def run_portfolios(inp, model, first, cut, cfg):
         out = {}
         for name, (lo, hi) in seg.items():
             v = sim.values.loc[lo:hi]
+            # OOS values start at the last IS close; its trades and exits belong to IS
+            act_lo = cal[cut] if name == "oos" else lo
             m = _metrics(
                 v,
-                sim.daily_cost.loc[lo:hi],
-                sim.daily_traded.loc[lo:hi],
+                sim.daily_cost.loc[act_lo:hi],
+                sim.daily_traded.loc[act_lo:hi],
                 cfg.risk_free_rate,
             )
-            m.update(_exit_stats(sim.exits, lo, hi))
+            m.update(_exit_stats(sim.exits, act_lo, hi))
             m["n_adds_total"] = sim.n_adds
             dr = v.pct_change().dropna()
             if rule == "A":
@@ -312,7 +314,7 @@ def run(cfg: ExitStudyConfig = ExitStudyConfig(), out_dir: Path | None = None) -
 
     dv = (
         (inp["close"] * inp["volume"])
-        .rolling(cfg.size_window, min_periods=50)
+        .rolling(cfg.size_window, min_periods=cfg.size_window)
         .mean()
         .shift(1)
     )
