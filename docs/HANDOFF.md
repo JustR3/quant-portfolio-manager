@@ -149,3 +149,4 @@ One line per checkpoint. Newest at the bottom.
 - 2026-11-05 exit-rule tasks 1-3: sector ETF tool (11 ETFs to 2026-06-05), residual model, event stats, A-D simulator; 25 new tests; suite 529 passed
 - 2026-11-05 exit-rule tasks 4-5: 8-K Item 2.02 cache (491 tickers, implementer), exit-eval runner + CLI, daily cost/turnover in simulator
 - 2026-11-05 exit-rule task 6: reviewer fixes (D joint funding, signal day, OOS overlap, size window), README + CLI test
+- 2026-11-05 exit-rule task 7: study re-run after review (exit-eval-20261105_230520.json), results docs/research/exit-rule-test.md; verdicts B/C/D all DOES NOT IMPROVE (biased toward holding)
