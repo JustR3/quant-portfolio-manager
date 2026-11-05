@@ -147,3 +147,11 @@ def test_unknown_rule_raises():
     o, c = _px([100] * 6, [100] * 6)
     with pytest.raises(ValueError):
         _run("Z", o, c)
+
+
+def test_daily_cost_and_turnover_add_up_to_totals():
+    o, c = _px([100, 100, 100, 80, 70, 70], [100, 95, 89, 75, 70, 70])
+    res = _run("B", o, c, cost=10.0)
+    assert res.daily_cost.sum() == pytest.approx(res.total_cost)
+    assert res.daily_traded.sum() == pytest.approx(res.traded_notional_frac)
+    assert res.daily_cost.iloc[3] > 0  # the stop exit day

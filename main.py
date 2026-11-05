@@ -584,6 +584,16 @@ Examples:
         "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
     )
 
+    exitp = sub.add_parser(
+        "exit-eval",
+        help="Pre-registered exit-rule test: stops vs hold vs cause rule after drops",
+        description="Exit-rule test on large single-stock drops; all settings are locked "
+        "(spec: docs/superpowers/specs/2026-11-05-exit-rule-test-design.md). Offline.",
+    )
+    exitp.add_argument(
+        "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
+    )
+
     # Portfolio command - snapshot validation
     portfolio = sub.add_parser(
         "portfolio",
@@ -1033,6 +1043,18 @@ def main():
             traceback.print_exc()
             sys.exit(1)
         _exit_if_inconclusive(result)
+        return
+
+    # Exit-rule test (pre-registered; no tunable flags)
+    if args.module == "exit-eval":
+        from src.research.exit_command import print_summary, run_exit_eval
+
+        print_header("Exit-Rule Test")
+        try:
+            print_summary(run_exit_eval(Path(args.export) if args.export else None))
+        except Exception as e:
+            print_msg(f"Error: {e}", "error")
+            sys.exit(1)
         return
 
     # Portfolio command

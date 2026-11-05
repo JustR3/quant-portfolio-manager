@@ -37,6 +37,8 @@ class SimResult:
     exits: pd.DataFrame
     weights_at_rebalance: dict = field(default_factory=dict)
     last_weights: dict = field(default_factory=dict)
+    daily_cost: pd.Series | None = None  # $ cost per day
+    daily_traded: pd.Series | None = None  # traded notional / value per day
 
 
 def simulate(
@@ -85,6 +87,8 @@ def simulate(
     n_adds = 0
     exits = []
     values = np.empty(T)
+    day_cost = np.zeros(T)
+    day_traded = np.zeros(T)
     w_reb: dict = {}
     thr = 1.0 + stop_loss
 
@@ -113,7 +117,9 @@ def simulate(
                     cost = k * traded
                 cash += float((sh[elig] - new_sh[elig]) @ OP[t, elig]) - cost
                 total_cost += cost
+                day_cost[t] += cost
                 traded_frac += traded / V if V > 0 else 0.0
+                day_traded[t] += traded / V if V > 0 else 0.0
             sh = new_sh
             entry = np.where(elig, OP[t], np.nan)
             blocked[:] = False
@@ -140,7 +146,9 @@ def simulate(
                 V = cash + float(np.nansum(sh * px_now))
                 cash += notional - c
                 total_cost += c
+                day_cost[t] += c
                 traded_frac += notional / V if V > 0 else 0.0
+                day_traded[t] += notional / V if V > 0 else 0.0
                 exits.append((tickers[i], idx[t - 1], idx[t], t, OP[t, i]))
                 sh[i] = 0.0
                 blocked[i] = True
@@ -174,7 +182,9 @@ def simulate(
                 c = k * (buy + sold)
                 cash += -from_cash - c
                 total_cost += c
+                day_cost[t] += c
                 traded_frac += (buy + sold) / V if V > 0 else 0.0
+                day_traded[t] += (buy + sold) / V if V > 0 else 0.0
                 n_adds += 1
 
         ok = np.isfinite(CL[t])
@@ -221,6 +231,8 @@ def simulate(
         values=vals,
         total_cost=total_cost,
         traded_notional_frac=traded_frac,
+        daily_cost=pd.Series(day_cost, index=idx),
+        daily_traded=pd.Series(day_traded, index=idx),
         n_exits=len(ex),
         n_adds=n_adds,
         exits=ex,

@@ -11,3 +11,4 @@ Mid-run choices, one line each, with the reason.
 - Portfolio cause rule uses 8-K days {t−1, t} only, event study uses ±1: an 8-K on t+1 is not known at the close of t.
 - Size proxy = 63-day mean dollar volume: point-in-time from local data; market cap needs share counts that are not on the price basis for every name.
 - Rule D funding = cash first, then pro-rata sales of other holdings: equal-weight books hold no spare cash, so without funding D would equal C.
+- 10 tickers have no EDGAR CIK match (AVB, BK, CTRA, EA, EQR, HOLX, MER, PSKY, SHLD, WBD): they stay in the book; their shocks count as 'other'. Reversible: a later CIK fix re-runs with the same locked settings.
