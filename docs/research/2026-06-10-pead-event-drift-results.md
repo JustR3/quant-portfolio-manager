@@ -4,7 +4,7 @@
 - **Spec/Plan:** `docs/superpowers/specs/2026-06-10-pead-event-drift-design.md`,
   `docs/superpowers/plans/2026-06-10-pead-event-drift.md`.
 - **Code:** `src/pipeline/sec_quarterly.py`; `src/research/pead_events.py` / `pead_portfolio.py` /
-  `pead_results.py` / `pead_command.py`; `qpm pead-eval`; quarterly cache via
+  `pead_results.py` / `pead_command.py`; `uv run ./main.py pead-eval`; quarterly cache via
   `tools/build_sec_q_cache.py` into `data/historical/fundamentals_sec_q/` (separate dir; the
   phase #2/#3 FY cache untouched).
 - **Run:** `uv run ./main.py pead-eval` (all three measures, pre-registered defaults: H=60td, quintile legs,
@@ -17,6 +17,13 @@ stopping rule FIRES: counter 2 of 2 → the reframe to research-harness artifact
 Post-SEC-filing drift does not exist on this data in the PEAD direction. All three long-short
 spreads are *negative*; the filing-reaction measure (EAR) points to **reversal**, marginally
 significant in the wrong direction (NW-t = −2.04).
+
+> **Errata note (2026-11-06).** The table below shows the June originals. Canonical values after
+> the duration fix (2026-09-26) and the negative-imputed-Q4-revenue addendum (2026-09-27):
+> SUE-E **−1.16%/yr** (p_boot 0.624, NW-t −0.32); SUE-R **−2.36%/yr** (p_boot 0.747, NW-t −0.68);
+> EAR **−4.33%/yr** (p_boot 0.976, NW-t **−1.96**, still in the reversal direction). All three
+> still FAIL. Power at +2%/yr is 6–15%, so only EAR is informative (its CI excludes +2%/yr). See
+> `2026-09-25-sec-duration-contamination-check.md` ("Errata results" and "Errata addendum").
 
 ## Data build (Task 0)
 

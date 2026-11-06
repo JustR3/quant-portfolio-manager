@@ -3,7 +3,7 @@
 - **Date:** 2026-06-07
 - **Spec:** `docs/superpowers/specs/2026-06-07-signal-isolation-validation-design.md`
 - **Plan:** `docs/superpowers/plans/2026-06-07-signal-isolation-validation.md`
-- **Code:** `src/research/` (`signal_panel`, `signal_eval`, `results`, `command`); CLI `qpm signal-eval`.
+- **Code:** `src/research/` (`signal_panel`, `signal_eval`, `results`, `command`); CLI `uv run ./main.py signal-eval`.
 
 ## TL;DR — NO factor passes the edge gate
 
@@ -15,6 +15,14 @@ underpowered (thin ~3.7yr fundamentals) and also fail. **This does NOT justify b
 view-calibration sub-project — there is no validated signal to express.** The most promising lead
 is Value (correct-sign but weak IC), which points at the **data-upgrade** sub-project, not
 calibration.
+
+> **Errata note (2026-11-06).** The numbers below are the June originals, kept for the record.
+> - **Momentum wording:** "statistically powerful negative" is not supported. The power study gives
+>   20% power at IC 0.02 for this test (`2026-09-26-harness-power-and-positive-controls.md`). Read
+>   the momentum result as "no detectable effect; only large effects are ruled out."
+> - **Value/Quality:** this doc uses the thin yfinance window. The canonical results use deep SEC
+>   PIT data after the split-basis and duration fixes: Value IC −0.0134 (t −0.88), Quality IC +0.0002
+>   (t +0.02). Both FAIL. See `2026-09-26-split-basis-errata.md`.
 
 ## Commands run
 

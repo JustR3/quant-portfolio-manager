@@ -1,6 +1,8 @@
 # FY-Cache Scope-Outlier Check — Diagnostic (count-only)
 
 - **Date:** 2026-09-27
+- **Updated:** 2026-09-30 (PR #17): the decision rule now uses `superseded` cells only; see
+  "Observed (corrected 2026-09-30)" below.
 - **Status:** diagnostic built and run 2026-09-27. **Count-only — no fix, no errata, no
   conclusion about study #2/#3 verdicts.** The decision rule below is pre-registered for the
   lead engineer to apply; this doc only reports the counts.

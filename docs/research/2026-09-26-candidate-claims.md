@@ -4,6 +4,10 @@ Ideas a review surfaced that could deserve a test. Listing one here is **not** a
 CLAUDE.md's reopening criteria still apply: a genuinely new data tier plus a fresh pre-registration,
 with its own budget decision. Revisit only after the open errata re-runs (#2, #3, #5) are published.
 
+> **Status update (2026-11-06):** the errata re-runs for #2, #3 and #5 are published (2026-09-26,
+> addendum 2026-09-27). No verdict flipped. The "revisit only after" condition is met. C1 is still
+> listed, not scheduled.
+
 ## C1 — Announcement-date PEAD on the free 8-K Item 2.02 clock (added 2026-09-26)
 
 - **Why study #5 under-tests PEAD:** its events are 10-Q/10-K **filing** dates, typically days to weeks
@@ -20,7 +24,7 @@ with its own budget decision. Revisit only after the open errata re-runs (#2, #3
   10-Q values, plus announcement-window EAR); horizon; quintile legs, min per leg, costs; gate
   (the #5 two-part gate); Bonferroni k; universe (current S&P 500, survivorship caveat); positive and
   negative controls and a power statement **before** results (reference effect 2%/yr; with ~25k events
-  the #5 design had ~11% power, so the design must say how it does better or accept a low-power
+  the #5 design had ~11% power (10% for SUE-E after the errata), so the design must say how it does better or accept a low-power
   verdict); and a stopping rule.
 - **Known confounders to handle in the spec:** 8-Ks filed after the close (acceptance time vs filing
   date), amended 8-Ks, companies that file the 10-Q the same day as the release (no clock difference),
