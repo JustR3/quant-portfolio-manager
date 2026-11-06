@@ -594,6 +594,17 @@ Examples:
         "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
     )
 
+    exit2b = sub.add_parser(
+        "exit-eval-2b",
+        help="Exit-rule test 2b: semi-annual hold, proceeds variants, decomposition",
+        description="Exit-rule test 2b; all settings are locked "
+        "(spec: docs/superpowers/specs/2026-11-05-exit-rule-test-2b-design.md). Offline; "
+        "needs data/historical/exit/rates/DTB3.parquet (tools/download_tbill.py).",
+    )
+    exit2b.add_argument(
+        "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
+    )
+
     # Portfolio command - snapshot validation
     portfolio = sub.add_parser(
         "portfolio",
@@ -1052,6 +1063,19 @@ def main():
         print_header("Exit-Rule Test")
         try:
             print_summary(run_exit_eval(Path(args.export) if args.export else None))
+        except Exception as e:
+            print_msg(f"Error: {e}", "error")
+            sys.exit(1)
+        return
+
+    # Exit-rule test 2b (pre-registered; no tunable flags)
+    if args.module == "exit-eval-2b":
+        from src.research.exit2b_command import print_summary as print_2b
+        from src.research.exit2b_command import run_exit_eval_2b
+
+        print_header("Exit-Rule Test 2b")
+        try:
+            print_2b(run_exit_eval_2b(Path(args.export) if args.export else None))
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             sys.exit(1)

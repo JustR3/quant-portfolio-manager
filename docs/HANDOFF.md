@@ -151,4 +151,8 @@ One line per checkpoint. Newest at the bottom.
 - 2026-11-05 exit-rule task 6: reviewer fixes (D joint funding, signal day, OOS overlap, size window), README + CLI test
 - 2026-11-05 exit-rule task 7: study re-run after review (exit-eval-20261105_230520.json), results docs/research/exit-rule-test.md; verdicts B/C/D all DOES NOT IMPROVE (biased toward holding)
 - 2026-11-05 audit phase 1: docs/audit/qpm-audit.md (read-only audit; tests 504 passed; baseline backtest 2023-07→2025-06 net CAGR 21.1%, Sharpe 0.94; no stop rules exist)
+- 2026-11-05 exit-2b tasks 1-3: DTB3 tool+loader (2014-01-02→2026-11-04), 2b simulator (P1/P2/P3, entry/blocks), decomposition (5 parts, identity test), stats; equals Phase 2 sim for P3 rf=0; suite 574 passed
+- 2026-11-05 exit-2b task 4: runner + CLI exit-eval-2b, README, runner tests; rebalance-day bug fixed
+- 2026-11-05 exit-2b tasks 5-6: run (exit-eval-2b-20261105_234157.json), review fixes (verdict wording, notes), report docs/research/exit-rule-test-2b.md with survivorship survey; all 2b verdicts DOES NOT IMPROVE; suite 576 passed
+- 2026-11-05 exit-2b report revision: vs-book mean/median by period, B by variant + B|P1 concentration (tools/exit2b_concentration.py), B|P3 Sharpe by period, 6-timing A vs B|P3 table, P2 cap-weight note, C selection by period, t(G-1) used for conclusions; no locked result or spec changed
 - 2026-11-06 docs errata sync: dated errata notes (canonical post-errata numbers, momentum power wording) added to signal-isolation, deep-fundamentals, new-factor-inputs, pead-event-drift; candidate-claims status; fy-scope header date. Doc-only.

@@ -16,3 +16,12 @@ Mid-run choices, one line each, with the reason.
 - Review #1 (Ask-user, not changed): names whose EDGAR CIK changed (e.g. BLK, LIN, DIS, CI, AVGO, DD; XOM has no 2.02 filings) lack early 8-Ks, so their earnings shocks count as 'other' in those years (~3% of name-years). Kept as a stated limit; a fix needs predecessor CIKs.
 - Review #6 (no-op): events and the IS/OOS cut start at the first rebalance (2016-02-01), not at the first valid z (2016-01): one study window for both the event study and the portfolios.
 - Review #2/#4/#5/#7 fixed before publication: same-day rule-D adds are funded together and buys net of cost never exceed target; exits keep the real signal day; OOS turnover/costs/exits start at the first OOS day; size window needs a full 63 days. The first run (exit-eval-20261105_230008.json) predates these fixes and is superseded.
+
+## Exit-rule test 2b (2026-11-05, branch `research/exit-rule-test-2b`)
+- PR #31 (Phase 2) was not merged at approval, so 2b is built on a branch from `research/exit-rule-test` and its draft PR is stacked on that branch; it retargets `main` after #31 merges. Reversible.
+- Spec defaults approved by the user: one initial buy at 2016-02-01 for all timings; 5-part decomposition (selection, exposure, drift, costs, compounding); DTB3 discount basis ACT/360 at t−1; entry resets only at rebalances; P2 SPY sleeve funds D top-ups first; residual post-exit window starts at the signal close.
+- DTB3 range contract is [-1, 20] %, not the spec's [0, 20]: FRED shows real negative 3-month bill yields (2015-09/10 down to -0.02 %, 2020-03-25/26 down to -0.05 %). Values are used as published.
+- First 2b development run (exit-eval-2b-20261105_233410.json) had a rebalance-day bug in the 5 non-primary timings (Feb/Aug picked 2016-02-02); caught by a new unit test before any review or publication; file deleted; not a published result.
+- 2b same-day order under P1: sale proceeds pay for D top-ups first, then the rest is reinvested pro-rata (avoids a sell-then-buy round trip on the same open). Review #6.
+- 2b: a name held but not eligible at a rebalance (no open or no prior close) keeps entry = NaN, so B cannot stop it until it is eligible again. Rare; no change. Review #7.
+- 2b review #1 (Ask-user, not changed): coarse-cluster CIs keep the locked mean ± 1.96·SE; with 6 (OOS half-year) to 41 clusters this is too narrow. The report adds a supplementary t(G−1) CI.
