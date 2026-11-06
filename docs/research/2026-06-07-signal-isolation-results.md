@@ -3,7 +3,7 @@
 - **Date:** 2026-06-07
 - **Spec:** `docs/superpowers/specs/2026-06-07-signal-isolation-validation-design.md`
 - **Plan:** `docs/superpowers/plans/2026-06-07-signal-isolation-validation.md`
-- **Code:** `src/research/` (`signal_panel`, `signal_eval`, `results`, `command`); CLI `qpm signal-eval`.
+- **Code:** `src/research/` (`signal_panel`, `signal_eval`, `results`, `command`); CLI `uv run ./main.py signal-eval`.
 
 ## TL;DR — NO factor passes the edge gate
 

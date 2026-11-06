@@ -4,7 +4,7 @@
 - **Spec/Plan:** `docs/superpowers/specs/2026-06-10-pead-event-drift-design.md`,
   `docs/superpowers/plans/2026-06-10-pead-event-drift.md`.
 - **Code:** `src/pipeline/sec_quarterly.py`; `src/research/pead_events.py` / `pead_portfolio.py` /
-  `pead_results.py` / `pead_command.py`; `qpm pead-eval`; quarterly cache via
+  `pead_results.py` / `pead_command.py`; `uv run ./main.py pead-eval`; quarterly cache via
   `tools/build_sec_q_cache.py` into `data/historical/fundamentals_sec_q/` (separate dir; the
   phase #2/#3 FY cache untouched).
 - **Run:** `uv run ./main.py pead-eval` (all three measures, pre-registered defaults: H=60td, quintile legs,

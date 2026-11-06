@@ -4,7 +4,7 @@
 - **Spec/Plan:** `docs/superpowers/specs/2026-06-10-ts-timing-study-design.md`,
   `docs/superpowers/plans/2026-06-10-ts-timing-study.md`.
 - **Code:** `src/research/ts_signals.py` / `ts_eval.py` / `ts_results.py` / `ts_command.py`;
-  `qpm ts-eval`; data via `tools/download_ts_universe.py` into `data/historical/ts/` (separate
+  `uv run ./main.py ts-eval`; data via `tools/download_ts_universe.py` into `data/historical/ts/` (separate
   base dir; signal-eval's universe glob untouched).
 - **Run:** `uv run ./main.py ts-eval` (all five rules, pre-registered defaults: shift-1, 10 bps/side, ^IRX cash,
   B=10,000, seed 42, p<0.01 Bonferroni k=5). Artifact `data/research/ts-eval-20260610_142220.json`
