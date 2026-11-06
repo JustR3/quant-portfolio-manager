@@ -112,6 +112,15 @@ blocks, bootstrap alpha vs market.
 uv run ./main.py pead-eval          # all three pre-registered measures
 ```
 
+### `exit-eval` — exit rules after large single-stock drops
+Pre-registered test of no stop vs a -10% hard stop vs a cause rule (8-K Item 2.02 timing) after
+residual shocks, with an event study and an equal-weight portfolio comparison. All settings are
+locked in `src/research/exit_config.py`. Report: `docs/research/exit-rule-test.md`.
+
+```bash
+uv run ./main.py exit-eval          # offline; needs the two stores below
+```
+
 ## Data infrastructure (all free, regenerable, gitignored)
 
 | Store | Contents | Builder | Integrity |
@@ -121,6 +130,8 @@ uv run ./main.py pead-eval          # all three pre-registered measures
 | `data/historical/fundamentals_sec/` | FY companyfacts, filed-stamped (498 names) | `tools/build_sec_fundamentals_cache.py` | PIT slicing `filed ≤ as_of` |
 | `data/historical/splits/` | Per-ticker split history (puts as-filed SEC shares on the price basis) | `tools/build_split_cache.py` | cross-checked by `tools/check_split_consistency.py`; missing → name excluded |
 | `data/historical/fundamentals_sec_q/` | Quarterly companyfacts incl. net income (498 names) | `tools/build_sec_q_cache.py` (probe mode first) | first-filed semantics; separate dir |
+| `data/historical/exit/etf/` | 11 SPDR sector ETFs (exit-rule test) | `tools/download_sector_etfs.py` | identity check; separate dir |
+| `data/historical/earnings_8k/` | 8-K Item 2.02 acceptance times (491 names) | `tools/build_8k_earnings_cache.py` (`--probe N` first) | sorted, no NaT, no duplicate accession |
 
 ## The portfolio tool (legacy, still functional)
 
@@ -205,7 +216,7 @@ Optional: `FRED_API_KEY` in `config/secrets.env` for live risk-free rates in the
 ## Project structure
 
 ```
-├── main.py                      # CLI: signal-eval | ts-eval | pead-eval | optimize | backtest | verify | portfolio
+├── main.py                      # CLI: signal-eval | ts-eval | pead-eval | exit-eval | optimize | backtest | verify | portfolio
 ├── src/
 │   ├── research/                # the three harnesses (panels, metrics, gates, CLIs)
 │   ├── pipeline/                # price store (identity-guarded), SEC PIT pipelines (FY + quarterly), universe
