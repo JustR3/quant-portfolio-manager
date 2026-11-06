@@ -20,6 +20,11 @@ cross-sections (~10yr, ~22.6k stock-months)**: all three are flat. The strongest
 reaches **t = 0.73** — not a near-miss, and far below even the un-raised 2.0. **Third honest negative
 in a row** on free large-cap US data.
 
+> **Errata note (2026-11-06).** The table below shows the June originals. Canonical values after
+> the split-basis and duration fixes (2026-09-26): gross profitability IC +0.0044 (**t +0.44**), net
+> issuance IC −0.0028 (**t −0.26**), asset growth IC −0.0021 (**t −0.17**); 19,833 obs (~159
+> names/period). All three still FAIL. Side-by-side table: `2026-09-26-split-basis-errata.md`.
+
 ## Verdict table
 
 Standard bar (PASS iff +sign, |t| ≥ **2.4**, broadly monotone, net L-S Sharpe > 0), monthly, 1m horizon,

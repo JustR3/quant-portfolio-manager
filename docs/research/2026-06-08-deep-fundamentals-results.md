@@ -17,6 +17,14 @@ true point-in-time SEC fundamentals over **~10yr / 123 monthly cross-sections** 
 Quality is ~zero. **No factor in this model has demonstrable cross-sectional edge, even after the data
 upgrade.**
 
+> **Errata note (2026-11-06).** The table below shows the June originals. The split-basis and
+> duration fixes (2026-09-26) changed the SEC (deep) rows. Canonical corrected values:
+> Value IC **−0.0134 (t −0.88)**, net L-S Sharpe −0.59; Quality IC **+0.0002 (t +0.02)**, net L-S
+> Sharpe −0.80; 20,978 obs (~155 names/period). Value's sign flipped; the verdict is still FAIL for
+> both. Power at IC 0.02 is only 25% (Value) and 45% (Quality), so this negative rules out only
+> large effects. The "strong negative" wording below overstates the evidence. Side-by-side
+> table: `2026-09-26-split-basis-errata.md`.
+
 ## Deep (SEC) vs Thin (yfinance)
 
 Standard quant bar (PASS iff +sign, |t|≥2, broadly monotone, net L-S Sharpe > 0), monthly, 1m horizon, deciles, 10 bps/side.
