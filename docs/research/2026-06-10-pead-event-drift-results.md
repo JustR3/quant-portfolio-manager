@@ -18,6 +18,13 @@ Post-SEC-filing drift does not exist on this data in the PEAD direction. All thr
 spreads are *negative*; the filing-reaction measure (EAR) points to **reversal**, marginally
 significant in the wrong direction (NW-t = −2.04).
 
+> **Errata note (2026-11-06).** The table below shows the June originals. Canonical values after
+> the duration fix (2026-09-26) and the negative-imputed-Q4-revenue addendum (2026-09-27):
+> SUE-E **−1.16%/yr** (p_boot 0.624, NW-t −0.32); SUE-R **−2.36%/yr** (p_boot 0.747, NW-t −0.68);
+> EAR **−4.33%/yr** (p_boot 0.976, NW-t **−1.96**, still in the reversal direction). All three
+> still FAIL. Power at +2%/yr is 6–15%, so only EAR is informative (its CI excludes +2%/yr). See
+> `2026-09-25-sec-duration-contamination-check.md` ("Errata results" and "Errata addendum").
+
 ## Data build (Task 0)
 
 - Probe: 9/10 sampled names usable (STOP fork at >30%) — quarterly `NetIncomeLoss` rows carry true
