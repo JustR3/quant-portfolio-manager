@@ -157,3 +157,4 @@ One line per checkpoint. Newest at the bottom.
 - 2026-11-05 exit-2b report revision: vs-book mean/median by period, B by variant + B|P1 concentration (tools/exit2b_concentration.py), B|P3 Sharpe by period, 6-timing A vs B|P3 table, P2 cap-weight note, C selection by period, t(G-1) used for conclusions; no locked result or spec changed
 - 2026-11-06 docs errata sync: dated errata notes (canonical post-errata numbers, momentum power wording) added to signal-isolation, deep-fundamentals, new-factor-inputs, pead-event-drift; candidate-claims status; fy-scope header date. Doc-only.
 - 2026-11-08 C1 spec drafted and reviewed (11 findings applied); awaiting user approval before implementation.
+- 2026-11-08 C1 task 1: src/research/c1_events.py (8-K matcher, SUE at announcement, EAR-a, entries) + 27 tests; Batch TDD
