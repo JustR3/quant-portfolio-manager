@@ -112,6 +112,14 @@ blocks, bootstrap alpha vs market.
 uv run ./main.py pead-eval          # all three pre-registered measures
 ```
 
+### `c1-eval` — announcement-date PEAD (8-K clock)
+Same gate as `pead-eval`, but events enter on the 8-K Item 2.02 announcement day (SUE-E-a, SUE-R-a,
+EAR-a). Locked one-shot run (spec: `docs/superpowers/specs/2026-11-08-c1-announcement-pead-design.md`).
+
+```bash
+uv run ./main.py c1-eval --probe    # availability counts + match-rate fork; no returns
+```
+
 ### `exit-eval` — exit rules after large single-stock drops
 Pre-registered test of no stop vs a -10% hard stop vs a cause rule (8-K Item 2.02 timing) after
 residual shocks, with an event study and an equal-weight portfolio comparison. All settings are

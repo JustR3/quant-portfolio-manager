@@ -168,8 +168,9 @@ def build_c1_events(
     for t, (ff, dates8k) in inputs.items():
         f_by_pe = pev.event_dates(ff)
         f_by_pe = f_by_pe[f_by_pe >= calendar[0]]
-        m = match_8k_to_quarters(dates8k, f_by_pe, stats)
-        m = m[m["acceptance_et"].dt.normalize() >= calendar[0]].reset_index(drop=True)
+        # Pre-calendar 8-Ks are dropped BEFORE matching so the stats cover the calendar only.
+        d8 = dates8k[dates8k["acceptance_et"].dt.normalize() >= calendar[0]]
+        m = match_8k_to_quarters(d8, f_by_pe, stats).reset_index(drop=True)
         if m.empty:
             continue
         if measure == "ear":

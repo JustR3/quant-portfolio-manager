@@ -429,3 +429,55 @@ def test_event_past_calendar_end_is_dropped():
         short_cal,
     )
     assert ev.empty  # d+2 falls off the calendar
+
+
+# ---------------------------------------------------------------- review additions (Task 1 fixes)
+
+Q4_EV = ("2020-12-31", "2021-02-10 07:30", "2021-02-24")
+
+
+def test_q4_fy_first_filed_after_f_gives_no_sue():
+    # FY value first appears 03-15, after f(pe)=02-24 (set by another field): no SUE.
+    facts = _facts(late={11: "2021-03-15"})
+    s = _sue(facts, _matched(Q4_EV))
+    assert np.isnan(s[T("2020-12-31")])
+
+
+def test_q4_pass_case_exact_value():
+    # Q4 = FY - (Q1+Q2+Q3) = 532 - (112+126+140) = 154; year-ago Q4 (k=7) = 138; diff 16.
+    # History d_4..d_10 = 2,4,...,14 (d_11 is the event itself, excluded).
+    s = _sue(_facts(), _matched(Q4_EV))
+    sd = np.sqrt(4 * np.var(np.arange(1, 8), ddof=1))
+    assert s[T("2020-12-31")] == pytest.approx(16 / sd)
+
+
+@pytest.mark.parametrize(
+    "acc, expected",
+    [
+        ("2021-04-27 16:00", "2021-04-28"),  # exactly 16:00 -> next trading day
+        ("2021-04-27 15:59", "2021-04-27"),
+        ("2021-04-27 10:00", "2021-04-27"),  # intraday -> same day
+        ("2021-05-01 10:00", "2021-05-03"),  # Saturday before 16:00 -> Monday
+    ],
+)
+def test_reaction_day_boundaries(acc, expected):
+    from src.pipeline.earnings_8k import reaction_day
+
+    assert reaction_day(T(acc), CAL) == T(expected)
+
+
+def test_reaction_day_holiday_before_close_maps_to_next_open_day():
+    from src.pipeline.earnings_8k import reaction_day
+
+    cal = CAL.drop(T("2021-05-31"))  # Memorial Day is not a trading day
+    assert reaction_day(T("2021-05-31 09:00"), cal) == T("2021-06-01")
+
+
+def test_builder_ignores_pre_calendar_8ks_in_stats():
+    stats = {}
+    cal = CAL[CAL >= "2021-01-01"]
+    d8 = _d8k("2005-03-01 08:00", "2021-04-27 07:30")
+    c1.build_c1_events(
+        "sue_e", {"A": (pev.first_filed(_facts()), d8)}, {}, SPY, cal, stats
+    )
+    assert stats["unmatched_8k"] == 0
