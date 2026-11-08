@@ -76,7 +76,7 @@ strategy claim through an honest, costed, PIT-correct gate.
   put shares on the price basis (`splits.SplitAdjuster`); a name without a split cache is excluded,
   never mis-sized.
 
-## Edge status (validated-edge phase — FIVE honest NEGATIVES; hunt CLOSED)
+## Edge status (validated-edge phase — SIX honest NEGATIVES; hunt CLOSED)
 No demonstrated edge on free data in any testable signal class — cross-sectional (`signal-eval`),
 time-series (`ts-eval`), or event-time (`pead-eval`):
 - **#1 Momentum** (~11yr): ~0 IC. 12-0 (plain 12-month return, `src/research/signal_panel.py`) is
@@ -119,6 +119,10 @@ Closes the down-cap/survivorship lead until paid data is justified.
   sue_r −2.49%→−2.36%/yr (51 negative-imputed-Q4-revenue events skipped); sue_e and ear
   unchanged (neither reads the revenue Q4-imputation path). Still all FAIL.**
   See `docs/research/2026-09-25-sec-duration-contamination-check.md`.
+- **#6 C1 announcement-date PEAD (2026-11-08, claim test):** SUE-E-a / SUE-R-a / EAR-a on the 8-K
+  Item 2.02 clock via `main.py c1-eval` — ALL FAIL (best p=0.34 vs 0.0167; SUE-E-a +0.47%/yr net).
+  The 8-K clock is a median 1 day before the first filing, so it adds little over #5. C1 CLOSED, no
+  variants. See `docs/research/2026-11-08-c1-announcement-pead-results.md`.
 
 ## Direction: PARKED (reframe executed 2026-06-10; stopping rule fired, counter 2 of 2)
 The pre-registered stopping rule (iters #5 AND #6 both negative → reframe, no relitigating)
@@ -137,7 +141,7 @@ five-negatives table. Active investment in this project has STOPPED.
   no verdict flipped to PASS; corrected numbers are now canonical (see "Errata results" sections in
   both docs).**
 - **Candidate claims** (listed, not scheduled; listing ≠ reopening): `docs/research/2026-09-26-candidate-claims.md`
-  (C1: announcement-date PEAD on the free 8-K Item 2.02 clock).
+  (C1 tested and CLOSED 2026-11-08: all FAIL. No open free-data claim remains.)
 - **Reopening criteria (pre-registered):** a genuinely NEW data tier (paid survivorship-free,
   e.g. down-cap + delisted) AND a fresh pre-registration, treated as a new project with its own
   budget decision. Re-tuning any iter-1–6 parameter is p-hacking, not reopening.

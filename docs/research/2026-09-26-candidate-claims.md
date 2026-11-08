@@ -10,6 +10,9 @@ with its own budget decision. Revisit only after the open errata re-runs (#2, #3
 
 ## C1 — Announcement-date PEAD on the free 8-K Item 2.02 clock (added 2026-09-26)
 
+> **CLOSED (2026-11-08):** pre-registered and run once. All three measures FAIL (best p = 0.34
+> vs 0.0167). See `docs/research/2026-11-08-c1-announcement-pead-results.md`.
+
 - **Why study #5 under-tests PEAD:** its events are 10-Q/10-K **filing** dates, typically days to weeks
   after the earnings press release. The post-announcement drift window is partly over before entry,
   and the filing-window "EAR" mixes in non-earnings news. The #5 verdict speaks to post-*filing* drift.

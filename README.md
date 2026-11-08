@@ -21,7 +21,7 @@ windows, and pass/fail gates locked *before* any result was seen), judged at
 multiple-testing-adjusted bars, and shipped with its verdict — including a stopping rule that was
 honored when it fired.
 
-## The headline result: five honest negatives
+## The headline result: six honest negatives
 
 | # | Study | Signal class | Verdict | Write-up |
 |---|-------|--------------|---------|----------|
@@ -30,6 +30,7 @@ honored when it fired.
 | 3 | Gross profitability, net issuance, asset growth | Cross-sectional | All flat; best t = 0.73 vs a Bonferroni 2.4 bar. **Corrected under errata: best t = 0.73 → 0.44; still all FAIL** | [new-factor-inputs results](docs/research/2026-06-09-new-factor-inputs-results.md), [errata](docs/research/2026-09-26-split-basis-errata.md) |
 | 4 | Regime overlay + vol-conditioning timing rules | Time-series | All five rules fail (best p = 0.070 vs 0.010); the legacy "validated 25-yr regime" claim killed with data | [TS timing results](docs/research/2026-06-10-ts-timing-study-results.md) |
 | 5 | PEAD / post-SEC-filing drift (SUE-E, SUE-R, EAR) | Event-time | All spreads *negative* net of costs; filing-reaction measure shows **reversal** (NW-t −2.04). **Corrected under errata: NW-t −2.04 → −1.96, still reversal; still FAIL. Addendum (2026-09-27, impossible imputed Q4 revenue): SUE-R −2.49% → −2.36%/yr, SUE-E and EAR unchanged; still FAIL** | [PEAD results](docs/research/2026-06-10-pead-event-drift-results.md), [errata](docs/research/2026-09-25-sec-duration-contamination-check.md) |
+| 6 | C1: announcement-date PEAD on the 8-K Item 2.02 clock (SUE-E-a, SUE-R-a, EAR-a) | Event-time | All FAIL (best p = 0.34 vs 0.0167). SUE-E-a net +0.47%/yr; the 8-K clock is a median 1 day earlier than the filing clock, so it adds little | [C1 results](docs/research/2026-11-08-c1-announcement-pead-results.md) |
 
 **Power caveat (2026-09-26):** measured after the fact, these studies had only 9–39% power
 against literature-plausible effects (IC 0.02, 1–2%/yr alpha). They are failures to reject, not proof
@@ -118,6 +119,7 @@ EAR-a). Locked one-shot run (spec: `docs/superpowers/specs/2026-11-08-c1-announc
 
 ```bash
 uv run ./main.py c1-eval --probe    # availability counts + match-rate fork; no returns
+uv run ./main.py c1-eval            # the locked run (done once, 2026-11-08: all FAIL)
 ```
 
 ### `exit-eval` — exit rules after large single-stock drops
