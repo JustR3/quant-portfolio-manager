@@ -230,3 +230,41 @@ def test_lag_d_plus_1_return_never_in_ear_spread(tmp_path, monkeypatch):
     _shock_days(b, days)
     shocked = c1.run_c1_eval_measures(**_kw(b, ["ear_a"])).measures[0]
     assert shocked["net_mean"] == pytest.approx(base["net_mean"], rel=1e-9)
+
+
+def test_data_no_go_stops_run_before_returns(tmp_path, monkeypatch):
+    w = _world(tmp_path)
+    monkeypatch.setattr(c1, "FORK_MIN_MATCH_RATE", 1.01)
+
+    def boom(*a, **k):
+        raise AssertionError("no returns may be built after a DATA NO-GO")
+
+    monkeypatch.setattr(c1, "_cash", boom)
+    with pytest.raises(ValueError, match="DATA NO-GO"):
+        c1.run_c1_eval_measures(**_kw(w, ["sue_e_a"]))
+
+
+def test_window_cut_happens_before_calendar_spread(tmp_path, monkeypatch):
+    w = _world(tmp_path)
+    seen = []
+    real = c1.pp.calendar_spread
+
+    def spy_spread(ev, *a, **k):
+        seen.append(ev["entry"].min())
+        return real(ev, *a, **k)
+
+    monkeypatch.setattr(c1.pp, "calendar_spread", spy_spread)
+    raw = c1._load_world(
+        w["sec_q_dir"], w["eight_k_dir"], w["price_dir"], w["ts_dir"], 20
+    )
+    ev = c1e.build_c1_events("sue_e", raw.inputs, raw.closes, raw.spy, raw.calendar)
+    assert ev["entry"].min() < c1.WINDOW_START  # the fixture has pre-window events
+    c1.run_c1_eval_measures(**_kw(w, ["sue_e_a"]))
+    assert seen and min(seen) >= c1.WINDOW_START
+
+
+def test_too_few_days_gives_inconclusive(tmp_path, monkeypatch):
+    w = _world(tmp_path)
+    monkeypatch.setattr(c1.V, "MIN_DAYS", 10**6)
+    m = c1.run_c1_eval_measures(**_kw(w, ["sue_e_a"])).measures[0]
+    assert m["verdict"] == c1.V.INCONCLUSIVE and m["pass"] is False

@@ -256,6 +256,12 @@ def run_c1_eval_measures(
         world.entry_cap,
     )
     probe = probe_counts(world)
+    if (
+        not probe["fork"] == "PASS"
+    ):  # spec §6: STOP on a data NO-GO, no returns are built
+        raise ValueError(
+            f"DATA NO-GO: match rate {probe['match_rate']:.4f} < {FORK_MIN_MATCH_RATE:.2f} (spec §6)"
+        )
     returns = {t: s.pct_change() for t, s in closes.items()}
     cash = _cash(ts_dir, calendar)
     spy_x = spy.pct_change() - cash
@@ -402,6 +408,8 @@ def run_c1_eval(args):
     if getattr(args, "probe", False):
         probe = run_c1_probe(horizon=args.horizon)
         print(render_probe(probe))
+        if probe["fork"] != "PASS":
+            raise SystemExit(4)  # DATA NO-GO (spec §6)
         return probe
     result = run_c1_eval_measures(
         horizon=args.horizon,

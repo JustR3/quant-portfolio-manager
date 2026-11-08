@@ -36,9 +36,17 @@ Window: entries 2015-02-01 to 2026-03-11; spread days 2,839–2,843 (about 11.3 
 
 **Important for interpretation:** the median gap between the earnings release and the first
 XBRL filing is **1 day**, and a third of events file the same day. For example, AAPL released
-after the close on 2026-07-30 and filed its 10-Q on 2026-07-31. So for most large caps the 8-K
-clock is only 0–1 day earlier than study #5's filing clock. The candidate-claims premise ("days to
-weeks after the press release") holds only for the slowest ~10% of filers.
+after the close on 2026-07-30 and filed its 10-Q on 2026-07-31. Counted on entries (SUE-E-a
+events; EAR-a is within 0.5 points): the 8-K clock enters **earlier** than the filing clock for
+53% of events, on the **same** close for 38%, and **later** for 8% (a same-day after-close 8-K
+moves the reaction day forward). The first filing comes 2 or more calendar days after the
+reaction day for 46% of events. So the candidate-claims premise ("days to weeks after the press
+release") holds for about half of the events, and for many only by a few days.
+
+**Late-clock cases not counted.** Spec §6 asked for two counts: a pre-open release whose 8-K was
+accepted after 16:00, and a 10-Q accepted before an after-close 8-K on the same day. The caches
+have no press-release time and no 10-Q acceptance time, so neither count can be made. The probe
+reports all after-close acceptances (8,740) instead, which is a different measure.
 
 ## Interpretation
 
@@ -47,8 +55,9 @@ weeks after the press release") holds only for the slowest ~10% of filers.
   3.2%/yr, which leaves +0.47%/yr net with p = 0.34. Only 1 of 3 sub-periods is positive.
 - **SUE-R-a and EAR-a show no direction.** Their quintile drift is U-shaped (both tails above the
   middle), as in study #5.
-- **EAR-a no longer shows reversal.** In #5, post-filing EAR had NW-t −1.96. On the 8-K clock it is
-  −0.17. The #5 reversal was most likely a filing-window effect, not an earnings-reaction effect.
+- **EAR-a does not show the #5 reversal.** In #5, post-filing EAR had NW-t −1.96. On the 8-K
+  clock it is −0.17. The scores, event sets and windows differ, and no test of the difference was
+  run, so the cause is not identified.
 - **Power is low, as stated before the run (spec §7).** Only EAR-a's CI excludes a +3% effect.
   A FAIL here rules out only large effects (above the MDE80: 4.9–10.6%/yr).
 
@@ -60,14 +69,18 @@ weeks after the press release") holds only for the slowest ~10% of filers.
 | SUE-R-a | −3.14% (0.811) | −16.6% |
 | EAR-a | −1.04% (0.637) | −12.2% |
 
-The earlier clock improves each measure by about 0.3–1.7%/yr against the same events on the
-filing clock, but none comes close to the bar. The H = 20 lines are deeply negative because the
-cost drag is about 3× larger at the shorter hold. 379 (SUE-E) and 250 (SUE-R) events had their
+The 8-K clock does better than the filing clock on the same events by about 0.3–1.7%/yr, but
+no measure comes close to the bar. The H = 20 lines are deeply negative; the H = 20 cost drag is
+not in the artifact, so the cause is not measured here. **Filing-clock EAR footnote:** for 1,701
+EAR events the first filing comes the trading day before the reaction day, so the filing-clock
+entry is the close that completes the EAR score (a one-close look-ahead in this diagnostic only;
+the gated EAR-a entry is d + 2 and is not affected). 379 (SUE-E) and 250 (SUE-R) events had their
 first filing more than 30 days after the reaction day. 50 imputed Q4 revenues < 0 were skipped
 (count over all periods).
 
 Note: `excluded_days` in the artifact (~5,550) counts SPY calendar days outside the event window
-(the calendar starts in 1993), not days lost to the min-10-per-leg rule.
+(the calendar starts in 1993), not days lost to the min-10-per-leg rule. The min-leg exclusion
+count and events per day (spec §4, §8) were not reported separately in this run.
 
 ## Caveats
 
