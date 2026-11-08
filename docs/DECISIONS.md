@@ -25,3 +25,9 @@ Mid-run choices, one line each, with the reason.
 - 2b same-day order under P1: sale proceeds pay for D top-ups first, then the rest is reinvested pro-rata (avoids a sell-then-buy round trip on the same open). Review #6.
 - 2b: a name held but not eligible at a rebalance (no open or no prior close) keeps entry = NaN, so B cannot stop it until it is eligible again. Rare; no change. Review #7.
 - 2b review #1 (Ask-user, not changed): coarse-cluster CIs keep the locked mean ± 1.96·SE; with 6 (OOS half-year) to 41 clusters this is too narrow. The report adds a supplementary t(G−1) CI.
+
+## 2026-11-08 C1 pre-registration (spec 2026-11-08-c1-announcement-pead-design.md)
+- Multi-8-K quarters: keep the LATEST matching Item 2.02 8-K, not the earliest. Reason: the reviewer found 1,063/20,544 periods with 2+ matches (median gap 15 days); the earlier one is usually a preannouncement without full net income. Latest is conservative (preannouncement information is already in price). Reversible before approval.
+- SUE entry at close d+1 (one close after the reaction day), EAR at d+2. Reason: no fill at a price the trader could not get; matches the #5 lag pattern.
+- New `c1-eval` subcommand instead of a `pead-eval` flag. Reason: keeps study #5 byte-identical and reproducible.
+- Reviewer findings 1, 3-11 applied as wording fixes inside the four user decisions (first-filing rule kept, real-time forward-test limits, verdict = INCONCLUSIVE per verdict.py, universe/window/denominator definitions, extra tests).
