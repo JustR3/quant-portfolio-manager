@@ -1,8 +1,8 @@
 # C1 — Announcement-Date PEAD on the 8-K Item 2.02 Clock (pre-registration)
 
 - **Date:** 2026-11-08
-- **Status:** DRAFT — awaiting user approval. Nothing in this file may change after approval
-  except through a dated amendment that is written before any spread is computed.
+- **Status:** APPROVED and LOCKED (user, 2026-11-08: "Approve, build it"). Nothing in this file
+  may change except through a dated amendment that is written before any spread is computed.
 - **Source claim:** `docs/research/2026-09-26-candidate-claims.md` (C1).
 - **Framing:** a claim test under the standing claim-tester job. It is **not** a reopening of the
   parked project (free data, no new data tier). It runs once.
