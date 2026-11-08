@@ -34,6 +34,7 @@ from src.pipeline.systematic_workflow import (
 from src.backtesting.engine import BacktestEngine
 from src.research.command import run_signal_eval
 from src.research.div_command import run_div_eval, exit_code as div_exit_code
+from src.research.c1_command import run_c1_eval
 from src.research.pead_command import run_pead_eval
 from src.research.ts_command import run_ts_eval
 
@@ -584,6 +585,52 @@ Examples:
         "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
     )
 
+    # C1-eval command (announcement-date PEAD on the 8-K Item 2.02 clock)
+    c1 = sub.add_parser(
+        "c1-eval",
+        help="C1: pre-registered announcement-date PEAD (8-K clock); --probe = availability only",
+        description="Announcement-date PEAD: calendar-time long-short quintile spreads on SUE-E-a, "
+        "SUE-R-a, EAR-a entered on the 8-K Item 2.02 clock "
+        "(spec: docs/superpowers/specs/2026-11-08-c1-announcement-pead-design.md). "
+        "Locked one-shot run; use --probe first (counts only, no returns).",
+    )
+    c1.add_argument(
+        "--probe",
+        action="store_true",
+        help="Print availability counts and the match-rate fork only (spec section 6); no returns",
+    )
+    c1.add_argument(
+        "--horizon",
+        type=int,
+        default=60,
+        help="Holding horizon in trading days (default 60)",
+    )
+    c1.add_argument(
+        "--min-leg",
+        dest="min_leg",
+        type=int,
+        default=10,
+        help="Min names per leg, else the day is excluded (default: 10)",
+    )
+    c1.add_argument(
+        "--cost-bps",
+        dest="cost_bps",
+        type=float,
+        default=10.0,
+        help="Per-side cost bps on daily weight changes (default: 10)",
+    )
+    c1.add_argument(
+        "--bootstrap-n",
+        dest="bootstrap_n",
+        type=int,
+        default=10000,
+        help="Stationary-bootstrap resamples (default: 10000)",
+    )
+    c1.add_argument("--seed", type=int, default=42, help="Bootstrap seed (default: 42)")
+    c1.add_argument(
+        "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
+    )
+
     exitp = sub.add_parser(
         "exit-eval",
         help="Pre-registered exit-rule test: stops vs hold vs cause rule after drops",
@@ -1054,6 +1101,21 @@ def main():
             traceback.print_exc()
             sys.exit(1)
         _exit_if_inconclusive(result)
+        return
+
+    # C1-eval command (announcement-date PEAD)
+    if args.module == "c1-eval":
+        print_header("C1 Announcement-Date PEAD")
+        try:
+            result = run_c1_eval(args)
+        except Exception as e:
+            print_msg(f"Error: {e}", "error")
+            import traceback
+
+            traceback.print_exc()
+            sys.exit(1)
+        if not args.probe:
+            _exit_if_inconclusive(result)
         return
 
     # Exit-rule test (pre-registered; no tunable flags)

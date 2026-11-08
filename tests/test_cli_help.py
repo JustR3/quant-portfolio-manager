@@ -152,3 +152,9 @@ def test_no_args_hint_does_not_point_to_the_removed_dcf_cli():
     assert result.returncode == 0
     assert "dcf_cli.py" not in result.stdout
     assert "dcf-valuation" in result.stdout
+
+
+def test_c1_eval_help_exits_zero():
+    result = run_cli("c1-eval", "--help")
+    assert result.returncode == 0
+    assert "2026-11-08-c1-announcement-pead-design.md" in result.stdout
