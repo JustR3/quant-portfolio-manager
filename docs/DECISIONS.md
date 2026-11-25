@@ -46,3 +46,4 @@ Mid-run choices, one line each, with the reason.
 - Months: complete calendar months only (1993-02 to the month before the newest bar), so A, B and C buy in the same months.
 - DCA: QPM has no Hypothesis dependency; the no-look-ahead test uses 30 seeded (seed, cut) cases instead of adding a dependency.
 - DCA: first study month = the month after the month of the first bar (1993-01-29 -> 1993-02), the same as the spec text for this data and safe for any start.
+- 2026-11-25 DCA locked run (dca-eval-20261125_200153.json): FAIL. A vs B g +0.003%/yr (90% CI -0.012..+0.011); A vs C g +0.030%/yr (CI +0.013..+0.040). Data fetched 19:01 UTC, partial 2026-11-25 bar dropped by the session rule.
