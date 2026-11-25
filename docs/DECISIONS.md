@@ -39,3 +39,8 @@ Mid-run choices, one line each, with the reason.
 - excluded_days counts SPY calendar days since 1993; the min-leg exclusion count and events/day were not reported separately. Noted in the results doc; not re-run.
 - Spec §10 names tests/test_readme_commands.py; this repo's README command test is tests/test_cli_help.py (c1-eval --help test added there). Documentation-only mismatch; spec text not changed.
 - Added a DATA NO-GO stop (run raises before returns; --probe exits 4) and tests for the stop, the 2015-02-01 window cut, and the INCONCLUSIVE path. The fork passed (97.0%), so the locked run is unaffected.
+
+## 2026-11-25 DCA RSI(2) timing pre-registration (spec 2026-11-25-dca-rsi2-timing-design.md)
+- User intake: repo layout (src/research + main.py dca-eval), new store data/historical/dca/prices/ (ts store untouched), a pre-registered gate (90% CI lower bound of the annualised gain > 0 vs both B and C), 12-month circular block bootstrap.
+- Annualised gain = (1 + G)^(1/T) - 1 with T the money-weighted mean holding time: it can be bootstrapped from the monthly advantages (IRR cannot), and IRR is reported as a descriptive check.
+- Months: complete calendar months only (1993-02 to the month before the newest bar), so A, B and C buy in the same months.
