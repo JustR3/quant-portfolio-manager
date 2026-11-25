@@ -164,3 +164,4 @@ One line per checkpoint. Newest at the bottom.
 - 2026-11-25 DCA RSI(2) task 1: src/research/dca_eval.py (rsi, study_months, month_buys, buy_ledger, metrics with G identity, block bootstrap, gate) + 42 tests; Batch TDD; suite 664 passed
 - 2026-11-25 DCA RSI(2) task 2: tools/download_dca_spy.py (separate store + fetch time), src/research/dca_command.py, main.py dca-eval, README section, tests/test_dca_command.py (session cut, age check, offline smoke, CLI + README command)
 - 2026-11-25 DCA task 3: locked run FAIL (A vs B CI includes 0); results docs/research/2026-11-25-dca-rsi2-timing-results.md
+- 2026-11-25 DCA task 4: review triage (download guard, INCONCLUSIVE path, 4 tests, results doc notes, data incident note); Ask-user: edge tables

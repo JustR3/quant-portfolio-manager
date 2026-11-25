@@ -5,9 +5,11 @@ store's (field, ticker) format and SPY.meta.json with the UTC fetch time; dca-ev
 after the last closed session at that time.
 
 Spec: docs/superpowers/specs/2026-11-25-dca-rsi2-timing-design.md (Data).
-Usage: uv run python tools/download_dca_spy.py
+Usage: uv run python tools/download_dca_spy.py            # refuses to overwrite a store
+       uv run python tools/download_dca_spy.py --force    # replace the store (new data)
 """
 
+import argparse
 import json
 from pathlib import Path
 
@@ -19,6 +21,16 @@ START = "1993-01-01"
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser(
+        description="Download SPY into data/historical/dca/ (network)."
+    )
+    ap.add_argument("--force", action="store_true", help="overwrite an existing store")
+    args = ap.parse_args()
+    target = BASE / "prices" / "SPY.parquet"
+    if target.exists() and not args.force:
+        raise SystemExit(
+            f"{target} exists; a locked run may depend on it. Use --force."
+        )
     fetched_at = pd.Timestamp.now(tz="UTC")
     data = yf.download(
         ["SPY"], start=START, auto_adjust=False, progress=False, group_by="column"

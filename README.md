@@ -130,7 +130,7 @@ the annualised gain is above 0 against both B and C. Locked settings in
 The SPY store is separate (`data/historical/dca/`), so the ts store is not changed.
 
 ```bash
-uv run python tools/download_dca_spy.py   # network: SPY from 1993 + fetch time
+uv run python tools/download_dca_spy.py   # network: SPY from 1993 + fetch time (--force to replace)
 uv run ./main.py dca-eval                 # the locked run; JSON to data/research/
 ```
 

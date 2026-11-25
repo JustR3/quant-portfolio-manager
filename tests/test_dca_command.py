@@ -90,3 +90,81 @@ def test_cli_help_and_readme_command():
     assert "uv run ./main.py dca-eval" in readme
     assert "uv run python tools/download_dca_spy.py" in readme
     assert (PROJECT_ROOT / "tools" / "download_dca_spy.py").exists()
+
+
+def test_too_few_months_is_inconclusive_and_exits_3(tmp_path):
+    fake_store(tmp_path / "s", n=60)  # under 3 months of bars
+    px, _ = dc.load_store(tmp_path / "s")
+    fetched = (px.index.max() + pd.Timedelta(hours=22)).tz_localize("UTC")
+    (tmp_path / "s" / "SPY.meta.json").write_text(
+        json.dumps({"fetched_at": fetched.isoformat()})
+    )
+    res = dc.evaluate(dc.prepare(px, fetched), fetched)
+    assert (
+        res.data["verdict"] == "INCONCLUSIVE"
+        and "months" in res.data["inconclusive_reason"]
+    )
+    assert "INCONCLUSIVE" in res.render()
+    out = subprocess.run(
+        [
+            sys.executable,
+            str(PROJECT_ROOT / "main.py"),
+            "dca-eval",
+            "--base-dir",
+            str(tmp_path / "s"),
+            "--export",
+            str(tmp_path / "o"),
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert out.returncode == 3, out.stdout + out.stderr
+
+
+def test_one_bootstrap_draw_shared_by_b_and_c(tmp_path, monkeypatch):
+    fake_store(tmp_path / "s")
+    px, _ = dc.load_store(tmp_path / "s")
+    fetched = (px.index.max() + pd.Timedelta(hours=22)).tz_localize("UTC")
+    calls = []
+    orig = dc.de.block_positions
+    monkeypatch.setattr(
+        dc.de, "block_positions", lambda *a, **k: calls.append(a) or orig(*a, **k)
+    )
+    dc.evaluate(dc.prepare(px, fetched), fetched)
+    assert len(calls) == 1
+
+
+def test_signal_uses_raw_close_and_buys_use_adjusted(tmp_path):
+    fake_store(tmp_path / "s")
+    px, _ = dc.load_store(tmp_path / "s")
+    fetched = (px.index.max() + pd.Timedelta(hours=22)).tz_localize("UTC")
+    base = dc.evaluate(dc.prepare(px, fetched), fetched).data
+    # A different adjustment path: buy prices change, the signal (raw close) does not.
+    alt = px.assign(adj=px["adj"] * np.linspace(1.0, 1.3, len(px)))
+    got = dc.evaluate(dc.prepare(alt, fetched), fetched).data
+    assert got["A"]["share_on_rsi"] == base["A"]["share_on_rsi"]
+    assert got["B"]["tw"] != base["B"]["tw"]
+
+
+def test_download_tool_refuses_to_overwrite(tmp_path):
+    (tmp_path / "data/historical/dca/prices").mkdir(parents=True)
+    (tmp_path / "data/historical/dca/prices/SPY.parquet").write_bytes(b"x")
+    out = subprocess.run(
+        [sys.executable, str(PROJECT_ROOT / "tools" / "download_dca_spy.py")],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert out.returncode != 0 and "--force" in out.stderr
+    help_out = subprocess.run(
+        [sys.executable, str(PROJECT_ROOT / "tools" / "download_dca_spy.py"), "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert help_out.returncode == 0 and "--force" in help_out.stdout
+    assert (tmp_path / "data/historical/dca/prices/SPY.parquet").read_bytes() == b"x"

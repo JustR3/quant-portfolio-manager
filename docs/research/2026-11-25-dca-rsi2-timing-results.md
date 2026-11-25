@@ -27,8 +27,9 @@ day (the same day as C).
   above 0, but 10 times smaller than the < 0.3 %/yr expected in the brief.
 - On 1,000 USD a month for 33.75 years (405,000 USD paid in), A ended with 3,568,732 USD,
   B with 3,566,366 USD (+2,366 USD for A) and C with 3,543,837 USD (+24,895 USD for A).
-- A beats C mostly because C waits to the end of the month in a market that rises: A buys
-  earlier on average. Against B, which buys earlier than A, the timing gain is gone.
+- Hypothesis, not measured: A beats C mostly because C waits to the end of the month in a
+  market that rises, and A buys earlier. Against B, which buys earlier than A, the timing
+  gain is gone.
 - The IRR gap differs from g because IRR also counts time: A buys later than B (so A's IRR
   gap vs B is larger than g) and earlier than C (so its gap vs C is smaller than g).
 
@@ -43,8 +44,8 @@ Monthly difference `a_m = adj_X / adj_A − 1` (extra shares per dollar for A):
 | B | −0.017 % | −4.58 % | −1.19 % | +0.22 % | +1.48 % | +3.45 % | 53.6 % | 10.1 % | 36.3 % |
 | C | +0.650 % | −5.20 % | −0.90 % | +0.29 % | +2.53 % | +6.44 % | 53.3 % | 13.1 % | 33.6 % |
 
-The monthly spread is wide (±5 %) but it nearly averages out: an oversold day is often
-followed by lower prices within the same month.
+The monthly spread is wide (±5 %) but it nearly averages out against B. Why (for example,
+lower prices after an oversold day in the same month) is not measured here.
 
 ## Limits (declared in the spec)
 
@@ -52,7 +53,29 @@ One asset, one threshold, one cost, no grid. The block bootstrap (12-month block
 blocks as exchangeable. Survivorship does not apply (SPY). The 2 bps cost is the same for
 all rules, so it does not change the comparison.
 
+Found in review (none changes the verdict):
+- The bootstrap keeps each month's weight and resamples the advantages, as the spec says. So
+  its replicates centre on the plain mean of `a`, not on G (vs B: replicate mean −0.012 %/yr,
+  G-based g +0.003 %/yr). A re-centred CI, or resampling (weight, advantage) pairs together,
+  gives a B lower bound of about −0.009 % / −0.007 %/yr: still below 0, still FAIL.
+- `T` is weighted by shares (each buy's share of terminal value), not by money paid in. The
+  spec calls it "money-weighted"; the formula in the spec is what the code uses.
+- A reads RSI(2) at the close of day d and buys at the same close. A real buyer acts after
+  the signal, so this likely favours A. A next-close buy was not tested.
+
 ## What follows
 
-Nothing. Plain fixed-day DCA is as good. Under the QPM protocol a FAIL closes this claim; no
-variants (other thresholds, assets or exits) without a new pre-registration.
+Nothing. First-day DCA (B) is as good as RSI(2) timing. Last-day DCA (C) is slightly worse
+(0.03 %/yr), which is a reason not to wait for the end of the month, not a reason to time.
+Under the QPM protocol a FAIL closes this claim; no variants (other thresholds, assets or
+exits) without a new pre-registration.
+
+## Data incident (2026-11-25, after the locked run)
+
+During review, `tools/download_dca_spy.py` was run with `--help`. The tool then had no
+argument parser, so it downloaded again and replaced the store (new sha256 prefix
+`dab3e5d080095176`, fetched 19:04:52 UTC; no backup of the locked file exists). The locked
+artifact `dca-eval-20261125_200153.json` is not affected. The study was evaluated again in
+memory on the new file (no new artifact): FAIL, the same g and CIs to about 1e-9, A's terminal
+wealth −0.12 USD. The tool now refuses to overwrite a store without `--force`, and `--help`
+no longer downloads.

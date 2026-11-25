@@ -82,6 +82,8 @@ class DcaResult:
 
     def render(self) -> str:
         d = self.data
+        if "A" not in d:
+            return f"DCA RSI(2) timing — VERDICT: {d['verdict']} ({d['inconclusive_reason']})"
         L = [
             f"DCA RSI(2) timing — SPY, {d['months']} months {d['first_month']}..{d['last_month']}, "
             f"end {d['end']}",
@@ -112,6 +114,22 @@ class DcaResult:
 
 def evaluate(px: pd.DataFrame, fetched_at: pd.Timestamp) -> DcaResult:
     months = de.study_months(px.index)
+    if (
+        len(months) < MIN_MONTHS
+    ):  # gate first: too few months is INCONCLUSIVE, not an error
+        verdict, reason = de.gate(
+            1.0, 1.0, len(months), MIN_MONTHS
+        )  # -> "only n months"
+        data = {
+            "spec": SPEC,
+            "ticker": TICKER,
+            "fetched_at": fetched_at.isoformat(),
+            "months": len(months),
+            "verdict": verdict,
+            "inconclusive_reason": reason,
+            "pass": False,
+        }
+        return DcaResult(data, rules=[{"rule": "A", "verdict": verdict}])
     r = de.rsi(px["close"], RSI_N)
     buys = de.month_buys(px.index, r, months, THRESHOLD)
     led = de.buy_ledger(px["adj"], buys, AMOUNT, COST)
