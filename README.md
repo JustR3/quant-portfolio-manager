@@ -21,7 +21,7 @@ windows, and pass/fail gates locked *before* any result was seen), judged at
 multiple-testing-adjusted bars, and shipped with its verdict — including a stopping rule that was
 honored when it fired.
 
-## The headline result: six honest negatives
+## The headline result: seven honest negatives
 
 | # | Study | Signal class | Verdict | Write-up |
 |---|-------|--------------|---------|----------|
@@ -31,6 +31,7 @@ honored when it fired.
 | 4 | Regime overlay + vol-conditioning timing rules | Time-series | All five rules fail (best p = 0.070 vs 0.010); the legacy "validated 25-yr regime" claim killed with data | [TS timing results](docs/research/2026-06-10-ts-timing-study-results.md) |
 | 5 | PEAD / post-SEC-filing drift (SUE-E, SUE-R, EAR) | Event-time | All spreads *negative* net of costs; filing-reaction measure shows **reversal** (NW-t −2.04). **Corrected under errata: NW-t −2.04 → −1.96, still reversal; still FAIL. Addendum (2026-09-27, impossible imputed Q4 revenue): SUE-R −2.49% → −2.36%/yr, SUE-E and EAR unchanged; still FAIL** | [PEAD results](docs/research/2026-06-10-pead-event-drift-results.md), [errata](docs/research/2026-09-25-sec-duration-contamination-check.md) |
 | 6 | C1: announcement-date PEAD on the 8-K Item 2.02 clock (SUE-E-a, SUE-R-a, EAR-a) | Event-time | All FAIL (best p = 0.34 vs 0.0167). SUE-E-a net +0.47%/yr; the 8-K clock is a median 1 day earlier than the filing clock, so it adds little | [C1 results](docs/research/2026-11-08-c1-announcement-pead-results.md) |
+| 7 | DCA purchase timing: buy SPY on the first RSI(2) < 15 day of the month vs the first or last trading day (1993-2026, 405 months) | Time-series (purchase timing) | FAIL: the gate needs the 90% CI lower bound > 0 vs both controls. Vs the first day +0.003%/yr (CI −0.012% to +0.011%); vs the last day +0.030%/yr (CI +0.013% to +0.040%) | [DCA results](docs/research/2026-11-25-dca-rsi2-timing-results.md) |
 
 **Power caveat (2026-09-26):** measured after the fact, these studies had only 9–39% power
 against literature-plausible effects (IC 0.02, 1–2%/yr alpha). They are failures to reject, not proof
@@ -222,7 +223,7 @@ feasibility ([PIT fundamentals](docs/research/2026-06-05-pit-fundamentals-feasib
 [SEC PIT spike](docs/research/2026-06-08-sec-edgar-pit-spike.md)),
 calibration ([cost sensitivity](docs/research/2026-06-07-cost-sensitivity.md),
 [net-issuance splits](docs/research/2026-06-09-net-issuance-splits-spike.md)),
-and the six verdicts in the table above. Diversification diagnostic (`uv run ./main.py div-eval`): NO-GO, see [diag-1 results](docs/research/2026-10-24-effective-bets-diagnostic-results.md). Design history lives in
+and the seven verdicts in the table above. Diversification diagnostic (`uv run ./main.py div-eval`): NO-GO, see [diag-1 results](docs/research/2026-10-24-effective-bets-diagnostic-results.md). Design history lives in
 [docs/superpowers/specs/](docs/superpowers/specs/) and [plans](docs/superpowers/plans/).
 Legacy feature guides ([regime/gods](docs/REGIME_AND_GODS_GUIDE.md),
 [130/30](docs/LONG_SHORT_130_30.md)) carry retraction banners and are kept as mechanism
