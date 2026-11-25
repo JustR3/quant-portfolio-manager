@@ -17,7 +17,7 @@ An **honest point-in-time equity research harness** — three decoupled evaluati
 (`signal-eval` cross-sectional, `ts-eval` time-series, `pead-eval` event-time), two SEC PIT data
 pipelines (FY + quarterly), and integrity-guarded price stores — wrapped around a legacy
 factor → Black-Litterman portfolio tool with a walk-forward backtester. The edge hunt is CLOSED
-(five pre-registered negatives, see below); the repo's standing job is **claim-tester**: put any
+(seven pre-registered negatives, see below); the repo's standing job is **claim-tester**: put any
 strategy claim through an honest, costed, PIT-correct gate.
 
 ## Run it
@@ -132,7 +132,7 @@ Closes the down-cap/survivorship lead until paid data is justified.
 ## Direction: PARKED (reframe executed 2026-06-10; stopping rule fired, counter 2 of 2)
 The pre-registered stopping rule (iters #5 AND #6 both negative → reframe, no relitigating)
 **fired** and the reframe is **done**: the README now leads with the harness identity and the
-five-negatives table. Active investment in this project has STOPPED.
+seven-negatives table. Active investment in this project has STOPPED.
 - **Standing job: claim-tester.** Any new strategy claim gets an afternoon through the relevant
   harness — pre-registered gate, realistic costs, PIT data — before it earns another minute.
 - **Errata protocol (adopted 2026-09-26).** A correctness fix (a data/pipeline bug, not a
@@ -151,7 +151,7 @@ five-negatives table. Active investment in this project has STOPPED.
 - **Reopening criteria (pre-registered):** a genuinely NEW data tier (paid survivorship-free,
   e.g. down-cap + delisted) AND a fresh pre-registration, treated as a new project with its own
   budget decision. Re-tuning any iter-1–6 parameter is p-hacking, not reopening.
-- **Deferred indefinitely:** a public write-up of the five-negatives journey (user will decide
+- **Deferred indefinitely:** a public write-up of the seven-negatives journey (user will decide
   later); BL view calibration, composites, automation — nothing earned them.
 
 ## Deferred (not built)

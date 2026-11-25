@@ -5,7 +5,7 @@
 ![Status](https://img.shields.io/badge/status-Parked%20(research%20artifact)-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
 
-> **An honest point-in-time (PIT) equity research harness — and the five pre-registered
+> **An honest point-in-time (PIT) equity research harness — and the seven pre-registered
 > negative results it produced.**
 
 This project set out to find tradable edge on free data with a factor → Black-Litterman pipeline.
@@ -13,7 +13,7 @@ It ended somewhere more valuable: a rigorously honest research harness — three
 evaluation gates, two SEC PIT data pipelines, integrity-guarded price stores — and a definitive,
 pre-registered answer to its own question:
 
-**There is no demonstrated edge on free, survivorship-biased US large-cap data — confirmed five
+**There is no demonstrated edge on free, survivorship-biased US large-cap data — confirmed seven
 times, across every signal class that data can test.**
 
 The methodology is the product. Every study below was pre-registered (signals, parameters,
