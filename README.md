@@ -122,6 +122,18 @@ uv run ./main.py c1-eval --probe    # availability counts + match-rate fork; no 
 uv run ./main.py c1-eval            # the locked run (done once, 2026-11-08: all FAIL)
 ```
 
+### `dca-eval` — RSI(2) purchase timing for a monthly contribution
+Monthly fixed-USD SPY buy: rule A (first close of the month with RSI(2) < 15, else the last
+day) vs B (first trading day) and C (last trading day). Gate: the 90% block-bootstrap CI of
+the annualised gain is above 0 against both B and C. Locked settings in
+`src/research/dca_command.py` (spec: `docs/superpowers/specs/2026-11-25-dca-rsi2-timing-design.md`).
+The SPY store is separate (`data/historical/dca/`), so the ts store is not changed.
+
+```bash
+uv run python tools/download_dca_spy.py   # network: SPY from 1993 + fetch time
+uv run ./main.py dca-eval                 # the locked run; JSON to data/research/
+```
+
 ### `exit-eval` — exit rules after large single-stock drops
 Pre-registered test of no stop vs a -10% hard stop vs a cause rule (8-K Item 2.02 timing) after
 residual shocks, with an event study and an equal-weight portfolio comparison. All settings are
@@ -235,7 +247,7 @@ Optional: `FRED_API_KEY` in `config/secrets.env` for live risk-free rates in the
 ## Project structure
 
 ```
-├── main.py                      # CLI: signal-eval | ts-eval | pead-eval | exit-eval | exit-eval-2b | optimize | backtest | verify | portfolio
+├── main.py                      # CLI: signal-eval | ts-eval | pead-eval | exit-eval | exit-eval-2b | dca-eval | optimize | backtest | verify | portfolio
 ├── src/
 │   ├── research/                # the three harnesses (panels, metrics, gates, CLIs)
 │   ├── pipeline/                # price store (identity-guarded), SEC PIT pipelines (FY + quarterly), universe

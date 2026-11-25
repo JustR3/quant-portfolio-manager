@@ -162,3 +162,4 @@ One line per checkpoint. Newest at the bottom.
 - 2026-11-08 C1 tasks 3-4: probe (97.0% match, fork PASS); locked run c1-eval-20261108_123431.json — all FAIL (best p 0.34); results doc, README/CLAUDE edge tables (six negatives), candidate-claims C1 CLOSED
 - 2026-11-08 C1 final review: 10 findings triaged (doc fixes, NO-GO stop guard, 3 new tests); FAIL verdict unchanged
 - 2026-11-25 DCA RSI(2) task 1: src/research/dca_eval.py (rsi, study_months, month_buys, buy_ledger, metrics with G identity, block bootstrap, gate) + 42 tests; Batch TDD; suite 664 passed
+- 2026-11-25 DCA RSI(2) task 2: tools/download_dca_spy.py (separate store + fetch time), src/research/dca_command.py, main.py dca-eval, README section, tests/test_dca_command.py (session cut, age check, offline smoke, CLI + README command)

@@ -35,6 +35,7 @@ from src.backtesting.engine import BacktestEngine
 from src.research.command import run_signal_eval
 from src.research.div_command import run_div_eval, exit_code as div_exit_code
 from src.research.c1_command import run_c1_eval
+from src.research.dca_command import run_dca_eval
 from src.research.pead_command import run_pead_eval
 from src.research.ts_command import run_ts_eval
 
@@ -631,6 +632,26 @@ Examples:
         "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
     )
 
+    dca = sub.add_parser(
+        "dca-eval",
+        help="Pre-registered DCA timing test: monthly SPY buy on an RSI(2)<15 day vs fixed days",
+        description="Monthly fixed-USD SPY purchase: rule A (first RSI(2)<15 close of the month, "
+        "else the last day) vs B (first day) and C (last day); block-bootstrap 90% CI of the "
+        "annualised gain; all settings locked "
+        "(spec: docs/superpowers/specs/2026-11-25-dca-rsi2-timing-design.md). Offline; "
+        "download first with tools/download_dca_spy.py.",
+    )
+    dca.add_argument(
+        "--base-dir",
+        dest="base_dir",
+        type=str,
+        default=None,
+        help="Store with prices/SPY.parquet and SPY.meta.json (default: data/historical/dca)",
+    )
+    dca.add_argument(
+        "--export", type=str, metavar="DIR", help="Directory for the JSON artifact"
+    )
+
     exitp = sub.add_parser(
         "exit-eval",
         help="Pre-registered exit-rule test: stops vs hold vs cause rule after drops",
@@ -1094,6 +1115,20 @@ def main():
         print_header("PEAD Event-Drift Study")
         try:
             result = run_pead_eval(args)
+        except Exception as e:
+            print_msg(f"Error: {e}", "error")
+            import traceback
+
+            traceback.print_exc()
+            sys.exit(1)
+        _exit_if_inconclusive(result)
+        return
+
+    # DCA-eval command (RSI(2) purchase timing)
+    if args.module == "dca-eval":
+        print_header("DCA RSI(2) Purchase Timing")
+        try:
+            result = run_dca_eval(args)
         except Exception as e:
             print_msg(f"Error: {e}", "error")
             import traceback
