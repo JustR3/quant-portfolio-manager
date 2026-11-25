@@ -2,7 +2,8 @@
 
 Date: 2026-11-25. Spec (pre-registered, pushed before any purchase price was computed):
 `docs/superpowers/specs/2026-11-25-dca-rsi2-timing-design.md` (commit c191fad).
-Locked run: `uv run ./main.py dca-eval` → `data/research/dca-eval-20261125_200153.json`.
+Locked run: `uv run ./main.py dca-eval` → `data/research/dca-eval-20261125_200153.json`. (This file
+and the store are lost; see "Lost artifact" below. This doc is now the record.)
 Data: Yahoo SPY 1993-01-29 to 2026-11-24 (fetched 2026-11-25 19:01 UTC; the partial bar of
 2026-11-25 was dropped), `data/historical/dca/prices/SPY.parquet` sha256 prefix
 `9dfacb8e6e5b2147`. 405 study months, 1993-02 to 2026-10; end date 2026-10-30.
@@ -79,3 +80,20 @@ artifact `dca-eval-20261125_200153.json` is not affected. The study was evaluate
 memory on the new file (no new artifact): FAIL, the same g and CIs to about 1e-9, A's terminal
 wealth −0.12 USD. The tool now refuses to overwrite a store without `--force`, and `--help`
 no longer downloads.
+
+## Lost artifact (2026-11-25, after the merge of PR 36)
+
+The cleanup after the merge ran `git worktree remove` on the study worktree. That command also
+deletes git-ignored files, and all of `data/` is git-ignored. So two files were deleted, and no
+copy exists (no backup could be mounted):
+- `data/research/dca-eval-20261125_200153.json`, the JSON artifact of the locked run.
+- `data/historical/dca/` (`SPY.parquet`, `SPY.meta.json`), the store. After the data incident
+  above it was already not the locked file.
+
+The verdict does not change. This doc holds every figure of the locked run (verdict, G, g, CIs,
+IRR, average prices, the monthly-difference distribution) and is now the record of the run. The
+printed output of the run is also in the session transcript (not in the repo).
+
+No new run is made: a new download is new data, so a new run would not be the locked run. If the
+code must be checked again, `tools/download_dca_spy.py` and `main.py dca-eval` make a new store and
+a new artifact with a new timestamp. That run is a check, not the result.
