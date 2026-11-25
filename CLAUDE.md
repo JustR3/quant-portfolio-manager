@@ -17,7 +17,7 @@ An **honest point-in-time equity research harness** — three decoupled evaluati
 (`signal-eval` cross-sectional, `ts-eval` time-series, `pead-eval` event-time), two SEC PIT data
 pipelines (FY + quarterly), and integrity-guarded price stores — wrapped around a legacy
 factor → Black-Litterman portfolio tool with a walk-forward backtester. The edge hunt is CLOSED
-(five pre-registered negatives, see below); the repo's standing job is **claim-tester**: put any
+(seven pre-registered negatives, see below); the repo's standing job is **claim-tester**: put any
 strategy claim through an honest, costed, PIT-correct gate.
 
 ## Run it
@@ -76,7 +76,7 @@ strategy claim through an honest, costed, PIT-correct gate.
   put shares on the price basis (`splits.SplitAdjuster`); a name without a split cache is excluded,
   never mis-sized.
 
-## Edge status (validated-edge phase — SIX honest NEGATIVES; hunt CLOSED)
+## Edge status (validated-edge phase — SEVEN honest NEGATIVES; hunt CLOSED)
 No demonstrated edge on free data in any testable signal class — cross-sectional (`signal-eval`),
 time-series (`ts-eval`), or event-time (`pead-eval`):
 - **#1 Momentum** (~11yr): ~0 IC. 12-0 (plain 12-month return, `src/research/signal_panel.py`) is
@@ -123,11 +123,16 @@ Closes the down-cap/survivorship lead until paid data is justified.
   Item 2.02 clock via `main.py c1-eval` — ALL FAIL (best p=0.34 vs 0.0167; SUE-E-a +0.47%/yr net).
   The 8-K clock is a median 1 day before the first filing, so it adds little over #5. C1 CLOSED, no
   variants. See `docs/research/2026-11-08-c1-announcement-pead-results.md`.
+- **#7 DCA RSI(2) purchase timing (2026-11-25, claim test):** monthly 1,000 USD SPY buy on the
+  first RSI(2) < 15 close of the month vs the first (B) and last (C) trading day, 405 months, via
+  `main.py dca-eval` — FAIL (gate: 90% CI lower bound of the annualised gain > 0 vs B and C).
+  Vs B +0.003%/yr (CI −0.012%..+0.011%); vs C +0.030%/yr (CI +0.013%..+0.040%). CLOSED, no
+  variants. See `docs/research/2026-11-25-dca-rsi2-timing-results.md`.
 
 ## Direction: PARKED (reframe executed 2026-06-10; stopping rule fired, counter 2 of 2)
 The pre-registered stopping rule (iters #5 AND #6 both negative → reframe, no relitigating)
 **fired** and the reframe is **done**: the README now leads with the harness identity and the
-five-negatives table. Active investment in this project has STOPPED.
+seven-negatives table. Active investment in this project has STOPPED.
 - **Standing job: claim-tester.** Any new strategy claim gets an afternoon through the relevant
   harness — pre-registered gate, realistic costs, PIT data — before it earns another minute.
 - **Errata protocol (adopted 2026-09-26).** A correctness fix (a data/pipeline bug, not a
@@ -141,11 +146,12 @@ five-negatives table. Active investment in this project has STOPPED.
   no verdict flipped to PASS; corrected numbers are now canonical (see "Errata results" sections in
   both docs).**
 - **Candidate claims** (listed, not scheduled; listing ≠ reopening): `docs/research/2026-09-26-candidate-claims.md`
-  (C1 tested and CLOSED 2026-11-08: all FAIL. No open free-data claim remains.)
+  (C1 tested and CLOSED 2026-11-08: all FAIL. DCA RSI(2) timing, #7, tested and CLOSED
+  2026-11-25: FAIL. No open free-data claim remains.)
 - **Reopening criteria (pre-registered):** a genuinely NEW data tier (paid survivorship-free,
   e.g. down-cap + delisted) AND a fresh pre-registration, treated as a new project with its own
   budget decision. Re-tuning any iter-1–6 parameter is p-hacking, not reopening.
-- **Deferred indefinitely:** a public write-up of the five-negatives journey (user will decide
+- **Deferred indefinitely:** a public write-up of the seven-negatives journey (user will decide
   later); BL view calibration, composites, automation — nothing earned them.
 
 ## Deferred (not built)

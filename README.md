@@ -5,7 +5,7 @@
 ![Status](https://img.shields.io/badge/status-Parked%20(research%20artifact)-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
 
-> **An honest point-in-time (PIT) equity research harness — and the five pre-registered
+> **An honest point-in-time (PIT) equity research harness — and the seven pre-registered
 > negative results it produced.**
 
 This project set out to find tradable edge on free data with a factor → Black-Litterman pipeline.
@@ -13,7 +13,7 @@ It ended somewhere more valuable: a rigorously honest research harness — three
 evaluation gates, two SEC PIT data pipelines, integrity-guarded price stores — and a definitive,
 pre-registered answer to its own question:
 
-**There is no demonstrated edge on free, survivorship-biased US large-cap data — confirmed five
+**There is no demonstrated edge on free, survivorship-biased US large-cap data — confirmed seven
 times, across every signal class that data can test.**
 
 The methodology is the product. Every study below was pre-registered (signals, parameters,
@@ -21,7 +21,7 @@ windows, and pass/fail gates locked *before* any result was seen), judged at
 multiple-testing-adjusted bars, and shipped with its verdict — including a stopping rule that was
 honored when it fired.
 
-## The headline result: six honest negatives
+## The headline result: seven honest negatives
 
 | # | Study | Signal class | Verdict | Write-up |
 |---|-------|--------------|---------|----------|
@@ -31,6 +31,7 @@ honored when it fired.
 | 4 | Regime overlay + vol-conditioning timing rules | Time-series | All five rules fail (best p = 0.070 vs 0.010); the legacy "validated 25-yr regime" claim killed with data | [TS timing results](docs/research/2026-06-10-ts-timing-study-results.md) |
 | 5 | PEAD / post-SEC-filing drift (SUE-E, SUE-R, EAR) | Event-time | All spreads *negative* net of costs; filing-reaction measure shows **reversal** (NW-t −2.04). **Corrected under errata: NW-t −2.04 → −1.96, still reversal; still FAIL. Addendum (2026-09-27, impossible imputed Q4 revenue): SUE-R −2.49% → −2.36%/yr, SUE-E and EAR unchanged; still FAIL** | [PEAD results](docs/research/2026-06-10-pead-event-drift-results.md), [errata](docs/research/2026-09-25-sec-duration-contamination-check.md) |
 | 6 | C1: announcement-date PEAD on the 8-K Item 2.02 clock (SUE-E-a, SUE-R-a, EAR-a) | Event-time | All FAIL (best p = 0.34 vs 0.0167). SUE-E-a net +0.47%/yr; the 8-K clock is a median 1 day earlier than the filing clock, so it adds little | [C1 results](docs/research/2026-11-08-c1-announcement-pead-results.md) |
+| 7 | DCA purchase timing: buy SPY on the first RSI(2) < 15 day of the month vs the first or last trading day (1993-2026, 405 months) | Time-series (purchase timing) | FAIL: the gate needs the 90% CI lower bound > 0 vs both controls. Vs the first day +0.003%/yr (CI −0.012% to +0.011%); vs the last day +0.030%/yr (CI +0.013% to +0.040%) | [DCA results](docs/research/2026-11-25-dca-rsi2-timing-results.md) |
 
 **Power caveat (2026-09-26):** measured after the fact, these studies had only 9–39% power
 against literature-plausible effects (IC 0.02, 1–2%/yr alpha). They are failures to reject, not proof
@@ -122,6 +123,18 @@ uv run ./main.py c1-eval --probe    # availability counts + match-rate fork; no 
 uv run ./main.py c1-eval            # the locked run (done once, 2026-11-08: all FAIL)
 ```
 
+### `dca-eval` — RSI(2) purchase timing for a monthly contribution
+Monthly fixed-USD SPY buy: rule A (first close of the month with RSI(2) < 15, else the last
+day) vs B (first trading day) and C (last trading day). Gate: the 90% block-bootstrap CI of
+the annualised gain is above 0 against both B and C. Locked settings in
+`src/research/dca_command.py` (spec: `docs/superpowers/specs/2026-11-25-dca-rsi2-timing-design.md`).
+The SPY store is separate (`data/historical/dca/`), so the ts store is not changed.
+
+```bash
+uv run python tools/download_dca_spy.py   # network: SPY from 1993 + fetch time (--force to replace)
+uv run ./main.py dca-eval                 # the locked run; JSON to data/research/
+```
+
 ### `exit-eval` — exit rules after large single-stock drops
 Pre-registered test of no stop vs a -10% hard stop vs a cause rule (8-K Item 2.02 timing) after
 residual shocks, with an event study and an equal-weight portfolio comparison. All settings are
@@ -210,7 +223,7 @@ feasibility ([PIT fundamentals](docs/research/2026-06-05-pit-fundamentals-feasib
 [SEC PIT spike](docs/research/2026-06-08-sec-edgar-pit-spike.md)),
 calibration ([cost sensitivity](docs/research/2026-06-07-cost-sensitivity.md),
 [net-issuance splits](docs/research/2026-06-09-net-issuance-splits-spike.md)),
-and the six verdicts in the table above. Diversification diagnostic (`uv run ./main.py div-eval`): NO-GO, see [diag-1 results](docs/research/2026-10-24-effective-bets-diagnostic-results.md). Design history lives in
+and the seven verdicts in the table above. Diversification diagnostic (`uv run ./main.py div-eval`): NO-GO, see [diag-1 results](docs/research/2026-10-24-effective-bets-diagnostic-results.md). Design history lives in
 [docs/superpowers/specs/](docs/superpowers/specs/) and [plans](docs/superpowers/plans/).
 Legacy feature guides ([regime/gods](docs/REGIME_AND_GODS_GUIDE.md),
 [130/30](docs/LONG_SHORT_130_30.md)) carry retraction banners and are kept as mechanism
@@ -235,7 +248,7 @@ Optional: `FRED_API_KEY` in `config/secrets.env` for live risk-free rates in the
 ## Project structure
 
 ```
-├── main.py                      # CLI: signal-eval | ts-eval | pead-eval | exit-eval | exit-eval-2b | optimize | backtest | verify | portfolio
+├── main.py                      # CLI: signal-eval | ts-eval | pead-eval | exit-eval | exit-eval-2b | dca-eval | optimize | backtest | verify | portfolio
 ├── src/
 │   ├── research/                # the three harnesses (panels, metrics, gates, CLIs)
 │   ├── pipeline/                # price store (identity-guarded), SEC PIT pipelines (FY + quarterly), universe

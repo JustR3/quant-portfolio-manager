@@ -161,3 +161,9 @@ One line per checkpoint. Newest at the bottom.
 - 2026-11-08 C1 task 2: c1_command.py runner, main.py c1-eval (--probe), README, control/lag/smoke tests; task-1 review fixes (stats once per ticker, pre-calendar 8-K filter, Q4/reaction-day tests)
 - 2026-11-08 C1 tasks 3-4: probe (97.0% match, fork PASS); locked run c1-eval-20261108_123431.json — all FAIL (best p 0.34); results doc, README/CLAUDE edge tables (six negatives), candidate-claims C1 CLOSED
 - 2026-11-08 C1 final review: 10 findings triaged (doc fixes, NO-GO stop guard, 3 new tests); FAIL verdict unchanged
+- 2026-11-25 DCA RSI(2) task 1: src/research/dca_eval.py (rsi, study_months, month_buys, buy_ledger, metrics with G identity, block bootstrap, gate) + 42 tests; Batch TDD; suite 664 passed
+- 2026-11-25 DCA RSI(2) task 2: tools/download_dca_spy.py (separate store + fetch time), src/research/dca_command.py, main.py dca-eval, README section, tests/test_dca_command.py (session cut, age check, offline smoke, CLI + README command)
+- 2026-11-25 DCA task 3: locked run FAIL (A vs B CI includes 0); results docs/research/2026-11-25-dca-rsi2-timing-results.md
+- 2026-11-25 DCA task 4: review triage (download guard, INCONCLUSIVE path, 4 tests, results doc notes, data incident note); Ask-user: edge tables
+- 2026-11-25 DCA follow-up: README and CLAUDE.md edge tables list the DCA FAIL as study #7 (seven negatives); user approved review finding 10
+- 2026-11-25 DCA follow-up: the old "five negatives" counts in the README intro and CLAUDE.md now say "seven" (user approved)
