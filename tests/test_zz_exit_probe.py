@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).parent.parent
-N = 200
+N = 160
 
 
 def _store(base: Path) -> None:
@@ -38,10 +38,33 @@ def test_exit_probe(tmp_path):
         "--export",
         str(tmp_path / "o"),
     ]
+    pq_file = str(tmp_path / "s" / "prices" / "SPY.parquet")
     variants = {
         "dca": (dca, {}),
-        "dca_arrow1": (dca, {"OMP_NUM_THREADS": "1"}),
-        "import_exit3": ([sys.executable, "-c", "import main, sys; sys.exit(3)"], {}),
+        "pandas_read_exit3": (
+            [
+                sys.executable,
+                "-c",
+                f"import pandas as pd, sys; pd.read_parquet({pq_file!r}); sys.exit(3)",
+            ],
+            {},
+        ),
+        "pyarrow_read_exit3": (
+            [
+                sys.executable,
+                "-c",
+                f"import pyarrow.parquet as pq, sys; pq.read_table({pq_file!r}); sys.exit(3)",
+            ],
+            {},
+        ),
+        "pandas_read_finalize_s3": (
+            [
+                sys.executable,
+                "-c",
+                f"import pandas as pd, sys, pyarrow.fs as f; pd.read_parquet({pq_file!r}); f.finalize_s3(); sys.exit(3)",
+            ],
+            {},
+        ),
     }
     report = {}
     for name, (cmd, extra) in variants.items():
@@ -51,7 +74,7 @@ def test_exit_probe(tmp_path):
             r = subprocess.run(
                 cmd, cwd=ROOT, env=env, capture_output=True, text=True, timeout=120
             )
-            return r.returncode, r.stderr[-3000:] if r.returncode < 0 else ""
+            return r.returncode, r.stderr[:2500] if r.returncode < 0 else ""
 
         with ThreadPoolExecutor(4) as ex:
             res = list(ex.map(one, range(N)))
