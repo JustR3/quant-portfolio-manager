@@ -168,3 +168,4 @@ One line per checkpoint. Newest at the bottom.
 - 2026-11-25 DCA follow-up: README and CLAUDE.md edge tables list the DCA FAIL as study #7 (seven negatives); user approved review finding 10
 - 2026-11-25 DCA follow-up: the old "five negatives" counts in the README intro and CLAUDE.md now say "seven" (user approved)
 - 2026-11-25 DCA follow-up: results doc records that the locked artifact and the dca store were deleted by the worktree cleanup after the PR 36 merge; no new run
+- 2026-11-26 cli-exit-abort: main.py ends through src/cli_exit.run_and_exit (atexit handlers, flush, os._exit), so a native abort at teardown on Linux no longer replaces the exit code; tests/test_cli_exit_status.py; CI probe evidence in DECISIONS
