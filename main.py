@@ -1256,4 +1256,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from src.cli_exit import run_and_exit
+
+    # The exit code survives a native abort at teardown (DECISIONS 2026-11-26).
+    run_and_exit(main)
