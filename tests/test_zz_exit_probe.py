@@ -40,34 +40,33 @@ def test_exit_probe(tmp_path):
     ]
     pq_file = str(tmp_path / "s" / "prices" / "SPY.parquet")
     variants = {
-        "dca": (dca, {}),
-        "pandas_read_exit3": (
+        "dca_fixed": (dca, {}, 300),
+        "control_pandas_read_exit3": (
             [
                 sys.executable,
                 "-c",
                 f"import pandas as pd, sys; pd.read_parquet({pq_file!r}); sys.exit(3)",
             ],
             {},
+            200,
         ),
-        "pyarrow_read_exit3": (
+        "pandas_read_run_and_exit": (
             [
                 sys.executable,
                 "-c",
-                f"import pyarrow.parquet as pq, sys; pq.read_table({pq_file!r}); sys.exit(3)",
+                "import pandas as pd, sys\n"
+                "from src.cli_exit import run_and_exit\n"
+                "def f():\n"
+                f"    pd.read_parquet({pq_file!r})\n"
+                "    sys.exit(3)\n"
+                "run_and_exit(f)\n",
             ],
             {},
-        ),
-        "pandas_read_finalize_s3": (
-            [
-                sys.executable,
-                "-c",
-                f"import pandas as pd, sys, pyarrow.fs as f; pd.read_parquet({pq_file!r}); f.finalize_s3(); sys.exit(3)",
-            ],
-            {},
+            200,
         ),
     }
     report = {}
-    for name, (cmd, extra) in variants.items():
+    for name, (cmd, extra, n) in variants.items():
         env = {**os.environ, "PYTHONFAULTHANDLER": "1", **extra}
 
         def one(_, cmd=cmd, env=env):
@@ -77,10 +76,10 @@ def test_exit_probe(tmp_path):
             return r.returncode, r.stderr[:2500] if r.returncode < 0 else ""
 
         with ThreadPoolExecutor(4) as ex:
-            res = list(ex.map(one, range(N)))
+            res = list(ex.map(one, range(n)))
         codes = collections.Counter(c for c, _ in res)
         errs = [e for c, e in res if c < 0][:2]
         report[name] = {"codes": dict(codes), "stderr": errs}
     msg = json.dumps(report, indent=1)
     print(msg)
-    assert all(-6 not in v["codes"] for v in report.values()), msg
+    raise AssertionError("PROBE REPORT (intentional failure)\n" + msg)
